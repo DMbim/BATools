@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<RevitAddIns>
+    <AddIn Type="Application">
+        <Name>BA</Name>
+        <Assembly>BA\BA.dll</Assembly>
+        <AddInId>4CA7EDCC-36F6-4106-A943-A4324C89F033</AddInId>
+		<FullClassName>BA.BAApplication.BaApplication</FullClassName>
+        <VendorId>Development</VendorId>
+        <VendorDescription></VendorDescription>
+        <VendorEmail></VendorEmail>
+    </AddIn>
+    <ManifestSettings>
+        <UseRevitContext>False</UseRevitContext>
+        <ContextName>BA</ContextName>
+    </ManifestSettings>
+</RevitAddIns>

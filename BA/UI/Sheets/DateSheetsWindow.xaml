@@ -1,0 +1,38 @@
+﻿<Window x:Class="BA.UI.Sheets.DateSheetsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sheet Updater"
+        Width="980" Height="560"
+        MinWidth="900" MinHeight="520"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <DockPanel Margin="10">
+
+        <!-- Buttons -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Content="OK" Width="100" Margin="0,0,8,0" IsDefault="True" Click="Apply_Click"/>
+            <Button Content="Cancel" Width="100" IsCancel="True"/>
+        </StackPanel>
+
+        <DataGrid x:Name="SheetsGrid"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  IsReadOnly="False"
+                  HeadersVisibility="Column"
+                  GridLinesVisibility="All"
+                  SelectionMode="Extended"
+                  ColumnWidth="*"
+                  RowHeaderWidth="0">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Number" Binding="{Binding SheetNumber}" IsReadOnly="True" Width="120"/>
+                <DataGridTextColumn Header="Name" Binding="{Binding SheetName}" IsReadOnly="True" Width="3*"/>
+                <DataGridTextColumn Header="Issue Date (current)" Binding="{Binding IssueDate}" IsReadOnly="True" Width="180"/>
+                <DataGridTextColumn Header="Revision (current)" Binding="{Binding CurrentRevision}" IsReadOnly="True" Width="150"/>
+
+                <DataGridCheckBoxColumn Header="Update Date" Binding="{Binding UpdateDate}" Width="110"/>
+                <DataGridCheckBoxColumn Header="Update Revision" Binding="{Binding UpdateRevision}" Width="130"/>
+                <DataGridCheckBoxColumn Header="Update Both" Binding="{Binding UpdateBoth}" Width="110"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</Window>

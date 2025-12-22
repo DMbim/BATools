@@ -1,0 +1,49 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36623.8 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BA", "BA\BA.csproj", "{31377128-99A1-44C6-A6ED-0F5BF8F24338}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug R21|Any CPU = Debug R21|Any CPU
+		Debug R22|Any CPU = Debug R22|Any CPU
+		Debug R23|Any CPU = Debug R23|Any CPU
+		Debug R24|Any CPU = Debug R24|Any CPU
+		Debug R25|Any CPU = Debug R25|Any CPU
+		Debug R26|Any CPU = Debug R26|Any CPU
+		Release R21|Any CPU = Release R21|Any CPU
+		Release R22|Any CPU = Release R22|Any CPU
+		Release R23|Any CPU = Release R23|Any CPU
+		Release R24|Any CPU = Release R24|Any CPU
+		Release R25|Any CPU = Release R25|Any CPU
+		Release R26|Any CPU = Release R26|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Debug R21|Any CPU.ActiveCfg = Debug R26|x64
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Debug R22|Any CPU.ActiveCfg = Release R24|Any CPU
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Debug R23|Any CPU.ActiveCfg = Release R24|Any CPU
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Debug R24|Any CPU.ActiveCfg = Debug R24|Any CPU
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Debug R24|Any CPU.Build.0 = Debug R24|Any CPU
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Debug R25|Any CPU.ActiveCfg = Debug R25|Any CPU
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Debug R25|Any CPU.Build.0 = Debug R25|Any CPU
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Debug R26|Any CPU.ActiveCfg = Debug R26|Any CPU
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Debug R26|Any CPU.Build.0 = Debug R26|Any CPU
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Release R21|Any CPU.ActiveCfg = Debug R24|Any CPU
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Release R22|Any CPU.ActiveCfg = Debug R24|Any CPU
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Release R23|Any CPU.ActiveCfg = Debug R24|Any CPU
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Release R24|Any CPU.ActiveCfg = Release R24|Any CPU
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Release R24|Any CPU.Build.0 = Release R24|Any CPU
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Release R25|Any CPU.ActiveCfg = Release R25|Any CPU
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Release R25|Any CPU.Build.0 = Release R25|Any CPU
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Release R26|Any CPU.ActiveCfg = Release R26|Any CPU
+		{31377128-99A1-44C6-A6ED-0F5BF8F24338}.Release R26|Any CPU.Build.0 = Release R26|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4F184EA7-A583-4B0C-9B61-C21A5E787315}
+	EndGlobalSection
+EndGlobal
