@@ -1,0 +1,382 @@
+﻿<Window x:Class="BA.UI.Views.BAViewFilterColorManager"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="BA | View Filter Color Manager"
+        Height="650" Width="920"
+        MinHeight="540" MinWidth="860"
+        Background="#0F0F10"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="Segoe UI"
+        SnapsToDevicePixels="True">
+
+    <Window.Resources>
+
+        <!-- Tokens -->
+        <SolidColorBrush x:Key="Bg" Color="#0F0F10"/>
+        <SolidColorBrush x:Key="Card" Color="#141416"/>
+        <SolidColorBrush x:Key="Card2" Color="#101012"/>
+        <SolidColorBrush x:Key="Text" Color="#F2F2F2"/>
+        <SolidColorBrush x:Key="Muted" Color="#B7B7BC"/>
+        <SolidColorBrush x:Key="Border" Color="#2A2A2E"/>
+        <SolidColorBrush x:Key="White" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="Black" Color="#0F0F10"/>
+
+        <!-- Buttons -->
+        <Style x:Key="BtnBase" TargetType="Button">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="MinWidth" Value="96"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="10">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.45"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="BtnPrimary" TargetType="Button" BasedOn="{StaticResource BtnBase}">
+            <Setter Property="Background" Value="{StaticResource White}"/>
+            <Setter Property="Foreground" Value="{StaticResource Black}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource White}"/>
+        </Style>
+
+        <Style x:Key="BtnSecondary" TargetType="Button" BasedOn="{StaticResource BtnBase}">
+            <Setter Property="Background" Value="{StaticResource Card}"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+        </Style>
+
+        <!-- ComboBox -->
+        <Style TargetType="ComboBox">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="10,2"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="{StaticResource Card2}"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+        </Style>
+
+        <!-- Tabs -->
+        <Style TargetType="TabItem">
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="10,10,0,0" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Card}"/>
+                                <Setter Property="Foreground" Value="{StaticResource Text}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource Text}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- DataGrid -->
+        <Style TargetType="DataGrid">
+            <Setter Property="RowHeight" Value="34"/>
+            <Setter Property="ColumnHeaderHeight" Value="34"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="{StaticResource Card2}"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="RowBackground" Value="{StaticResource Card2}"/>
+            <Setter Property="AlternatingRowBackground" Value="{StaticResource Card}"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="CanUserResizeRows" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+        </Style>
+
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="{StaticResource Card}"/>
+            <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="10,0"/>
+        </Style>
+
+        <Style TargetType="DataGridCell">
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+        </Style>
+
+    </Window.Resources>
+
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Grid Grid.Row="0" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="BA" FontWeight="Bold" FontSize="26" Foreground="{StaticResource Text}" Margin="0,0,10,0"/>
+                <TextBlock Text="View Filter Color Manager" FontSize="18" Foreground="{StaticResource Muted}" VerticalAlignment="Bottom"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="Help" Style="{StaticResource BtnSecondary}" Command="{Binding HelpCommand}" Margin="0,0,10,0"/>
+                <Button Content="Close" Style="{StaticResource BtnSecondary}" Command="{Binding CloseCommand}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Body -->
+        <Border Grid.Row="1" Background="{StaticResource Card}" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="12">
+            <Grid Margin="12">
+                <TabControl>
+
+                    <!-- View Template -->
+                    <TabItem Header="View Template">
+                        <Grid Margin="6">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Select View Template" Foreground="{StaticResource Text}" FontWeight="SemiBold"/>
+
+                            <ComboBox Grid.Row="1" Grid.Column="0" Margin="0,6,10,0"
+                                      ItemsSource="{Binding ViewTemplates}"
+                                      SelectedItem="{Binding SelectedViewTemplate}"
+                                      DisplayMemberPath="Name"/>
+
+                            <Button Grid.Row="1" Grid.Column="1" Margin="0,6,0,0"
+                                    Content="Load Filters"
+                                    Style="{StaticResource BtnPrimary}"
+                                    Command="{Binding LoadFiltersCommand}"/>
+                            <Button Content="Reload templates"
+                                    Style="{StaticResource BtnPrimary}"
+                                    Command="{Binding LoadTemplatesCommand}"
+                                    Margin="0,0,10,0"/>
+
+                            <Border Grid.Row="2" Grid.ColumnSpan="2" Margin="0,12,0,0"
+                                    Background="{StaticResource Card2}"
+                                    BorderBrush="{StaticResource Border}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="12">
+                                <TextBlock Foreground="{StaticResource Muted}" TextWrapping="Wrap">
+                                    Loads filters applied to the template and reads current Cut/Projection line color overrides.
+                                </TextBlock>
+                            </Border>
+                        </Grid>
+                    </TabItem>
+
+                    <!-- Filters -->
+                    <TabItem Header="Filters">
+                        <Grid Margin="6">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <DataGrid Grid.Row="0"
+                                      ItemsSource="{Binding Filters}"
+                                      SelectedItem="{Binding SelectedFilter}"
+                                      AutoGenerateColumns="False">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Filter Name" Binding="{Binding FilterName}" Width="*" />
+                                    <DataGridTextColumn Header="Category" Binding="{Binding CategorySummary}" Width="260" />
+                                    <DataGridTextColumn Header="Visible" Binding="{Binding VisibleText}" Width="110" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
+                                <Button Content="Preview Selected Filter"
+                                        Style="{StaticResource BtnPrimary}"
+                                        Command="{Binding PreviewFilterCommand}"/>
+                                <Button Content="Reload Templates"
+                                        Style="{StaticResource BtnSecondary}"
+                                        Command="{Binding LoadTemplatesCommand}"
+                                        Margin="10,0,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </TabItem>
+
+                    <!-- Palette -->
+                    <TabItem Header="Palette">
+                        <Grid Margin="6">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Border Grid.Row="0"
+                                    BorderBrush="{StaticResource Border}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="10"
+                                    Background="{StaticResource Card2}">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Top" Text="Palette Swatches (click to edit)"
+                                               Foreground="{StaticResource Text}" FontWeight="SemiBold"
+                                               Margin="0,0,0,10"/>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                        <ItemsControl ItemsSource="{Binding Palette}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Width="46" Height="46" Margin="6"
+                                                            BorderBrush="{StaticResource Border}"
+                                                            BorderThickness="1"
+                                                            Background="Transparent"
+                                                            Style="{StaticResource BtnBase}"
+                                                            Command="{Binding DataContext.EditPaletteColorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}">
+                                                        <Border CornerRadius="6" Background="{Binding Brush}"/>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </DockPanel>
+                            </Border>
+
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,12,0,0">
+                                <Button Content="Auto-Assign to Filters" Style="{StaticResource BtnPrimary}" Command="{Binding AutoAssignCommand}" MinWidth="180"/>
+                                <Button Content="Import Palette JSON" Style="{StaticResource BtnSecondary}" Command="{Binding ImportPaletteCommand}" Margin="10,0,0,0"/>
+                                <Button Content="Export Palette JSON" Style="{StaticResource BtnSecondary}" Command="{Binding ExportPaletteCommand}" Margin="10,0,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </TabItem>
+
+                    <!-- Assign Colors -->
+                    <TabItem Header="Assign Colors">
+                        <Grid Margin="6">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <DataGrid Grid.Row="0"
+                                      ItemsSource="{Binding AssignRows}"
+                                      SelectedItem="{Binding SelectedAssignRow}"
+                                      AutoGenerateColumns="False">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Filter Name" Binding="{Binding FilterName}" Width="260" />
+
+                                    <DataGridTemplateColumn Header="Cut Lines" Width="*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Button Background="Transparent" BorderThickness="0" Padding="0"
+                                                        Command="{Binding DataContext.PickCutColorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}">
+                                                    <Border CornerRadius="6" BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                                            Padding="6" Background="{Binding CutBrush}">
+                                                        <TextBlock Text=" " />
+                                                    </Border>
+                                                </Button>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <DataGridTemplateColumn Header="Projection Lines" Width="*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Button Background="Transparent" BorderThickness="0" Padding="0"
+                                                        Command="{Binding DataContext.PickProjColorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}">
+                                                    <Border CornerRadius="6" BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                                            Padding="6" Background="{Binding ProjectionBrush}">
+                                                        <TextBlock Text=" " />
+                                                    </Border>
+                                                </Button>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
+                                <Button Content="Apply to Template" Style="{StaticResource BtnPrimary}" Command="{Binding ApplyToTemplateCommand}" MinWidth="160"/>
+                            </StackPanel>
+                        </Grid>
+                    </TabItem>
+
+                </TabControl>
+            </Grid>
+        </Border>
+
+        <!-- Footer -->
+        <Grid Grid.Row="2" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Foreground="{StaticResource Muted}"
+                       Text="Tip: View Template → Load Filters → Palette → Assign Colors → Apply."
+                       VerticalAlignment="Center"/>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button Content="Apply" Style="{StaticResource BtnPrimary}" Command="{Binding ApplyToTemplateCommand}" Margin="0,0,10,0" MinWidth="110"/>
+                <Button Content="Close" Style="{StaticResource BtnSecondary}" Command="{Binding CloseCommand}" MinWidth="110"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Status -->
+        <Border Grid.Row="3" Margin="0,10,0,0"
+                BorderBrush="{StaticResource Border}"
+                BorderThickness="0,1,0,0"
+                Padding="2,10,2,0">
+            <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource Muted}" FontSize="12"/>
+        </Border>
+
+    </Grid>
+</Window>

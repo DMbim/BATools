@@ -3,8 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="BA – Parameter Manager"
         Width="1100" Height="650"
-        MinWidth="900" MinHeight="520"
-        WindowStartupLocation="CenterOwner">
+        Background="#0F0F10"
+        Foreground="#F2F2F2"
+        FontFamily="Segoe UI">
+
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>

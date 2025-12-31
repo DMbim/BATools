@@ -2,38 +2,155 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="BA – Project Tools"
-        Width="420" Height="260"
+        Width="520" Height="700"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize">
-    <Grid Margin="14">
+        ResizeMode="NoResize"
+        Background="#0F0F10"
+        Foreground="#F2F2F2"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+
+        <!-- Typography -->
+        <Style TargetType="{x:Type TextBlock}">
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+            <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
+        </Style>
+
+        <!-- BA Primary Button -->
+        <Style x:Key="BaPrimaryButton" TargetType="Button">
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#0F0F10"/>
+            <Setter Property="BorderBrush" Value="#FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="10"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- BA Secondary Button -->
+        <Style x:Key="BaSecondaryButton" TargetType="Button" BasedOn="{StaticResource BaPrimaryButton}">
+            <Setter Property="Background" Value="#1A1A1C"/>
+            <Setter Property="Foreground" Value="#F2F2F2"/>
+            <Setter Property="BorderBrush" Value="#2A2A2E"/>
+            <Setter Property="Margin" Value="0"/>
+        </Style>
+
+        <!-- Card -->
+        <Style x:Key="BaCard" TargetType="Border">
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="BorderBrush" Value="#2A2A2E"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="#141416"/>
+            <Setter Property="Padding" Value="12"/>
+        </Style>
+
+    </Window.Resources>
+
+    <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0"
-                   Text="Project Utilities"
-                   FontSize="18"
-                   FontWeight="SemiBold"
-                   Margin="0,0,0,12"/>
+        <!-- Header -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock Text="BA"
+                       FontSize="28"
+                       FontWeight="Bold"
+                       Foreground="#FFFFFF"
+                       Margin="0,0,10,0"/>
+            <TextBlock Text="Project Tools"
+                       FontSize="18"
+                       Foreground="#B7B7BC"
+                       VerticalAlignment="Bottom"/>
+        </DockPanel>
 
-        <StackPanel Grid.Row="1" VerticalAlignment="Top">
-            <Button Height="44" Margin="0,0,0,10"
-                    Content="Parameter Manager"
-                    Click="BtnParameterManager_Click"/>
+        <!-- Main -->
+        <Border Grid.Row="1" Style="{StaticResource BaCard}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-            <Button Height="44" Margin="0,0,0,10"
-                    Content="Template Tools (placeholder)"
-                    Click="BtnTemplateTools_Click"/>
+                <TextBlock Grid.Row="0"
+                           Text="Project Utilities"
+                           FontSize="16"
+                           FontWeight="SemiBold"
+                           Foreground="#F2F2F2"
+                           Margin="0,0,0,10"/>
 
-            <Button Height="44"
-                    Content="Family Tools (placeholder)"
-                    Click="BtnFamilyTools_Click"/>
-        </StackPanel>
+                <Button Grid.Row="1"
+                        Style="{StaticResource BaPrimaryButton}"
+                        Content="Parameter Manager"
+                        Click="BtnParameterManager_Click"/>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-            <Button Width="90" IsCancel="True" Content="Close"/>
+                <Button Grid.Row="2"
+                        Style="{StaticResource BaPrimaryButton}"
+                        Content="Template Checker"
+                        Click="BtnTemplateChecker_Click"/>
+                
+                <Button Grid.Row="3"
+                        Style="{StaticResource BaPrimaryButton}"
+                        Content="ColourScheme2.0"
+                        VerticalAlignment="Top"
+                        Click="BtnColour_Click"/>
+
+                <Button Grid.Row="4"
+                        Style="{StaticResource BaPrimaryButton}"
+                        Content="Family Tools (placeholder)"
+                        VerticalAlignment="Top"
+                        Click="BtnFamilyTools_Click"/>
+                <Button Grid.Row="5"
+                        Style="{StaticResource BaPrimaryButton}"
+                        Content="Clean up and Maintenance (placeholder)"
+                        VerticalAlignment="Top"
+                        Margin="0,60,0,0"
+                        Click="BtnCleanUpAndMaintenance_Click"/>
+            </Grid>
+        </Border>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Style="{StaticResource BaSecondaryButton}"
+                    Width="90"
+                    IsCancel="True"
+                    Content="Close"/>
         </StackPanel>
     </Grid>
 </Window>

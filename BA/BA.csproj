@@ -1,15 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
+		<TargetFramework>net8.0-windows</TargetFramework>
         <UseWPF>true</UseWPF>
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
         <PlatformTarget>x64</PlatformTarget>
-        <ImplicitUsings>true</ImplicitUsings>
+		<ImplicitUsings>enable</ImplicitUsings>
         <EnableDynamicLoading>true</EnableDynamicLoading>
         <Configurations>  Debug R24;Debug R25;Debug R26</Configurations>
         <Configurations>$(Configurations);Release R24;Release R25;Release R26</Configurations>
         <Platforms>AnyCPU;x64</Platforms>
+		<RootNamespace>BA.UI</RootNamespace>
     </PropertyGroup>
 
     <!-- Revit configuration -->
@@ -53,6 +55,7 @@
       <None Remove="Resources\Icons16\ElementToRoom16.png" />
       <None Remove="Resources\Icons16\General_Test16.png" />
       <None Remove="Resources\Icons16\OverheadCommand_OverheadCommand166.png" />
+      <None Remove="Resources\Icons16\use16.png" />
       <None Remove="Resources\Icons16\ZoomtoRoom16.png" />
       <None Remove="Resources\Icons32\AxisToRoom32.png" />
       <None Remove="Resources\Icons32\ChangeMonitor32.png" />
@@ -64,6 +67,7 @@
       <None Remove="Resources\Icons32\DimOverride32.png" />
       <None Remove="Resources\Icons32\ElementToRoom32.png" />
       <None Remove="Resources\Icons32\General_Test32.png" />
+      <None Remove="Resources\Icons32\use32.png" />
       <None Remove="Resources\Icons32\ZoomtoRoom32.png" />
     </ItemGroup>
 
@@ -136,6 +140,7 @@
         <Resource Include="Resources\Icons16\SheetDateAndRevision16.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
+        <Resource Include="Resources\Icons16\use16.png" />
         <Resource Include="Resources\Icons16\ZoomtoRoom16.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
@@ -199,6 +204,7 @@
         <Resource Include="Resources\Icons32\SheetDateAndRevision32.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
+        <Resource Include="Resources\Icons32\use32.png" />
         <Resource Include="Resources\Icons32\ZoomtoRoom32.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
@@ -208,6 +214,8 @@
 
     <ItemGroup>
         <Folder Include="Models" />
+        <Folder Include="NewFolder\" />
+        <Folder Include="ViewModels\" />
     </ItemGroup>
 
     <ItemGroup>

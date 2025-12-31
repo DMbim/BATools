@@ -8,13 +8,12 @@ using BA.Commands.Anno;
 using BA.Commands.Management;
 using BA.Commands.Rooms;
 using BA.Core.Overhead;
-using bimBA.Cmds.Views;
 using BA.Ribbon;
-using bimBA.Cmds.Views;
 using Microsoft.VisualBasic;
 using Nice3point.Revit.Extensions;
 using Nice3point.Revit.Toolkit.External;
 using System;
+using BA.App.Guards;
 using System.Buffers.Text;
 
 namespace BA.BAApplication
@@ -32,6 +31,7 @@ namespace BA.BAApplication
             {
                 // 1) Register updaters (if you need them)
                 OverheadProxyUpdater.Register(Application);
+                ImportCadWarningGuard.Register(Application);    
 
                 // 2) Create panels
                 RibbonPanel panelAnnotation = Application.CreatePanel("Annotation", tabName);
@@ -72,28 +72,28 @@ namespace BA.BAApplication
                 var cmE2RLocal32 = "/BA;component/Resources/Icons32/ElementToRoom_Local32.png";
                 var E2RPath = "/BA;component/Resources/Icons16/ElementToRoom16.png";
                 var E2RPath32 = "/BA;component/Resources/Icons32/ElementToRoom32.png";
+                var use16 = "/BA;component/Resources/Icons16/ause16.png";
+                var use32 = "/BA;component/Resources/Icons32/ause32.png";
 
-                var pdPTH = panelManagement.AddPushButton<Cmd_ApplyColorPalette>(
-                    "Cmd_ApplyColorPalette",
-                    "Apply Color\nPalette",
-                    "Apply a color palette to selected elements.",
-                    "/BA;component/Resources/Icons16/ColorPalette16.png",
-                    "/BA;component/Resources/Icons32/ColorPalette32.png");
 
-                #region ElementToRoom
-                var pdE2R = panelRooms.AddPulldownButton<Cmd_ProjectToolsHub>(
+
+
+
+                var pdPTH = panelRooms.AddPushButton<Cmd_ProjectToolsHub>(
                     "ManagementTools",
+                    "Management Tools",
                     "Collection of Management tools",
-                    E2RPath,
-                    E2RPath32);
+                    use16,
+                    use32);
 
                 // ---------------------------
                 // Elements To Room
                 // ---------------------------
                 #region ElementToRoom
                 var pdE2R = panelRooms.AddPulldownButton<Cmd_ElementToRoom_Link>(
-                    "ManagementTools",
-                    "Collection of Management tools",
+                    "ElementsToRoom",
+                    "RoomNbr -> ELements",
+                    "Writes RoomNumber into elements located in that room",
                     E2RPath,
                     E2RPath32);
 
@@ -111,7 +111,7 @@ namespace BA.BAApplication
                     "Writes information into the elements based on their location(room)",
                     cmE2RLocal16,
                     cmE2RLocal32);
-#endregion
+                #endregion
                 // ---------------------------
                 // Dimension Edit Pulldown
                 // ---------------------------
@@ -245,8 +245,8 @@ namespace BA.BAApplication
                     "Overhead\nAuto Dash",
                     "Automatically generate overhead dash patterns in annotations.",
                     cmOHD16,
-                    cmOHD32);            
-                    }
+                    cmOHD32);
+            }
             catch (Exception ex)
             {
                 // Don’t crash Revit on startup
@@ -261,6 +261,7 @@ namespace BA.BAApplication
             try
             {
                 OverheadProxyUpdater.Unregister(Application);
+                ImportCadWarningGuard.Unregister(Application);
             }
             catch { }
         }

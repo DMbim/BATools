@@ -1,18 +1,19 @@
-﻿using System;
+﻿using Autodesk.Revit.UI;
+using System;
 using System.Windows;
 using System.Windows.Interop;
-using Autodesk.Revit.UI;
 
 namespace BA.UI.Helpers
 {
     public static class RevitWindowHelper
     {
-        public static void SetOwner(Window window, UIApplication uiapp)
+        public static void SetOwnerToRevit(Window window, UIApplication uiapp)
         {
-            if (window == null || uiapp == null) return;
-            var h = uiapp.MainWindowHandle;
-            if (h == IntPtr.Zero) return;
-            new WindowInteropHelper(window).Owner = h;
+            if (window == null) throw new ArgumentNullException(nameof(window));
+            if (uiapp == null) throw new ArgumentNullException(nameof(uiapp));
+
+            var helper = new WindowInteropHelper(window);
+            helper.Owner = uiapp.MainWindowHandle;
         }
     }
 }

@@ -5,6 +5,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using BA.Core.Sheets;
 using BA.Settings;
+using BA.UI.Helpers;
 using BA.UI.ViewModels;
 
 namespace BA.UI.Sheets

@@ -36,7 +36,7 @@ namespace BA.Commands.Management
                 if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
                 {
                     var setup = new DateSetupWindow(commandData, settings);
-                    RevitWindowHelper.SetOwner(setup, uiapp);
+                    RevitWindowHelper.SetOwnerToRevit(setup, uiapp);
 
                     if (setup.ShowDialog() == true)
                     {
@@ -59,7 +59,7 @@ namespace BA.Commands.Management
 
                 // UI: choose sheets + what to update
                 var dlg = new DateSheetsWindow(commandData, settings);
-                RevitWindowHelper.SetOwner(dlg, uiapp);
+                RevitWindowHelper.SetOwnerToRevit(dlg, uiapp);
 
                 if (dlg.ShowDialog() != true)
                     return Result.Cancelled;
