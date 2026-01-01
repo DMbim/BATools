@@ -31,7 +31,8 @@ namespace BA.BAApplication
             {
                 // 1) Register updaters (if you need them)
                 OverheadProxyUpdater.Register(Application);
-                ImportCadWarningGuard.Register(Application);    
+                ImportCadWarningGuard.Register(Application);
+                FamilyImportWarningGuardV2.Register(Application);
 
                 // 2) Create panels
                 RibbonPanel panelAnnotation = Application.CreatePanel("Annotation", tabName);
@@ -262,6 +263,7 @@ namespace BA.BAApplication
             {
                 OverheadProxyUpdater.Unregister(Application);
                 ImportCadWarningGuard.Unregister(Application);
+                FamilyImportWarningGuardV2.Unregister(Application);
             }
             catch { }
         }
