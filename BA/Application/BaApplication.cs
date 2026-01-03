@@ -30,6 +30,8 @@ namespace BA.BAApplication
             try
             {
                 // 1) Register updaters (if you need them)
+
+                BA.Updates.UpdateService.Register(Application);
                 OverheadProxyUpdater.Register(Application);
                 ImportCadWarningGuard.Register(Application);
                 FamilyImportWarningGuardV2.Register(Application);

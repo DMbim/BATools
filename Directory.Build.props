@@ -1,0 +1,17 @@
+﻿<Project>
+	<PropertyGroup>
+		<!-- One place to bump versions -->
+		<VersionPrefix>1.0.0</VersionPrefix>
+		<Version>$(VersionPrefix)</Version>
+		<AssemblyVersion>$(VersionPrefix).0</AssemblyVersion>
+		<FileVersion>$(VersionPrefix).0</FileVersion>
+
+		<!-- Revit ecosystem: x64 only -->
+		<Platforms>x64</Platforms>
+		<PlatformTarget>x64</PlatformTarget>
+
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<LangVersion>latest</LangVersion>
+	</PropertyGroup>
+</Project>
