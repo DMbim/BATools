@@ -86,7 +86,7 @@ namespace BA.Commands.Rooms
 
                 foreach (var r in linkedRooms)
                 {
-                    var inst = DetailPlacer.PlaceInLinkedRoomCenter(doc, doc.ActiveView, symbol, r, link);
+                    var inst = DetailPlacer.PlaceInLocalRoomCenterSized(doc, doc.ActiveView, symbol, r, xParamName: "x", yParamName: "y");
                     if (inst != null) placed++;
                 }
 

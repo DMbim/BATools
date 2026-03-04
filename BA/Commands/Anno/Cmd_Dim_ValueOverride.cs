@@ -27,7 +27,7 @@ namespace BA.Commands
                 // 1) Pick dimensions
                 var refs = uiDoc.Selection.PickObjects(
                     ObjectType.Element,
-                    new DimensionSelectionFilter(),
+                    new BA.Filters.DimensionSelectionFilter(),
                     "Select dimensions to override");
 
                 if (refs == null || !refs.Any())

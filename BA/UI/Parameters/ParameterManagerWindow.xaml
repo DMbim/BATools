@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="BA – Parameter Manager"
         Width="1100" Height="650"
+        WindowStartupLocation="CenterOwner"
         Background="#0F0F10"
         Foreground="#F2F2F2"
         FontFamily="Segoe UI">
@@ -14,7 +15,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Top bar -->
+        <!-- Top -->
         <Grid Grid.Row="0" Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
@@ -22,17 +23,17 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <TextBlock Grid.Column="0" VerticalAlignment="Center"
-                       Text="Search:" Margin="0,0,8,0"/>
-            <TextBox Grid.Column="1" x:Name="TxtSearch" Height="26" VerticalAlignment="Center"
-                     TextChanged="TxtSearch_TextChanged"/>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Search:" Margin="0,0,8,0"/>
+            <TextBox Grid.Column="1" x:Name="TxtSearch" Height="26"
+                     TextChanged="TxtSearch_TextChanged"
+                     Background="#1B1B1C" Foreground="#F2F2F2" BorderBrush="#3A3A3D" Padding="6,3"/>
 
             <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Margin="10,0,0,0" Width="90" Content="Refresh" Click="BtnRefresh_Click"/>
             </StackPanel>
         </Grid>
 
-        <!-- Data grid -->
+        <!-- Grid -->
         <DataGrid Grid.Row="1"
                   x:Name="GridParams"
                   AutoGenerateColumns="False"
@@ -40,7 +41,10 @@
                   CanUserDeleteRows="False"
                   IsReadOnly="True"
                   SelectionMode="Extended"
-                  SelectionUnit="FullRow">
+                  SelectionUnit="FullRow"
+                  Background="#F2F2F2"
+                  Foreground="#1B1B1C"
+                  BorderBrush="#3A3A3D" SelectionChanged="GridParams_SelectionChanged">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="2*"/>
                 <DataGridTextColumn Header="Shared" Binding="{Binding IsShared}" Width="80"/>
@@ -52,7 +56,7 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <!-- Bottom bar -->
+        <!-- Bottom -->
         <Grid Grid.Row="2" Margin="0,10,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -61,12 +65,15 @@
 
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                 <TextBlock VerticalAlignment="Center" Text="Shared Params file:" Margin="0,0,8,0"/>
-                <TextBox x:Name="TxtSpPath" Height="26" Width="520" IsReadOnly="True"/>
+                <TextBox x:Name="TxtSpPath" Height="26" Width="520" IsReadOnly="True"
+                         Background="#1B1B1C" Foreground="#121214" BorderBrush="#3A3A3D" Padding="6,3"/>
                 <Button Margin="8,0,0,0" Width="90" Content="Browse..." Click="BtnBrowseSp_Click"/>
+
+                <TextBlock x:Name="TxtSelectionSummary" Margin="16,0,0,0" VerticalAlignment="Center" Foreground="#B7B7BC"/>
             </StackPanel>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Width="150" Margin="0,0,8,0" Content="Create / Bind Shared" Click="BtnCreateShared_Click"/>
+                <Button Width="170" Margin="0,0,8,0" Content="Create / Bind Shared" Click="BtnAddShared_Click"/>
                 <Button Width="120" Margin="0,0,8,0" Content="Edit Binding" Click="BtnEdit_Click"/>
                 <Button Width="110" Margin="0,0,8,0" Content="Remove Binding" Click="BtnRemove_Click"/>
                 <Button Width="90" IsCancel="True" Content="Close"/>

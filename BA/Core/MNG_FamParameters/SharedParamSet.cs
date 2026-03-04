@@ -8,7 +8,7 @@ namespace BA.UI
 {
     public class SharedParamSet
     {
-        public string Name { get; set; }
+        public string  Name { get; set; }
         public List<SharedParamItem> Items { get; set; } = new();
     }
 

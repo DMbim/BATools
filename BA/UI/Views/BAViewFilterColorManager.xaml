@@ -47,7 +47,7 @@
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
                             </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
+                            <Trigger Property="IsEnabled" Value="True">
                                 <Setter TargetName="Bd" Property="Opacity" Value="0.45"/>
                                 <Setter Property="Cursor" Value="Arrow"/>
                             </Trigger>

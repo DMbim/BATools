@@ -4,6 +4,9 @@
         Title="Revision details"
         Height="180"
         Width="420"
+            Background="#0B0B0D"
+            Foreground="#F2F2F2"
+            FontFamily="Segoe UI"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize">
     <Grid Margin="10">

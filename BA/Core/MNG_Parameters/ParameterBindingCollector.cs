@@ -7,47 +7,64 @@ namespace BA.Core.Parameters
 {
     public static class ParameterBindingCollector
     {
-        public static List<ParameterRow> Collect(Document doc)
+        public static IList<ParameterRow> Collect(Document doc)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
 
-            var rows = new List<ParameterRow>();
+            var list = new List<ParameterRow>();
             var map = doc.ParameterBindings;
-            if (map == null) return rows;
-
             var it = map.ForwardIterator();
             it.Reset();
 
             while (it.MoveNext())
             {
-                var def = it.Key as Definition;
-                var binding = it.Current as ElementBinding;
-                if (def == null || binding == null) continue;
+                var def = it.Key;
+                if (def == null) continue;
 
-                bool isInstance = binding is InstanceBinding;
-                var cats = binding.Categories?.Cast<Category>().Where(c => c != null).ToList() ?? new List<Category>();
+                if (it.Current is not ElementBinding binding) continue;
 
-                var specId = def.GetDataType();
-                var groupId = def.GetGroupTypeId();
+                var catNames = new List<string>();
+                var catIds = new List<long>();
 
-                var guid = (def as ExternalDefinition)?.GUID ?? Guid.Empty;
+                foreach (Category c in binding.Categories)
+                {
+                    if (c == null) continue;
+                    catNames.Add(c.Name);
+                    catIds.Add(c.Id.Value); // Revit 2026
+                }
 
-                rows.Add(new ParameterRow
+                catNames.Sort(StringComparer.OrdinalIgnoreCase);
+                catIds.Sort();
+
+                var isShared = def is ExternalDefinition;
+                var guid = isShared ? ((ExternalDefinition)def).GUID.ToString() : "";
+
+                var instanceOrType = binding is InstanceBinding ? "Instance" : "Type";
+
+                string specLabel = "";
+                try { specLabel = LabelUtils.GetLabelForSpec(def.GetDataType()); } catch { }
+
+                ForgeTypeId groupId = GroupCatalog.DefaultGroupId;
+                try { groupId = def.GetGroupTypeId(); } catch { }
+
+                string groupLabel = "";
+                try { groupLabel = LabelUtils.GetLabelForGroup(groupId); } catch { }
+
+                list.Add(new ParameterRow
                 {
                     Name = def.Name,
-                    IsShared = guid != Guid.Empty,
-                    Guid = guid == Guid.Empty ? "" : guid.ToString(),
-                    InstanceOrType = isInstance ? "Instance" : "Type",
-                    SpecLabel = RevitApiCompat.SafeSpecLabel(specId),
-                    GroupLabel = RevitApiCompat.SafeGroupLabel(groupId),
-                    CategoriesCsv = string.Join(", ", cats.Select(c => c.Name).OrderBy(n => n)),
-                    Definition = def,
+                    IsShared = isShared,
+                    Guid = guid,
+                    InstanceOrType = instanceOrType,
+                    SpecLabel = specLabel,
                     GroupId = groupId,
-                    CategoryIds = cats.Select(c => c.Id).ToList()
+                    GroupLabel = groupLabel,
+                    CategoryIdValues = catIds,
+                    CategoriesCsv = string.Join(", ", catNames)
                 });
             }
 
-            return rows;
+            return list;
         }
     }
 }

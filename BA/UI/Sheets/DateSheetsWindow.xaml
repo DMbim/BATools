@@ -4,6 +4,7 @@
         Title="Sheet Updater"
         Width="980" Height="560"
         MinWidth="900" MinHeight="520"
+        Background="#0F0F10" Foreground="#F2F2F2" FontFamily="Segoe UI"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize">
     <DockPanel Margin="10">

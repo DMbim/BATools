@@ -33,7 +33,10 @@ namespace BA.Commands.Rooms
                     new RoomTagSelectionFilter(),
                     "Select Room Tags");
             }
-            catch { return Result.Cancelled; }
+            catch
+            {
+                return Result.Cancelled;
+            }
 
             var rooms = AxisToRoomService.GetLocalRoomsFromRoomTags(doc, refs);
             if (rooms.Count == 0)
@@ -42,22 +45,31 @@ namespace BA.Commands.Rooms
                 return Result.Cancelled;
             }
 
-            var symbol = FamilySymbolUtils.FindDetailSymbol(doc, "BA_Axis");
-            if (symbol == null)
-            {
-                TaskDialog.Show("Axis To Room", "Detail family 'BA_Axis' is not loaded in this project.");
-                return Result.Failed;
-            }
-
             int placed = 0;
 
             using (var t = new Transaction(doc, "BA – Axis To Room (Local)"))
             {
                 t.Start();
 
+                // IMPORTANT: load/activate under the same transaction
+                var symbol = FamilySymbolUtils.FindDetailSymbol(
+                    doc,
+                    familyName: "BA_Axis",
+                    symbolName: null,
+                    loadIfMissing: true,
+                    familyFileNameOrRelativePath: "BA_Axis.rfa",
+                    activateIfFound: true);
+
+                if (symbol == null)
+                {
+                    t.RollBack();
+                    TaskDialog.Show("Axis To Room", "Detail family 'BA_Axis' could not be found/loaded.");
+                    return Result.Failed;
+                }
+
                 foreach (var r in rooms)
                 {
-                    var inst = DetailPlacer.PlaceInLocalRoomCenter(doc, doc.ActiveView, symbol, r);
+                    var inst = DetailPlacer.PlaceInLocalRoomCenterSized(doc, doc.ActiveView, symbol, r, xParamName: "x", yParamName: "y");
                     if (inst != null) placed++;
                 }
 

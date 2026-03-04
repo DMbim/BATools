@@ -39,7 +39,8 @@ namespace BA.Core.Overhead
                 .ToElements()
                 .Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model)
                 .ToList();
-
+            if (!_settings.Enabled)
+                return new AnalysisResult { OverriddenCount = 0, CutZmm = 0, TopZmm = 0 };
             var overridden = new List<ElementId>();
             foreach (var e in elems)
             {

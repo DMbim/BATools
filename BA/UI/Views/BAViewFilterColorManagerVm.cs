@@ -126,7 +126,7 @@ namespace BA.UI.Views
         {
             StatusText = "Loading view templates...";
 
-            _revit.Invoke(
+            _revit.Run(
                 app =>
                 {
                     var doc = app.ActiveUIDocument?.Document;
@@ -153,7 +153,7 @@ namespace BA.UI.Views
             StatusText = "Loading filters from template...";
             var templateId = SelectedViewTemplate.Id;
 
-            _revit.Invoke(
+            _revit.Run(
                 app =>
                 {
                     var doc = app.ActiveUIDocument?.Document;
@@ -226,7 +226,7 @@ namespace BA.UI.Views
 
             var assigns = BuildAssignmentsSnapshot();
 
-            _revit.Invoke(
+            _revit.Run(
                 app =>
                 {
                     var doc = app.ActiveUIDocument?.Document;

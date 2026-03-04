@@ -1,180 +1,582 @@
 ﻿<Window x:Class="BA.UI.FamilyParametersUI"
-        x:Name="RootWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Parameter Harmonizer"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        Title="Family Parameter Manager"
+        Height="780" Width="1250"
         WindowStartupLocation="CenterOwner"
-        Width="1800"
-        Height="600"
-        MinWidth="1600"
-        MinHeight="500"
-        SizeToContent="Manual"
-        ResizeMode="CanResize">
+        Background="#0B0C0F"
+        Foreground="#F2F2F2"
+        FontFamily="Segoe UI"
+        FontSize="12">
 
-    <DockPanel Margin="10">
+    <Window.Resources>
 
-        <!-- Bottom bar: SP path + prefix tools + buttons -->
-        <DockPanel DockPanel.Dock="Bottom" LastChildFill="False" Margin="0,8,0,0">
+        <!-- CollectionViewSource (grouping/sorting happens in code-behind) -->
+        <CollectionViewSource x:Key="CvsParameters" Source="{Binding Parameters}" />
 
-            <!-- Left: shared parameter file -->
-            <StackPanel Orientation="Horizontal"
-                        DockPanel.Dock="Left">
-                <TextBlock Text="Shared Parameter File:"
-                           VerticalAlignment="Center"
-                           Margin="0,0,6,0" />
-                <TextBox x:Name="TxtSharedParamPath"
-                         Width="320"
-                         Margin="0,0,6,0"
-                         IsReadOnly="True" />
-                <Button x:Name="BtnBrowseSP"
-                        Content="Browse..."
-                        Width="90"
-                        Click="BtnBrowseSP_Click" />
-            </StackPanel>
+        <!-- ========= Theme Brushes ========= -->
+        <SolidColorBrush x:Key="BgWindow" Color="#0B0C0F"/>
+        <SolidColorBrush x:Key="BgPanel"  Color="#0F121A"/>
+        <SolidColorBrush x:Key="BorderSoft" Color="#30384A"/>
 
-            <!-- Middle: prefix tools -->
-            <StackPanel Orientation="Horizontal"
-                        DockPanel.Dock="Left"
-                        Margin="20,0,0,0">
-                <TextBlock Text="Prefix:"
-                           VerticalAlignment="Center"
-                           Margin="0,0,4,0" />
-                <TextBox x:Name="TxtPrefixOld"
-                         Width="80"
-                         Margin="0,0,4,0"
-                         ToolTip="Old prefix (for remove/replace)" />
-                <TextBox x:Name="TxtPrefixNew"
-                         Width="80"
-                         Margin="0,0,4,0"
-                         ToolTip="New prefix (for add/replace)" />
-                <Button x:Name="BtnApplyPrefix"
-                        Content="Apply Prefix"
-                        Width="100"
-                        Click="BtnApplyPrefix_Click" />
-            </StackPanel>
+        <SolidColorBrush x:Key="FgMain" Color="#F2F2F2"/>
+        <SolidColorBrush x:Key="FgDim"  Color="#B8B8B8"/>
+        <SolidColorBrush x:Key="FgMuted" Color="#8A8A8A"/>
 
-            <!-- Right: action buttons -->
-            <StackPanel Orientation="Horizontal"
-                        DockPanel.Dock="Right">
-                <Button x:Name="BtnExportCsv"
-                        Content="Export CSV"
-                        Width="100"
-                        Margin="8,0,0,0"
-                        Click="BtnExportCsv_Click" />
+        <!-- DataGrid palette -->
+        <SolidColorBrush x:Key="DgBg" Color="#0F121A"/>
+        <SolidColorBrush x:Key="DgAltBg" Color="#101525"/>
+        <SolidColorBrush x:Key="DgHoverBg" Color="#182036"/>
+        <SolidColorBrush x:Key="DgGridLine" Color="#20283A"/>
 
-                <Button x:Name="BtnMetric"
-                        Content="Metric Units"
-                        Width="110"
-                        Margin="8,0,0,0"
-                        Click="BtnMetric_Click" />
+        <SolidColorBrush x:Key="DgHeaderBg" Color="#151A27"/>
+        <SolidColorBrush x:Key="DgHeaderFg" Color="#F2F2F2"/>
+
+        <SolidColorBrush x:Key="DgSelBg" Color="#2A5A9E"/>
+        <SolidColorBrush x:Key="DgSelFg" Color="#FFFFFF"/>
+
+        <SolidColorBrush x:Key="DgInactiveSelBg" Color="#2B2F3A"/>
+        <SolidColorBrush x:Key="DgInactiveSelFg" Color="#F2F2F2"/>
+
+        <SolidColorBrush x:Key="EditBg" Color="#1A1F2E"/>
+        <SolidColorBrush x:Key="EditFg" Color="#FFFFFF"/>
+
+        <!-- ===== ComboBox popup + items (dark, readable) ===== -->
+
+        <SolidColorBrush x:Key="CmbPopupBg" Color="#0F121A"/>
+        <SolidColorBrush x:Key="CmbPopupBorder" Color="#30384A"/>
+        <SolidColorBrush x:Key="CmbItemHoverBg" Color="#182036"/>
+        <SolidColorBrush x:Key="CmbItemSelBg" Color="#2A5A9E"/>
+        <Style TargetType="{x:Type Button}">
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="Background" Value="#1B1F2A"/>
+            <Setter Property="Foreground" Value="{StaticResource FgMain}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border Background="{TemplateBinding Background}"
+                              BorderBrush="{TemplateBinding BorderBrush}"
+                              BorderThickness="{TemplateBinding BorderThickness}"
+                              CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#242B3A"/>
+                                <Setter Property="BorderBrush" Value="#3B4760"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#121622"/>
+                                <Setter Property="BorderBrush" Value="#4A5C86"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ========= Inputs ========= -->
+        <Style TargetType="{x:Type TextBox}">
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Background" Value="#0B0C0F"/>
+            <Setter Property="Foreground" Value="{StaticResource FgMain}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource FgMain}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+        </Style>
+
+        <Style x:Key="BaseComboBoxStyle" TargetType="{x:Type ComboBox}">
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="Background" Value="#0B0C0F"/>
+            <Setter Property="Foreground" Value="{StaticResource FgMain}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+        </Style>
+
+        <Style TargetType="{x:Type CheckBox}">
+            <Setter Property="Foreground" Value="{StaticResource FgMain}"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Checkbox centering inside grid -->
+        <Style x:Key="GridCheckBoxStyle" TargetType="{x:Type CheckBox}">
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0"/>
+        </Style>
+
+        <!-- Toolbar separator -->
+        <Style x:Key="ToolbarSeparator" TargetType="{x:Type Border}">
+            <Setter Property="Width" Value="1"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Background" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="Margin" Value="10,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Editing element (TextBox) inside grid -->
+        <Style x:Key="GridEditingTextBox" TargetType="{x:Type TextBox}">
+            <Setter Property="Foreground" Value="{StaticResource EditFg}"/>
+            <Setter Property="Background" Value="{StaticResource EditBg}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,3"/>
+        </Style>
+
+        <!-- ========= Group headers ========= -->
+        <Style x:Key="GroupHeaderText" TargetType="{x:Type TextBlock}">
+            <Setter Property="Foreground" Value="{StaticResource FgMain}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <Style x:Key="GroupExpanderStyle" TargetType="{x:Type Expander}">
+            <Setter Property="IsExpanded" Value="True"/>
+            <Setter Property="Background" Value="{StaticResource BgPanel}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="0,10,0,0"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <!-- ========= DataGrid (READABLE dark theme) ========= -->
+        <Style TargetType="{x:Type DataGrid}">
+            <Setter Property="Background" Value="{StaticResource DgBg}"/>
+            <Setter Property="Foreground" Value="{StaticResource FgMain}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="RowBackground" Value="{StaticResource DgBg}"/>
+            <Setter Property="AlternatingRowBackground" Value="{StaticResource DgAltBg}"/>
+            <Setter Property="GridLinesVisibility" Value="All"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource DgGridLine}"/>
+            <Setter Property="VerticalGridLinesBrush" Value="{StaticResource DgGridLine}"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="SelectionUnit" Value="FullRow"/>
+            <Setter Property="RowHeaderWidth" Value="0"/>
+            <Setter Property="EnableRowVirtualization" Value="True"/>
+            <Setter Property="EnableColumnVirtualization" Value="True"/>
+            <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+            <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+            <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+            <Setter Property="ColumnHeaderHeight" Value="34"/>
+            <Setter Property="ColumnHeaderStyle">
+                <Setter.Value>
+                    <Style TargetType="{x:Type DataGridColumnHeader}">
+                        <Setter Property="Background" Value="{StaticResource DgHeaderBg}"/>
+                        <Setter Property="Foreground" Value="{StaticResource DgHeaderFg}"/>
+                        <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+                        <Setter Property="BorderThickness" Value="0,0,0,5"/>
+                        <Setter Property="Padding" Value="8,6"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+
+                        <!-- KEY: keep header above group containers -->
+                        <Setter Property="Panel.ZIndex" Value="10"/>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
 
-                <Button x:Name="BtnCustom"
-                        Content="Custom Replace"
-                        Width="130"
-                        Margin="8,0,0,0"
-                        Click="BtnCustom_Click" />
 
-                <Button x:Name="BtnAddShared"
-                        Content="Add Shared Params"
-                        Width="150"
-                        Margin="8,0,0,0"
-                        Click="BtnAddShared_Click" />
+        <!-- Row hover only. Do NOT set Foreground here. -->
+        <Style TargetType="{x:Type DataGridRow}">
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource DgHoverBg}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
 
-                <Button x:Name="BtnPreview"
-                        Content="Preview Matches"
-                        Width="140"
-                        Margin="8,0,0,0"
-                        Click="BtnPreview_Click" />
+        <!-- Cell defines all readable states -->
+        <Style TargetType="{x:Type DataGridCell}">
+            <Setter Property="Foreground" Value="{StaticResource FgMain}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{StaticResource DgGridLine}"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Style.Triggers>
 
-                <Button Content="Cancel"
-                        Width="90"
-                        Margin="8,0,0,0"
-                        IsCancel="True" />
-                
-                <Button x:Name="BtnRun"
-                        Content="Run Harmonize"
-                        Width="130"
-                        Margin="8,0,0,0"
-                        Click="BtnRun_Click" />
-                
-            </StackPanel>
-        </DockPanel>
+                <!-- Hover -->
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource DgHoverBg}"/>
+                </Trigger>
 
-        <!-- Data Grid fills remaining space -->
+                <!-- Selected (active) -->
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{StaticResource DgSelBg}"/>
+                    <Setter Property="Foreground" Value="{StaticResource DgSelFg}"/>
+                </Trigger>
+
+                <!-- Selected (inactive) -->
+                <MultiTrigger>
+                    <MultiTrigger.Conditions>
+                        <Condition Property="IsSelected" Value="True"/>
+                        <Condition Property="Selector.IsSelectionActive" Value="False"/>
+                    </MultiTrigger.Conditions>
+                    <Setter Property="Background" Value="{StaticResource DgInactiveSelBg}"/>
+                    <Setter Property="Foreground" Value="{StaticResource DgInactiveSelFg}"/>
+                </MultiTrigger>
+
+                <!-- Read-only dims -->
+                <Trigger Property="IsReadOnly" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource FgDim}"/>
+                </Trigger>
+
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="DarkComboBoxItemStyle" TargetType="{x:Type ComboBoxItem}">
+            <Setter Property="Foreground" Value="{StaticResource FgMain}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBoxItem}">
+                        <Border x:Name="Bd"
+                        Background="{TemplateBinding Background}">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource CmbItemHoverBg}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource CmbItemSelBg}"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{StaticResource FgMuted}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DarkComboBoxStyle" TargetType="{x:Type ComboBox}">
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="Background" Value="#0B0C0F"/>
+            <Setter Property="Foreground" Value="{StaticResource FgMain}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ItemContainerStyle" Value="{StaticResource DarkComboBoxItemStyle}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBox}">
+                        <Grid>
+                            <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4"
+                            SnapsToDevicePixels="True"/>
+
+                            <DockPanel Margin="8,0,8,0">
+                                <!-- Arrow -->
+                                <Path DockPanel.Dock="Right"
+                              Width="10" Height="6"
+                              Margin="8,0,0,0"
+                              Fill="{StaticResource FgDim}"
+                              VerticalAlignment="Center"
+                              Data="M 0 0 L 5 5 L 10 0 Z"/>
+
+                                <!-- Selected content -->
+                                <ContentPresenter x:Name="ContentSite"
+                                          VerticalAlignment="Center"
+                                          HorizontalAlignment="Left"
+                                          Content="{TemplateBinding SelectionBoxItem}"
+                                          ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                          ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"/>
+                            </DockPanel>
+
+                            <!-- Popup -->
+                            <Popup x:Name="PART_Popup"
+                           IsOpen="{TemplateBinding IsDropDownOpen}"
+                           Placement="Bottom"
+                           AllowsTransparency="True"
+                           Focusable="False"
+                           PopupAnimation="Fade">
+                                <Border Background="{StaticResource CmbPopupBg}"
+                                BorderBrush="{StaticResource CmbPopupBorder}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                                    <ScrollViewer Margin="0"
+                                          SnapsToDevicePixels="True">
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#3B4760"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </Window.Resources>
+
+    <DockPanel Margin="10" LastChildFill="True" Background="{StaticResource BgWindow}">
+
+        <!-- TOP -->
+        <Border DockPanel.Dock="Top"
+                Background="{StaticResource BgPanel}"
+                BorderBrush="{StaticResource BorderSoft}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="10"
+                Margin="0,0,0,10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <WrapPanel Grid.Row="0">
+                    <Button Content="Preview match" Width="140" Click="BtnPreview_Click"/>
+                    <Button Content="Run apply" Width="120" Click="BtnRun_Click"/>
+
+                    <Border Style="{StaticResource ToolbarSeparator}"/>
+
+                    <Button Content="Toggle Delete" Width="140" Click="BtnToggleDeleteSelected_Click"/>
+
+                    <Border Style="{StaticResource ToolbarSeparator}"/>
+
+                    <Button Content="Set Instance" Width="120" Click="BtnSetInstanceSelected_Click"/>
+                    <Button Content="Set Type" Width="120" Click="BtnSetTypeSelected_Click"/>
+
+                    <Border Style="{StaticResource ToolbarSeparator}"/>
+
+                    <Button Content="Add shared params" Width="160" Click="BtnAddShared_Click"/>
+                    <Button Content="Suggest switch" Width="140" Click="BtnSuggestSwitch_Click"/>
+                </WrapPanel>
+
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="260"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="Bulk Group:" Margin="0,0,8,0"
+                               VerticalAlignment="Center" Foreground="{StaticResource FgDim}"/>
+
+                    <ComboBox Grid.Column="1"
+                              x:Name="CmbBulkGroup"
+                              Style="{StaticResource DarkComboBoxStyle}"
+                              ItemsSource="{Binding GroupOptions}"
+                              DisplayMemberPath="Name"/>
+
+                    <Button Grid.Column="2" Content="Apply" Width="90" Margin="10,0,0,0"
+                            Click="BtnApplyGroupSelected_Click"/>
+
+                    <TextBlock Grid.Column="3" Text="(applies Group (set) to selected rows)"
+                               Margin="12,0,0,0" VerticalAlignment="Center"
+                               Foreground="{StaticResource FgMuted}"/>
+                </Grid>
+
+                <Grid Grid.Row="4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="20"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="220"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="Shared param file:" Margin="0,0,8,0"
+                               VerticalAlignment="Center" Foreground="{StaticResource FgDim}"/>
+
+                    <TextBox Grid.Column="1" x:Name="TxtSharedParamPath"/>
+
+                    <Button Grid.Column="2" Content="Browse" Width="110" Margin="10,0,0,0"
+                            Click="BtnBrowseSP_Click"/>
+
+                    <Border Grid.Column="3" Background="Transparent"/>
+
+                    <TextBlock Grid.Column="4" Text="Prefix:" Margin="0,0,8,0"
+                               VerticalAlignment="Center" Foreground="{StaticResource FgDim}"/>
+
+                    <TextBox Grid.Column="5" x:Name="TxtPrefixNew"/>
+
+                    <Button Grid.Column="6" Content="Apply Prefix" Width="120" Margin="10,0,0,0"
+                            Click="BtnApplyPrefix_Click"/>
+
+                    <Button Grid.Column="7" Content="Export CSV" Width="120" Margin="10,0,0,0"
+                            Click="BtnExportCsv_Click"/>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- BOTTOM -->
+        <Border DockPanel.Dock="Bottom"
+                Background="{StaticResource BgPanel}"
+                BorderBrush="{StaticResource BorderSoft}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="10"
+                Margin="0,10,0,0">
+            <DockPanel LastChildFill="True">
+                <TextBlock Text="Tip: Shift-click Sel checkbox to apply the same value to all currently selected rows."
+                           Foreground="{StaticResource FgDim}"/>
+                <Button DockPanel.Dock="Right"
+                        Content="Set Metric Units"
+                        Width="160"
+                        Click="BtnMetric_Click"
+                        Margin="10,0,0,0"/>
+            </DockPanel>
+        </Border>
+
+        <!-- MAIN GRID -->
         <DataGrid x:Name="DgParameters"
-                  ItemsSource="{Binding Parameters}"
+                  ItemsSource="{Binding Source={StaticResource CvsParameters}}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
-                  Margin="0,0,0,10"
-                  MinHeight="380"
-                  HeadersVisibility="Column"
-                  GridLinesVisibility="All"
+                  IsReadOnly="False"
                   SelectionMode="Extended"
                   SelectionUnit="FullRow"
-                  ScrollViewer.VerticalScrollBarVisibility="Auto"
-                  ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                  FrozenColumnCount="2" Width="1225">
 
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Name"
-                                    Binding="{Binding Name}"
-                                    IsReadOnly="True"
-                                    Width="150" />
-
-                <DataGridCheckBoxColumn Header="Instance"
-                                        Binding="{Binding IsInstance}"
-                                        IsReadOnly="True"
-                                        Width="40" />
-
-                <DataGridCheckBoxColumn Header="Shared"
-                                        Binding="{Binding IsShared}"
-                                        IsReadOnly="True"
-                                        Width="40" />
-
-                <DataGridTextColumn Header="Spec"
-                                    Binding="{Binding Spec}"
-                                    IsReadOnly="True"
-                                    Width="80" />
-
-                <DataGridTextColumn Header="Proposed Shared"
-                                    Binding="{Binding MatchedShared}"
-                                    IsReadOnly="True"
-                                    Width="150" />
-
-                <DataGridTextColumn Header="Score"
-                                    Binding="{Binding MatchScore, StringFormat=0.00}"
-                                    IsReadOnly="True"
-                                    Width="40" />
-
-                <!-- Action combo with your working ElementStyle approach -->
-                <DataGridComboBoxColumn Header="Action"
-                                        Width="120"
-                                        SelectedItemBinding="{Binding Action,
-                                                                      Mode=TwoWay,
-                                                                      UpdateSourceTrigger=PropertyChanged}">
-                    <DataGridComboBoxColumn.ElementStyle>
-                        <Style TargetType="ComboBox">
-                            <Setter Property="ItemsSource"
-                                    Value="{Binding RelativeSource={RelativeSource FindAncestor,
-                                                                                     AncestorType={x:Type Window}},
-                                                    Path=DataContext.ActionOptions}" />
+            <DataGrid.GroupStyle>
+                <GroupStyle>
+                    <GroupStyle.ContainerStyle>
+                        <Style TargetType="{x:Type GroupItem}">
+                            <Setter Property="Margin" Value="0,0,0,6"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="{x:Type GroupItem}">
+                                        <Expander Style="{StaticResource GroupExpanderStyle}">
+                                            <Expander.Header>
+                                                <DockPanel Margin="10,6">
+                                                    <TextBlock Style="{StaticResource GroupHeaderText}"
+                                                               Text="{Binding Name}"/>
+                                                    <TextBlock Margin="10,0,0,0"
+                                                               Foreground="{StaticResource FgDim}"
+                                                               Text="{Binding ItemCount, StringFormat=(\{0\})}"/>
+                                                </DockPanel>
+                                            </Expander.Header>
+                                            <ItemsPresenter/>
+                                        </Expander>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
                         </Style>
+                    </GroupStyle.ContainerStyle>
+                </GroupStyle>
+            </DataGrid.GroupStyle>
+            <DataGrid.Columns>
+
+                <!-- Sel -->
+                <DataGridTemplateColumn Header="Sel" Width="45" IsReadOnly="False">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                          Style="{StaticResource GridCheckBoxStyle}"
+                          Click="SelCheckBox_Click"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTextColumn Header="Name" Width="260" Binding="{Binding Name}" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Spec" Width="180" Binding="{Binding Spec}" IsReadOnly="True"/>
+
+                <DataGridCheckBoxColumn Header="Shared" Width="70" Binding="{Binding IsShared}" IsReadOnly="True"
+                            ElementStyle="{StaticResource GridCheckBoxStyle}"/>
+                <DataGridCheckBoxColumn Header="Built-in" Width="75" Binding="{Binding IsBuiltIn}" IsReadOnly="True"
+                            ElementStyle="{StaticResource GridCheckBoxStyle}"/>
+
+                <DataGridTextColumn Header="Scope (cur)" Width="110" Binding="{Binding Scope}" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Group (cur)" Width="220" Binding="{Binding GroupName}" IsReadOnly="True"/>
+
+                <!-- Scope (set) -->
+                <DataGridComboBoxColumn Header="Scope (set)" Width="120"
+                            ItemsSource="{Binding DataContext.ScopeOptions, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                            SelectedValueBinding="{Binding Scope, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                    <DataGridComboBoxColumn.ElementStyle>
+                        <Style TargetType="ComboBox" BasedOn="{StaticResource DarkComboBoxStyle}"/>
                     </DataGridComboBoxColumn.ElementStyle>
                     <DataGridComboBoxColumn.EditingElementStyle>
-                        <Style TargetType="ComboBox">
-                            <Setter Property="ItemsSource"
-                                    Value="{Binding RelativeSource={RelativeSource FindAncestor,
-                                                                                     AncestorType={x:Type Window}},
-                                                    Path=DataContext.ActionOptions}" />
-                        </Style>
+                        <Style TargetType="ComboBox" BasedOn="{StaticResource DarkComboBoxStyle}"/>
                     </DataGridComboBoxColumn.EditingElementStyle>
                 </DataGridComboBoxColumn>
 
-                <DataGridTextColumn Header="New Name"
-                                    Binding="{Binding NewName,
-                                                      Mode=TwoWay,
-                                                      UpdateSourceTrigger=PropertyChanged}"
-                                    Width="*" />
+                <!-- Group (set) -->
+                <DataGridComboBoxColumn Header="Group (set)" Width="280"
+                            ItemsSource="{Binding DataContext.GroupOptions, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                            DisplayMemberPath="Name"
+                            SelectedValuePath="GroupTypeId"
+                            SelectedValueBinding="{Binding GroupTypeId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                    <DataGridComboBoxColumn.ElementStyle>
+                        <Style TargetType="ComboBox" BasedOn="{StaticResource DarkComboBoxStyle}"/>
+                    </DataGridComboBoxColumn.ElementStyle>
+                    <DataGridComboBoxColumn.EditingElementStyle>
+                        <Style TargetType="ComboBox" BasedOn="{StaticResource DarkComboBoxStyle}"/>
+                    </DataGridComboBoxColumn.EditingElementStyle>
+                </DataGridComboBoxColumn>
+
+                <!-- Action -->
+                <DataGridComboBoxColumn Header="Action" Width="120"
+                            ItemsSource="{Binding DataContext.ActionOptions, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                            SelectedItemBinding="{Binding Action, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                    <DataGridComboBoxColumn.ElementStyle>
+                        <Style TargetType="ComboBox" BasedOn="{StaticResource DarkComboBoxStyle}"/>
+                    </DataGridComboBoxColumn.ElementStyle>
+                    <DataGridComboBoxColumn.EditingElementStyle>
+                        <Style TargetType="ComboBox" BasedOn="{StaticResource DarkComboBoxStyle}"/>
+                    </DataGridComboBoxColumn.EditingElementStyle>
+                </DataGridComboBoxColumn>
+
+                <!-- New name -->
+                <DataGridTextColumn Header="NewName / Target" Width="280"
+                        Binding="{Binding NewName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                    <DataGridTextColumn.EditingElementStyle>
+                        <Style TargetType="TextBox" BasedOn="{StaticResource GridEditingTextBox}"/>
+                    </DataGridTextColumn.EditingElementStyle>
+                </DataGridTextColumn>
+
+                <DataGridTextColumn Header="MatchedShared" Width="260" Binding="{Binding MatchedShared}" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Score" Width="80" Binding="{Binding MatchScore}" IsReadOnly="True"/>
+
             </DataGrid.Columns>
         </DataGrid>
 

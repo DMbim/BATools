@@ -1,19 +1,21 @@
 ﻿using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
+using BA.App.Guards;
+using BA.App.Overhead;
+using BA.BIM.Commands.Anno;
 using BA.Classification;
 using BA.Commands;
-using BA.Commands;
-// Commands
 using BA.Commands.Anno;
+using BA.Commands.Finishes;
 using BA.Commands.Management;
 using BA.Commands.Rooms;
+using BA.Commands.TextHub;
 using BA.Core.Overhead;
 using BA.Ribbon;
 using Microsoft.VisualBasic;
 using Nice3point.Revit.Extensions;
 using Nice3point.Revit.Toolkit.External;
 using System;
-using BA.App.Guards;
 using System.Buffers.Text;
 
 namespace BA.BAApplication
@@ -35,6 +37,8 @@ namespace BA.BAApplication
                 OverheadProxyUpdater.Register(Application);
                 ImportCadWarningGuard.Register(Application);
                 FamilyImportWarningGuardV2.Register(Application);
+                BA.App.Settings.PluginSettingsBootstrap.ApplySavedSettingsToRuntime();
+                OverheadToggleController.Initialize(Application);
 
                 // 2) Create panels
                 RibbonPanel panelAnnotation = Application.CreatePanel("Annotation", tabName);
@@ -77,25 +81,50 @@ namespace BA.BAApplication
                 var E2RPath32 = "/BA;component/Resources/Icons32/ElementToRoom32.png";
                 var use16 = "/BA;component/Resources/Icons16/ause16.png";
                 var use32 = "/BA;component/Resources/Icons32/ause32.png";
+                var ArAnno16 = "/BA;component/Resources/Icons16/ArAnno_16.png";
+                var ArAnno32 = "/BA;component/Resources/Icons32/ArAnno_32.png";
+                var mnu16 = "/BA;component/Resources/Icons16/Menu_16.png";
+                var mnu32 = "/BA;component/Resources/Icons32/Menu_32.png";
+                var fin16 = "/BA;component/Resources/Icons16/FIN16.png";
+                var fin32 = "/BA;component/Resources/Icons32/FIN32.png";
+                var txt16 = "/BA;component/Resources/Icons16/txt6.png";
+                var txt32 = "/BA;component/Resources/Icons32/txt6.png";
+
+                var cmdRoomFinishes = panelRooms.AddPushButton<ApplyFinishesByRoomsCommand>(
+                    "Room Finishes",
+                    "Room\nFinishes",
+                    "Calculate finishes for rooms based on room parameters and element finishes.",
+                    fin16,
+                    fin32);
+
+                var cmdTextTools = panelRooms.AddPushButton<CmdTextHub>(
+                    "Modify Text",
+                    "Modify\nText",
+                    "Modify Text throughout the model.",
+                    txt16,
+                    txt32);
 
 
-
-
-
-                var pdPTH = panelRooms.AddPushButton<Cmd_ProjectToolsHub>(
-                    "ManagementTools",
-                    "Management Tools",
-                    "Collection of Management tools",
+                var cmdUse = panelElements.AddPushButton<Cmd_FinishToRoom>(
+                    "Finish to Room",
+                    "Finish\nto\nRoom",
+                    "Automatically finish elements to the level of the room they are in, or a selected room.",
                     use16,
                     use32);
 
-                // ---------------------------
-                // Elements To Room
+                var arAnno = panelAnnotation.AddPushButton<ArrangeAnnotationsCommand>(
+                    "Arrange Annotations",
+                    "Anno\nArrange",
+                    "Auto Arranges selected annotations",
+                    ArAnno16,
+                    ArAnno32);
+
+
                 // ---------------------------
                 #region ElementToRoom
                 var pdE2R = panelRooms.AddPulldownButton<Cmd_ElementToRoom_Link>(
                     "ElementsToRoom",
-                    "RoomNbr -> ELements",
+                    "Room Nbr\n-> ELements",
                     "Writes RoomNumber into elements located in that room",
                     E2RPath,
                     E2RPath32);
@@ -116,8 +145,11 @@ namespace BA.BAApplication
                     cmE2RLocal32);
                 #endregion
                 // ---------------------------
-                // Dimension Edit Pulldown
+
+
                 // ---------------------------
+                #region DimensionEdit
+
                 var pdDim = panelAnnotation.AddPulldownButton<Cmd_DimensionEdit>(
                     "DimEditPulldown",
                     "Dim\nEdit",
@@ -138,6 +170,8 @@ namespace BA.BAApplication
                     "Add an extra numeric value below the existing dimension value.",
                     "/BA;component/Resources/Icons16/DimOveride_OverrideDimensionSegment16.png",
                     "/BA;component/Resources/Icons32/DimOveride_OverrideDimensionSegment32.png");
+                #endregion
+                // ---------------------------
 
                 // ---------------------------
                 // Sheets
@@ -149,28 +183,44 @@ namespace BA.BAApplication
                     cmSheetRenumber16,
                     cmSheetRenumber32);
 
+
                 // ---------------------------
+                #region Management
+                // ---------------------------
+
+                // Family parameters
+                panelManagement.AddPushButton<Cmd_FamilyParameters>(
+                    "HarmonizeFamilyParameters",
+                    "Harmonize\nFamily Params",
+                    "Harmonize family parameters in the current family.",
+                    cmHarmonize16, cmHarmonize32
+                );
+
+
                 // Classification
-                // ---------------------------
                 panelManagement.AddPushButton<Cmd_ClassifyElements>(
                     "ClassifyByType",
                     "Classify\nTypes",
                     "Classify element types by rules.",
                     cmClassify16,
-                    cmClassify32);
+                    cmClassify32
+                );
+
+
+                // Project tools hub
+                var pdPTH = panelRooms.AddPushButton<Cmd_ProjectToolsHub>(
+                    "ManagementTools",
+                    "Management Tools",
+                    "Collection of Management tools",
+                    mnu16,
+                    mnu32
+                );
+
+
+                #endregion
 
                 // ---------------------------
-                // Family Parameters Harmonizer
-                // ---------------------------
-                panelManagement.AddPushButton<Cmd_FamilyParameters>(
-                    "HarmonizeFamilyParameters",
-                    "Harmonize\nFamily Params",
-                    "Harmonize family parameters in the current family.",
-                    cmHarmonize16,
-                    cmHarmonize32);
-
-                // ---------------------------
-                // Change Monitoring Pulldown
+                #region Change Monitor
                 // ---------------------------
                 var pdMon = panelManagement.AddPulldownButton<Cmd_ChangeMonitorStart>(
                     "ChangeMonitor",
@@ -207,9 +257,12 @@ namespace BA.BAApplication
                     cmClear16,
                     cmClear32);
 
+                #endregion
+                // ---------------------------
+
 
                 // ---------------------------
-                // Axis To Room
+                #region AxisToRoom
                 // ---------------------------
                 var pdAxis = panelRooms.AddPulldownButton<Cmd_AxisToRoom_Link>(
                     "AxisToRoom",
@@ -232,6 +285,8 @@ namespace BA.BAApplication
                     "Pick room tags in the active model, resolve rooms locally, then place detail.",
                     cmA2RLocal16,
                     cmA2RLocal32);
+                #endregion
+                // ---------------------------
 
                 // ---------------------------
                 // RayBounce
@@ -241,14 +296,17 @@ namespace BA.BAApplication
                     "Ray Bounce\nCeiling",
                     "Calculate the ceiling above the selected element.",
                     cmRB16,
-                    cmRB32);
+                    cmRB32
+                );
+
 
                 panelAnnotation.AddPushButton<Cmd_OverheadAutoDash>(
                     "OverheadAutoDash",
                     "Overhead\nAuto Dash",
                     "Automatically generate overhead dash patterns in annotations.",
                     cmOHD16,
-                    cmOHD32);
+                    cmOHD32
+                );
             }
             catch (Exception ex)
             {

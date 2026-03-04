@@ -38,7 +38,7 @@
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
                             </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
+                            <Trigger Property="IsEnabled" Value="True">
                                 <Setter TargetName="Bd" Property="Opacity" Value="0.45"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -85,7 +85,7 @@
                                 <Setter TargetName="Bd" Property="Background" Value="#2A2A2E"/>
                                 <Setter Property="Foreground" Value="#FFFFFF"/>
                             </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
+                            <Trigger Property="IsEnabled" Value="True">
                                 <Setter Property="Opacity" Value="0.45"/>
                             </Trigger>
                         </ControlTemplate.Triggers>

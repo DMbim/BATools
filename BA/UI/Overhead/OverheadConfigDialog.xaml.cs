@@ -1,11 +1,13 @@
-﻿using System;
+﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using BA.Core.Overhead;
+using BA.UI.Helpers;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using Autodesk.Revit.DB;
-using BA.Core.Overhead;
 using CheckBox = System.Windows.Controls.CheckBox;
 
 namespace BA.UI.Overhead
@@ -13,9 +15,14 @@ namespace BA.UI.Overhead
     public partial class OverheadConfigDialog : Window
     {
         private readonly List<(BuiltInCategory bic, string name)> _allCats;
-        public OverheadSettings ResultSettings { get; private set; }
 
-        public OverheadConfigDialog(OverheadSettings current, Document doc)
+        public OverheadSettings? ResultSettings { get; private set; }
+
+        // ✅ new flags for the command to act on
+        public bool DisableRequested { get; private set; }
+        public bool SaveRequested { get; private set; }
+
+        public OverheadConfigDialog(Autodesk.Revit.UI.UIApplication uiapp, OverheadSettings current, Document doc)
         {
             InitializeComponent();
 
@@ -35,6 +42,34 @@ namespace BA.UI.Overhead
                 .ToString("F0", CultureInfo.InvariantCulture);
 
             SearchBox.TextChanged += SearchBox_TextChanged;
+        }
+
+        private void Ok_Click(object sender, RoutedEventArgs e)
+        {
+            double cutMm = ParseDoubleOr(FallbackCutBox.Text, 1200.0);
+            double tinyMm = ParseDoubleOr(TinyThresholdBox.Text, 50.0);
+
+            ResultSettings = new OverheadSettings
+            {
+                SelectedCategories = GetSelectedFromUI(),
+                UseNextLevelAsTop = UseNextLevelRadio.IsChecked == true,
+                FallbackCutMm = cutMm > 0 ? cutMm : 1200.0,
+                TinyThresholdMm = tinyMm >= 0 ? tinyMm : 0.0
+            };
+
+            ResultSettings.Normalize();
+            SaveRequested = true;
+
+            DialogResult = true;
+            Close();
+        }
+
+        // ✅ This button now only requests disable; NO Revit API calls here
+        private void TurnOff_Click(object sender, RoutedEventArgs e)
+        {
+            DisableRequested = true;
+            DialogResult = true;
+            Close();
         }
 
         private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -75,25 +110,6 @@ namespace BA.UI.Overhead
                     set.Add((BuiltInCategory)(int)cb.Tag);
             }
             return set;
-        }
-
-        private void Ok_Click(object sender, RoutedEventArgs e)
-        {
-            double cutMm = ParseDoubleOr(FallbackCutBox.Text, 1200.0);
-            double tinyMm = ParseDoubleOr(TinyThresholdBox.Text, 50.0);
-
-            ResultSettings = new OverheadSettings
-            {
-                SelectedCategories = GetSelectedFromUI(),
-                UseNextLevelAsTop = UseNextLevelRadio.IsChecked == true,
-                FallbackCutMm = cutMm > 0 ? cutMm : 1200.0,
-                TinyThresholdMm = tinyMm >= 0 ? tinyMm : 0.0
-            };
-
-            ResultSettings.Normalize();
-
-            DialogResult = true;
-            Close();
         }
 
         private static double ParseDoubleOr(string s, double fallback)

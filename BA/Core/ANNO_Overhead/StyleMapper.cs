@@ -34,6 +34,7 @@ namespace BA.Core.Overhead
             return ogs;
         }
 
+
         private static int? GetLineWeightSafe(Category cat, GraphicsStyleType gst)
         {
             try

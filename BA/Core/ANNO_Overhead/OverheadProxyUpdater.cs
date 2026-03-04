@@ -1,8 +1,8 @@
-﻿using System;
+﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using Autodesk.Revit.DB;
-using Autodesk.Revit.UI;
 
 namespace BA.Core.Overhead
 {
@@ -14,14 +14,29 @@ namespace BA.Core.Overhead
         private static UpdaterId _uid;
         private static bool _registered;
 
+        public static bool Suppress { get; set; }
+
+        // ✅ GLOBAL TOGGLE (plugin-level)
+        public static bool Enabled { get; set; } = true;
+
         public OverheadProxyUpdater(AddInId addInId) => _addInId = addInId;
 
         public void Execute(UpdaterData data)
         {
+            if (!Enabled) return;
+            if (Suppress) return;
+
             var doc = data.GetDocument();
             if (doc == null) return;
 
-            // delete first
+            var settings = OverheadSettingsStore.Load(doc, out bool migrate) ?? OverheadSettings.Default();
+            settings.Normalize();
+
+            // ✅ PER-DOC toggle stored in model
+            if (!settings.Enabled)
+                return;
+
+            // delete first (remove proxies for deleted owners)
             foreach (var delId in data.GetDeletedElementIds())
                 RemoveProxiesForElementAllViews(doc, delId);
 
@@ -31,14 +46,12 @@ namespace BA.Core.Overhead
 
             if (modified.Count == 0) return;
 
-            var settings = OverheadSettingsStore.Load(doc) ?? OverheadSettings.Default();
-
             var plans = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewPlan)).Cast<ViewPlan>()
+                .OfClass(typeof(ViewPlan))
+                .Cast<ViewPlan>()
                 .Where(vp => vp.ViewType == ViewType.FloorPlan && !vp.IsTemplate)
                 .ToList();
 
-            // materialize ids before mutations
             var modifiedIds = modified.ToList();
 
             foreach (var eid in modifiedIds)
@@ -48,6 +61,7 @@ namespace BA.Core.Overhead
                 if (e.Category == null || e.Category.CategoryType != CategoryType.Model) continue;
 
                 var elemLevelId = GetAssociatedLevelId(e);
+
                 foreach (var vp in plans)
                 {
                     if (vp.GenLevel == null) continue;
@@ -87,7 +101,7 @@ namespace BA.Core.Overhead
             if (gsOverhead == null) { ProxyManager.RemoveProxies(view, e.Id); return; }
 
             if ((cutRequired && inBand) || (aboveCut && aboveTop))
-                ProxyManager.CreateOrUpdateRectangleProxy(doc, view, e, bb, gsOverhead);
+                ProxyManager.CreateOrUpdateRectangleProxy(doc, view, e, bb, gsOverhead, settings);
             else
                 ProxyManager.RemoveProxies(view, e.Id);
         }
@@ -153,35 +167,25 @@ namespace BA.Core.Overhead
         private static void RemoveProxiesForElementAllViews(Document doc, ElementId ownerId)
         {
             var plans = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewPlan)).Cast<ViewPlan>()
+                .OfClass(typeof(ViewPlan))
+                .Cast<ViewPlan>()
                 .Where(vp => vp.ViewType == ViewType.FloorPlan && !vp.IsTemplate)
                 .ToList();
 
             foreach (var vp in plans)
                 ProxyManager.RemoveProxies(vp, ownerId);
         }
+
         public static void Unregister(UIControlledApplication app)
         {
             if (app == null) return;
 
-            // Build the same updater id that Register() used
             var uid = new UpdaterId(app.ActiveAddInId, UpdaterGuid);
 
-            try
-            {
-                // Best effort cleanup
-                UpdaterRegistry.RemoveAllTriggers(uid);
-            }
-            catch { /* ignore */ }
-
-            try
-            {
-                UpdaterRegistry.UnregisterUpdater(uid);
-            }
-            catch { /* ignore */ }
+            try { UpdaterRegistry.RemoveAllTriggers(uid); } catch { }
+            try { UpdaterRegistry.UnregisterUpdater(uid); } catch { }
 
             _registered = false;
         }
-
     }
 }

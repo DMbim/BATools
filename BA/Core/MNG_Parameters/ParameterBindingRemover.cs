@@ -5,22 +5,35 @@ namespace BA.Core.Parameters
 {
     public static class ParameterBindingRemover
     {
-        public static bool TryRemoveBinding(Document doc, Definition def)
+        public static bool TryRemoveBinding(Document doc, string name, string guid = "")
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
-            if (def == null) return false;
+            if (string.IsNullOrWhiteSpace(name)) return false;
 
             var map = doc.ParameterBindings;
-            if (map == null) return false;
+            var it = map.ForwardIterator();
+            it.Reset();
 
-            try
+            while (it.MoveNext())
             {
-                return map.Remove(def);
+                var def = it.Key;
+                if (def == null) continue;
+
+                if (!def.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                // If GUID provided, ensure exact shared definition match
+                if (!string.IsNullOrWhiteSpace(guid))
+                {
+                    if (def is not ExternalDefinition ext) continue;
+                    if (!ext.GUID.ToString().Equals(guid, StringComparison.OrdinalIgnoreCase)) continue;
+                }
+
+                map.Remove(def);
+                return true;
             }
-            catch
-            {
-                return false;
-            }
+
+            return false;
         }
     }
 }

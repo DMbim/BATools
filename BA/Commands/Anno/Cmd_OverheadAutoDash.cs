@@ -3,9 +3,10 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
-using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 using BA.Core.Overhead;
+using BA.UI.Helpers;
 using BA.UI.Overhead;
+using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 
 namespace BA.Commands.Anno
 {
@@ -30,28 +31,82 @@ namespace BA.Commands.Anno
                 return Result.Cancelled;
             }
 
-            var settings = OverheadSettingsStore.Load(doc) ?? OverheadSettings.Default();
+            bool migrate;
+            var settings = OverheadSettingsStore.Load(doc, out migrate) ?? OverheadSettings.Default();
+            settings.Normalize();
+
+            if (migrate)
+            {
+                using (var t = new Transaction(doc, "OAD: Migrate Overhead Settings"))
+                {
+                    t.Start();
+                    OverheadSettingsStore.Save(doc, settings);
+                    t.Commit();
+                }
+            }
 
             bool openSettings = (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Shift)
                                 == System.Windows.Input.ModifierKeys.Shift;
 
             if (openSettings)
             {
-                var dlg = new OverheadConfigDialog(settings, doc) { Owner = System.Windows.Application.Current?.MainWindow };
+                var dlg = new OverheadConfigDialog(uiapp, settings, doc);
+                RevitWindowHelper.SetOwnerToRevit(dlg, uiapp);
+
                 if (dlg.ShowDialog() != true)
                     return Result.Cancelled;
 
-                settings = dlg.ResultSettings ?? settings;
-                settings.Normalize();
-
-                using (var t = new Transaction(doc, "OAD: Save Settings"))
+                // ✅ If user clicked "Turn Off" -> do it here, in a real Revit transaction context
+                if (dlg.DisableRequested)
                 {
-                    t.Start();
-                    OverheadSettingsStore.Save(doc, settings);
-                    t.Commit();
+                    try
+                    {
+                        using (var t = new Transaction(doc, "OAD: Disable Overhead"))
+                        {
+                            t.Start();
+
+                            // your already-found good method:
+                            // must be in-transaction
+                            var disable = OverheadDisableService.Disable(
+                                doc,
+                                turnOffVgEverywhere: true,
+                                clearAnalyzerOverrides: true);
+
+                            t.Commit();
+
+                            TaskDialog.Show("BA", disable.ToString());
+                            return Result.Succeeded;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        message = ex.ToString();
+                        return Result.Failed;
+                    }
                 }
 
-                OverheadProxyUpdater.RefreshTriggers(settings);
+                // ✅ Otherwise user pressed OK -> save settings here
+                if (dlg.SaveRequested && dlg.ResultSettings != null)
+                {
+                    settings = dlg.ResultSettings;
+                    settings.Normalize();
+
+                    using (var t = new Transaction(doc, "OAD: Save Settings"))
+                    {
+                        t.Start();
+                        OverheadSettingsStore.Save(doc, settings);
+                        t.Commit();
+                    }
+
+                    OverheadProxyUpdater.RefreshTriggers(settings);
+                }
+            }
+
+            // ✅ If disabled, don't run analyzer
+            if (!settings.Enabled)
+            {
+                TaskDialog.Show("Overhead Auto-Dash", "Overhead is disabled.");
+                return Result.Cancelled;
             }
 
             AnalysisResult result;
@@ -67,7 +122,7 @@ namespace BA.Commands.Anno
             }
             catch (Exception ex)
             {
-                message = ex.Message;
+                message = ex.ToString();
                 return Result.Failed;
             }
 

@@ -67,7 +67,7 @@ namespace BA.Core.Rooms
             }
 
             return result
-            .GroupBy(x => x.Id.Value)   // use .Value (works in newer Revit); if your Revit has IntegerValue, swap it.
+            .GroupBy(x => x.Id.Value)   // use .Value (works in newer Revit); if your Revit has IntegerValue , swap it.
             .Select(g => g.First())
             .ToList();
         }

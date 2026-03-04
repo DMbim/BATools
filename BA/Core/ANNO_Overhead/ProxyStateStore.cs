@@ -1,8 +1,8 @@
-﻿using System;
+﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.ExtensibleStorage;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.ExtensibleStorage;
 using View = Autodesk.Revit.DB.View;
 
 namespace BA.Core.Overhead
@@ -11,20 +11,9 @@ namespace BA.Core.Overhead
     {
         private static readonly Guid SchemaGuid = new("B8C2E3E1-0B59-4C0B-9F0A-4BFAE2F8E7A2");
 
-        public static IList<ElementId> GetProxyIdsFor(View view, ElementId ownerId)
-        {
-            if (view == null) return new List<ElementId>();
-
-            var (owners, proxies) = Read(view);
-            var list = new List<ElementId>();
-            long target = ElementIdValue.Of(ownerId);
-
-            for (int i = 0; i < owners.Count; i++)
-                if (owners[i] == target)
-                    list.Add(new ElementId(proxies[i]));
-
-            return list;
-        }
+        private const string F_OWNER_CSV = "OwnerIdsCsv";
+        private const string F_PROXY_CSV = "ProxyIdsCsv";
+        private const string ProxyCommentPrefix = "OAD_OVERHEAD_PROXY_";
 
         public static void AddProxies(View view, ElementId ownerId, IEnumerable<ElementId> proxyIds)
         {
@@ -44,6 +33,8 @@ namespace BA.Core.Overhead
 
         public static void RemoveProxies(View view, ElementId ownerId)
         {
+            if (view == null) return;
+
             var (owners, proxies) = Read(view);
             if (owners.Count == 0) return;
 
@@ -55,44 +46,64 @@ namespace BA.Core.Overhead
             {
                 if (owners[i] == owner)
                 {
-                    toDelete.Add(new ElementId(proxies[i]));
+                    toDelete.Add(ToElementIdSafe(proxies[i]));
                     owners.RemoveAt(i);
                     proxies.RemoveAt(i);
                 }
             }
 
-            if (toDelete.Count > 0)
-            {
-                try { doc.Delete(toDelete); } catch { }
-            }
-
+            DeleteBestEffort(doc, toDelete);
             Write(view, owners, proxies);
         }
 
-        public static void ReplaceProxies(View view, ElementId ownerId, IEnumerable<ElementId> newProxyIds)
+        public static int RemoveAllOverheadProxiesInViewBrute(Document doc, View view)
         {
-            RemoveProxies(view, ownerId);
-            AddProxies(view, ownerId, newProxyIds);
+            if (doc == null) throw new ArgumentNullException(nameof(doc));
+            if (view == null) throw new ArgumentNullException(nameof(view));
+
+            var toDelete = new FilteredElementCollector(doc, view.Id)
+                .OfClass(typeof(DetailCurve))
+                .Cast<DetailCurve>()
+                .Where(dc =>
+                {
+                    var p = dc.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
+                    var s = p?.AsString() ?? "";
+                    return s.StartsWith(ProxyCommentPrefix, StringComparison.OrdinalIgnoreCase);
+                })
+                .Select(dc => dc.Id)
+                .ToList();
+
+            if (toDelete.Count > 0)
+                doc.Delete(toDelete);
+
+            // Clear ES mapping (best effort)
+            try { Write(view, new List<long>(), new List<long>()); } catch { }
+
+            return toDelete.Count;
         }
 
-        public static void ClearAll(View view)
+        public static int RemoveAllOverheadProxiesAllPlansBrute(Document doc)
         {
-            if (view == null) return;
+            if (doc == null) throw new ArgumentNullException(nameof(doc));
 
-            var (owners, proxies) = Read(view);
-            var doc = view.Document;
+            int deleted = 0;
 
-            foreach (var pid in proxies)
+            var plans = new FilteredElementCollector(doc)
+                .OfClass(typeof(ViewPlan))
+                .Cast<ViewPlan>()
+                .Where(vp => vp.ViewType == ViewType.FloorPlan && !vp.IsTemplate)
+                .ToList();
+
+            foreach (var vp in plans)
             {
-                var id = new ElementId(pid);
-                if (doc.GetElement(id) != null)
-                {
-                    try { doc.Delete(id); } catch { }
-                }
+                try { deleted += RemoveAllOverheadProxiesInViewBrute(doc, vp); }
+                catch { }
             }
 
-            Write(view, new List<long>(), new List<long>());
+            return deleted;
         }
+
+        // ---------------- ES internals ----------------
 
         private static Schema GetOrCreate()
         {
@@ -101,8 +112,8 @@ namespace BA.Core.Overhead
 
             var sb = new SchemaBuilder(SchemaGuid);
             sb.SetSchemaName("OverheadAutoDash_ProxyIndexCsv");
-            sb.AddSimpleField("OwnerIdsCsv", typeof(string));
-            sb.AddSimpleField("ProxyIdsCsv", typeof(string));
+            sb.AddSimpleField(F_OWNER_CSV, typeof(string));
+            sb.AddSimpleField(F_PROXY_CSV, typeof(string));
             return sb.Finish();
         }
 
@@ -112,8 +123,8 @@ namespace BA.Core.Overhead
             var ent = view.GetEntity(schema);
             if (!ent.IsValid()) return (new List<long>(), new List<long>());
 
-            var owners = EsCsvCodec.DecodeLongs(ent.Get<string>(schema.GetField("OwnerIdsCsv")) ?? string.Empty);
-            var proxies = EsCsvCodec.DecodeLongs(ent.Get<string>(schema.GetField("ProxyIdsCsv")) ?? string.Empty);
+            var owners = EsCsvCodec.DecodeLongs(ent.Get<string>(schema.GetField(F_OWNER_CSV)) ?? "");
+            var proxies = EsCsvCodec.DecodeLongs(ent.Get<string>(schema.GetField(F_PROXY_CSV)) ?? "");
 
             if (owners.Count != proxies.Count) { owners.Clear(); proxies.Clear(); }
             return (owners, proxies);
@@ -123,9 +134,21 @@ namespace BA.Core.Overhead
         {
             var schema = GetOrCreate();
             var ent = new Entity(schema);
-            ent.Set(schema.GetField("OwnerIdsCsv"), EsCsvCodec.EncodeLongs(owners));
-            ent.Set(schema.GetField("ProxyIdsCsv"), EsCsvCodec.EncodeLongs(proxies));
+            ent.Set(schema.GetField(F_OWNER_CSV), EsCsvCodec.EncodeLongs(owners));
+            ent.Set(schema.GetField(F_PROXY_CSV), EsCsvCodec.EncodeLongs(proxies));
             view.SetEntity(ent);
+        }
+
+        private static void DeleteBestEffort(Document doc, IList<ElementId> ids)
+        {
+            if (doc == null || ids == null || ids.Count == 0) return;
+            try { doc.Delete(ids); } catch { }
+        }
+
+        private static ElementId ToElementIdSafe(long v)
+        {
+            if (v <= 0 || v > int.MaxValue) return ElementId.InvalidElementId;
+            return new ElementId((int)v);
         }
     }
 }

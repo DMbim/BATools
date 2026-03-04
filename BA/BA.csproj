@@ -38,6 +38,10 @@
         <DeployRevitAddin>true</DeployRevitAddin>
     </PropertyGroup>
     <ItemGroup>
+      <None Remove="Resources\Icons16\ArAnnoStt_16.png" />
+      <None Remove="Resources\Icons16\ArAnnoSt_16.png" />
+      <None Remove="Resources\Icons16\ArAnno_16.png" />
+      <None Remove="Resources\Icons16\ause16.png" />
       <None Remove="Resources\Icons16\AxisToRoom16.png" />
       <None Remove="Resources\Icons16\AxistoRoom_Link16.png" />
       <None Remove="Resources\Icons16\AxistoRoom_Local16.png" />
@@ -48,10 +52,18 @@
       <None Remove="Resources\Icons16\DimOveride_OverrideDimensionSegment16.png" />
       <None Remove="Resources\Icons16\DimOverride16.png" />
       <None Remove="Resources\Icons16\ElementToRoom16.png" />
+      <None Remove="Resources\Icons16\FIN16.png" />
       <None Remove="Resources\Icons16\General_Test16.png" />
+      <None Remove="Resources\Icons16\Menu_16.png" />
       <None Remove="Resources\Icons16\OverheadCommand_OverheadCommand166.png" />
+      <None Remove="Resources\Icons16\txt16.png" />
       <None Remove="Resources\Icons16\use16.png" />
       <None Remove="Resources\Icons16\ZoomtoRoom16.png" />
+      <None Remove="Resources\Icons32\ArAnnoStt_32.png" />
+      <None Remove="Resources\Icons32\ArAnnoSt_32.bak.png" />
+      <None Remove="Resources\Icons32\ArAnnoSt_32.png" />
+      <None Remove="Resources\Icons32\ArAnno_32.png" />
+      <None Remove="Resources\Icons32\ause32.png" />
       <None Remove="Resources\Icons32\AxisToRoom32.png" />
       <None Remove="Resources\Icons32\ChangeMonitor32.png" />
       <None Remove="Resources\Icons32\Classif32.png" />
@@ -61,11 +73,11 @@
       <None Remove="Resources\Icons32\DimOveride_OverrideDimensionSegment32.png" />
       <None Remove="Resources\Icons32\DimOverride32.png" />
       <None Remove="Resources\Icons32\ElementToRoom32.png" />
+      <None Remove="Resources\Icons32\FIN32.png" />
       <None Remove="Resources\Icons32\General_Test32.png" />
+      <None Remove="Resources\Icons32\Menu_32.png" />
       <None Remove="Resources\Icons32\use32.png" />
       <None Remove="Resources\Icons32\ZoomtoRoom32.png" />
-      <None Remove="Resources\LinkCad.png" />
-      <None Remove="Resources\NoImportCad.png" />
     </ItemGroup>
 
     <ItemGroup>
@@ -83,6 +95,12 @@
     </ItemGroup>
     
     <ItemGroup>
+        <Resource Include="Resources\Icons16\ArAnno_16.png">
+          <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </Resource>
+        <Resource Include="Resources\Icons16\ause16.png">
+          <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </Resource>
         <Resource Include="Resources\Icons16\AxisToRoom16.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
@@ -122,9 +140,13 @@
         <Resource Include="Resources\Icons16\FamilyParameters16.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
+        <Resource Include="Resources\Icons16\FIN16.png">
+          <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </Resource>
         <Resource Include="Resources\Icons16\General_Test16.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
+        <Resource Include="Resources\Icons16\Menu_16.png" />
         <Resource Include="Resources\Icons16\OverheadCommand16.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
@@ -137,8 +159,28 @@
         <Resource Include="Resources\Icons16\SheetDateAndRevision16.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
-        <Resource Include="Resources\Icons16\use16.png" />
+        <Resource Include="Resources\Icons16\txt16.png">
+          <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </Resource>
+        <Resource Include="Resources\Icons16\use16.png">
+          <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </Resource>
         <Resource Include="Resources\Icons16\ZoomtoRoom16.png">
+          <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </Resource>
+        <Resource Include="Resources\Icons32\ArAnnoStt_32.png">
+          <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </Resource>
+        <Resource Include="Resources\Icons32\ArAnnoSt_32.bak.png">
+          <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </Resource>
+        <Resource Include="Resources\Icons32\ArAnnoSt_32.png">
+          <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </Resource>
+        <Resource Include="Resources\Icons32\ArAnno_32.png">
+          <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </Resource>
+        <Resource Include="Resources\Icons32\ause32.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
         <Resource Include="Resources\Icons32\AxisToRoom32.png">
@@ -189,9 +231,13 @@
         <Resource Include="Resources\Icons32\FamilyParameters32.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
+        <Resource Include="Resources\Icons32\FIN32.png">
+          <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </Resource>
         <Resource Include="Resources\Icons32\General_Test32.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
+        <Resource Include="Resources\Icons32\Menu_32.png" />
         <Resource Include="Resources\Icons32\OverheadCommand32.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
@@ -201,19 +247,18 @@
         <Resource Include="Resources\Icons32\SheetDateAndRevision32.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
-        <Resource Include="Resources\Icons32\use32.png" />
+        <Resource Include="Resources\Icons32\use32.png">
+          <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </Resource>
         <Resource Include="Resources\Icons32\ZoomtoRoom32.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
         <Resource Include="Resources\Icons\RibbonIcon16.png" />
         <Resource Include="Resources\Icons\RibbonIcon32.png" />
-        <Resource Include="Resources\LinkCad.png" />
-        <Resource Include="Resources\NoImportCad.png" />
     </ItemGroup>
 
     <ItemGroup>
         <Folder Include="Models" />
-        <Folder Include="NewFolder\" />
         <Folder Include="ViewModels\" />
     </ItemGroup>
 

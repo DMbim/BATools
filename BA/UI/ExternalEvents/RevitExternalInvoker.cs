@@ -1,35 +1,59 @@
-﻿using Autodesk.Revit.UI;
+﻿// File: BA.UI/ExternalEvents/RevitExternalInvoker.cs
+using Autodesk.Revit.UI;
 using System;
-using System.Windows.Threading;
 
 namespace BA.UI.ExternalEvents
 {
+    /// <summary>
+    /// Small wrapper around ExternalEvent + handler queue.
+    /// </summary>
     public sealed class RevitExternalInvoker
     {
         private readonly RevitActionQueueHandler _handler;
-        private readonly ExternalEvent _extEvent;
-        private readonly Dispatcher _dispatcher;
+        private readonly ExternalEvent _externalEvent;
 
-        public RevitExternalInvoker(RevitActionQueueHandler handler, ExternalEvent extEvent, Dispatcher dispatcher)
+        public RevitExternalInvoker(RevitActionQueueHandler handler, ExternalEvent externalEvent)
         {
             _handler = handler ?? throw new ArgumentNullException(nameof(handler));
-            _extEvent = extEvent ?? throw new ArgumentNullException(nameof(extEvent));
-            _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
+            _externalEvent = externalEvent ?? throw new ArgumentNullException(nameof(externalEvent));
         }
 
-        public void Invoke<T>(Func<UIApplication, T> work, Action<T> onSuccess, Action<Exception> onError)
+        // ---------------------------
+        // Primary API: Run(...)
+        // ---------------------------
+
+        public void Run(Action<UIApplication> apiAction, Action? onCompleted = null, Action<Exception>? onError = null)
         {
-            if (work == null) throw new ArgumentNullException(nameof(work));
-            if (onSuccess == null) throw new ArgumentNullException(nameof(onSuccess));
-            if (onError == null) throw new ArgumentNullException(nameof(onError));
+            if (apiAction == null) throw new ArgumentNullException(nameof(apiAction));
 
-            void Ok(T result) => _dispatcher.BeginInvoke(new Action(() => onSuccess(result)));
-            void Err(Exception ex) => _dispatcher.BeginInvoke(new Action(() => onError(ex)));
+            _handler.Enqueue(
+                uiApp => { apiAction(uiApp); return null; },
+                _ => onCompleted?.Invoke(),
+                onError);
 
-            var req = new RevitActionQueueHandler.RevitRequest<T>(work, Ok, Err);
-            _handler.Enqueue(req);
-
-            _extEvent.Raise();
+            _externalEvent.Raise();
         }
+
+        public void Run<T>(Func<UIApplication, T> apiFunc, Action<T>? onCompleted = null, Action<Exception>? onError = null)
+        {
+            if (apiFunc == null) throw new ArgumentNullException(nameof(apiFunc));
+
+            _handler.Enqueue(
+                uiApp => apiFunc(uiApp),
+                result => onCompleted?.Invoke((T)result!),
+                onError);
+
+            _externalEvent.Raise();
+        }
+
+        // ---------------------------
+        // Compatibility aliases: Invoke(...)
+        // ---------------------------
+
+        public void Invoke(Action<UIApplication> apiAction, Action? onCompleted = null, Action<Exception>? onError = null)
+            => Run(apiAction, onCompleted, onError);
+
+        public void Invoke<T>(Func<UIApplication, T> apiFunc, Action<T>? onCompleted = null, Action<Exception>? onError = null)
+            => Run(apiFunc, onCompleted, onError);
     }
 }

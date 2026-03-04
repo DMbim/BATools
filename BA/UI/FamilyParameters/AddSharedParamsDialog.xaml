@@ -5,6 +5,7 @@
  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
  mc:Ignorable="d"
  Title="Add Shared Parameters" Height="560" Width="960"
+        Background="#0F0F10" Foreground="#F2F2F2" FontFamily="Segoe UI"
  WindowStartupLocation="CenterOwner" ResizeMode="CanResize">
 
     <DockPanel Margin="10">
@@ -29,10 +30,10 @@
 
             <!-- Left: Shared parameters (read-only) -->
             <DataGrid x:Name="DgShared"
- AutoGenerateColumns="False"
- SelectionMode="Extended"
- CanUserAddRows="False"
- IsReadOnly="True">
+                     AutoGenerateColumns="False"
+                     SelectionMode="Extended"
+                     CanUserAddRows="False"
+                     IsReadOnly="True" Grid.Column="2" Margin="2070,-18,-2070,18">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Shared Name" Binding="{Binding Name}" IsReadOnly="True" Width="*"/>
                     <DataGridTextColumn Header="Spec" Binding="{Binding Spec}" IsReadOnly="True" Width="160"/>
@@ -41,10 +42,10 @@
 
             <!-- Right: Selected items to add (editable Group/Instance) -->
             <DataGrid x:Name="DgSelected"
- Grid.Column="2"
- AutoGenerateColumns="False"
- SelectionMode="Extended"
- CanUserAddRows="False">
+                         Grid.Column="2"
+                         AutoGenerateColumns="False"
+                         SelectionMode="Extended"
+                         CanUserAddRows="False">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Shared Name" Binding="{Binding SharedName}" IsReadOnly="True" Width="*"/>
                     <DataGridComboBoxColumn Header="Group" SelectedItemBinding="{Binding Group, Mode=TwoWay}" Width="160"/>

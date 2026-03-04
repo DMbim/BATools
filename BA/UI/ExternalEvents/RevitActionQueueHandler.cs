@@ -1,50 +1,96 @@
-﻿using Autodesk.Revit.UI;
+﻿// File: BA.UI/ExternalEvents/RevitActionQueueHandler.cs
+using Autodesk.Revit.UI;
 using System;
 using System.Collections.Concurrent;
-using System.Diagnostics;
+using System.Windows.Threading;
 
 namespace BA.UI.ExternalEvents
 {
+    /// <summary>
+    /// ExternalEvent handler that executes queued API calls in Revit context,
+    /// then marshals callbacks back to the WPF UI thread via Dispatcher.
+    /// </summary>
     public sealed class RevitActionQueueHandler : IExternalEventHandler
     {
-        private readonly ConcurrentQueue<IRevitRequest> _queue = new();
+        private readonly ConcurrentQueue<IJob> _queue = new();
 
-        internal void Enqueue(IRevitRequest req) => _queue.Enqueue(req);
+        public Dispatcher Dispatcher { get; }
+
+        public RevitActionQueueHandler(Dispatcher dispatcher)
+        {
+            Dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
+        }
+
+        public void Enqueue(
+            Func<UIApplication, object?> apiFunc,
+            Action<object?>? onCompleted,
+            Action<Exception>? onError)
+        {
+            if (apiFunc == null) throw new ArgumentNullException(nameof(apiFunc));
+            _queue.Enqueue(new Job(apiFunc, onCompleted, onError));
+        }
 
         public void Execute(UIApplication app)
         {
-            while (_queue.TryDequeue(out var req))
+            while (_queue.TryDequeue(out var job))
             {
-                try { req.Execute(app); }
-                catch (Exception ex) { Debug.WriteLine(ex); }
+                try
+                {
+                    var result = job.Run(app);
+
+                    if (job.OnCompleted != null)
+                    {
+                        Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            try { job.OnCompleted(result); }
+                            catch { /* swallow UI callback exceptions */ }
+                        }));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (job.OnError != null)
+                    {
+                        Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            try { job.OnError(ex); }
+                            catch { /* swallow UI callback exceptions */ }
+                        }));
+                    }
+                }
             }
         }
 
-        public string GetName() => "BA Revit Action Queue Handler";
+        public string GetName() => "BA | Revit Action Queue";
 
-        internal interface IRevitRequest
+        // --------------------------
+        // internal job abstraction
+        // --------------------------
+        private interface IJob
         {
-            void Execute(UIApplication app);
+            object? Run(UIApplication app);
+            Action<object?>? OnCompleted { get; }
+            Action<Exception>? OnError { get; }
         }
 
-        internal sealed class RevitRequest<T> : IRevitRequest
+        private sealed class Job : IJob
         {
-            private readonly Func<UIApplication, T> _work;
-            private readonly Action<T> _onOk;
-            private readonly Action<Exception> _onErr;
+            private readonly Func<UIApplication, object?> _apiFunc;
 
-            public RevitRequest(Func<UIApplication, T> work, Action<T> onOk, Action<Exception> onErr)
+            public Action<object?>? OnCompleted { get; }
+            public Action<Exception>? OnError { get; }
+
+            public Job(
+                Func<UIApplication, object?> apiFunc,
+                Action<object?>? onCompleted,
+                Action<Exception>? onError)
             {
-                _work = work;
-                _onOk = onOk;
-                _onErr = onErr;
+                _apiFunc = apiFunc;
+                OnCompleted = onCompleted;
+                OnError = onError;
             }
 
-            public void Execute(UIApplication app)
-            {
-                try { _onOk(_work(app)); }
-                catch (Exception ex) { _onErr(ex); }
-            }
+            public object? Run(UIApplication app) => _apiFunc(app);
         }
     }
 }

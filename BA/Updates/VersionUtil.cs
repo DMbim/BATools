@@ -42,7 +42,8 @@ namespace BA.Updates
             // 1.2.3 -> 1.2.3
             // 1.2.3.4 -> 1.2.3.4
             var parts = core.Split(new[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 1) core = parts[0] + ".0";
+            if (parts.Length == 1) core = $"{parts[0]}.0.0";
+            else if (parts.Length == 2) core = $"{parts[0]}.{parts[1]}.0";
             if (Version.TryParse(core, out var v))
             {
                 version = v;
@@ -51,6 +52,12 @@ namespace BA.Updates
             return false;
         }
 
-        public static int Compare(Version a, Version b) => a.CompareTo(b);
+        public static int Compare(Version a, Version b)
+        {
+            if (a == null && b == null) return 0;
+            if (a == null) return -1;
+            if (b == null) return 1;
+            return a.CompareTo(b);
+        }
     }
 }

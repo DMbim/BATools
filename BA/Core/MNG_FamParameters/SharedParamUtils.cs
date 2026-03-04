@@ -8,6 +8,7 @@ using Appp = Autodesk.Revit.ApplicationServices.Application;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 using Autodesk.Revit.DB;
 using System.IO;
+using Autodesk.Revit.ApplicationServices;
 
 namespace BA.Core
 { 
@@ -92,11 +93,54 @@ namespace BA.Core
 
             return null;
         }
-
+        
         public static Dictionary<string, Definition> BuildExternalDefinitionLookup(UIApplication uiapp)
         {
             LoadSharedParameterFile(uiapp.Application);
             return BuildExternalDefinitionLookup();
+        }
+        public static ExternalDefinition FindExternalDefinitionByGuidOrName(
+        Application app,
+        string sharedParamFilePath,
+        string defName,
+        Guid guidHint)
+        {
+            if (app == null) throw new ArgumentNullException(nameof(app));
+
+            LoadSharedParameterFile(app, sharedParamFilePath);
+
+            var spf = app.OpenSharedParameterFile();
+            if (spf == null) return null;
+
+            // 1) GUID match (best)
+            if (guidHint != Guid.Empty)
+            {
+                foreach (DefinitionGroup g in spf.Groups)
+                {
+                    foreach (Definition d in g.Definitions)
+                    {
+                        if (d is ExternalDefinition ext && ext.GUID == guidHint)
+                            return ext;
+                    }
+                }
+            }
+            
+            // 2) Name match (fallback)
+            if (!string.IsNullOrWhiteSpace(defName))
+            {
+                foreach (DefinitionGroup g in spf.Groups)
+                {
+                    foreach (Definition d in g.Definitions)
+                    {
+                        if (d is ExternalDefinition ext &&
+                            d.Name.Equals(defName, StringComparison.OrdinalIgnoreCase))
+                            return ext;
+                            
+                    }
+                }
+            }
+
+            return null;
         }
     }
 }

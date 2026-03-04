@@ -3,6 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Sheet Date/Revision Setup"
         Width="520" Height="260"
+            Background="#0F0F10" Foreground="#F2F2F2" FontFamily="Segoe UI"
+            ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize">
     <Grid Margin="12">
@@ -24,13 +26,13 @@
                    FontWeight="SemiBold" Margin="0,0,0,10"/>
 
         <TextBlock Grid.Row="1" Grid.Column="0" Text="Date format:" VerticalAlignment="Center" Margin="0,0,8,8"/>
-        <ComboBox x:Name="FormatComboBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,8"/>
+        <ComboBox x:Name="FormatComboBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,8" Foreground="White"/>
 
         <TextBlock Grid.Row="2" Grid.Column="0" Text="Date parameter name:" VerticalAlignment="Center" Margin="0,0,8,8"/>
-        <TextBox x:Name="DateParameterTextBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,8"/>
+        <TextBox x:Name="DateParameterTextBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,8" Foreground="#FFFFFBFB"/>
 
         <TextBlock Grid.Row="3" Grid.Column="0" Text="Revision parameter name:" VerticalAlignment="Center" Margin="0,0,8,8"/>
-        <TextBox x:Name="RevisionParameterTextBox" Grid.Row="3" Grid.Column="1" Margin="0,0,0,8"/>
+        <TextBox x:Name="RevisionParameterTextBox" Grid.Row="3" Grid.Column="1" Margin="0,0,0,8" Foreground="White"/>
 
         <StackPanel Grid.Row="4" Grid.ColumnSpan="2"
                     Orientation="Horizontal"

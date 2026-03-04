@@ -1,4 +1,6 @@
-﻿using Autodesk.Revit.UI;
+﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Events;
+using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Events;
 using BA.UI.Views.Warnings;
 using System;
@@ -11,8 +13,13 @@ using System.Linq;
 namespace BA.App.Guards
 {
     /// <summary>
-    /// Intercepts Import command(s) and warns against importing CAD.
-    /// Works in Revit variants where "Import CAD" is routed through ID_FILE_IMPORT. :contentReference[oaicite:1]{index=1}
+    /// Warns against importing CAD:
+    /// - Intercepts ribbon/menu Import commands via AddInCommandBinding (BeforeExecuted)
+    /// - ALSO catches "drag & drop DWG" (and other bypass paths) via ControlledApplication.DocumentChanged
+    ///
+    /// Drag&drop cannot be intercepted BEFORE it happens (no command id is fired).
+    /// So we detect the added ImportInstance(s) and then prompt on next Idling,
+    /// allowing you to delete them and optionally open Link CAD.
     /// </summary>
     public static class ImportCadWarningGuard
     {
@@ -20,8 +27,7 @@ namespace BA.App.Guards
         public static bool Enabled { get; set; } = true;
 
         /// <summary>
-        /// Bind both CAD-specific and generic Import.
-        /// Recommended ON because many Revit builds route CAD import via ID_FILE_IMPORT.
+        /// Bind generic import as well; many builds route CAD import via ID_FILE_IMPORT.
         /// </summary>
         public static bool BindGenericImport { get; set; } = true;
 
@@ -32,6 +38,20 @@ namespace BA.App.Guards
         private static UIControlledApplication? _uiControlledApp;
         private static UIApplication? _cachedUiApp;
         private static bool _capturedUiAppOnce;
+
+        // If we allow an import/link from our own prompt, ignore the resulting doc changes briefly.
+        private static DateTime _ignoreDocChangesUntilUtc = DateTime.MinValue;
+
+        // Pending CAD insertions detected via DocumentChanged (drag & drop / paste / etc.)
+        private sealed class PendingCad
+        {
+            public Document? Doc;
+            public HashSet<ElementId> AddedImportInstanceIds { get; } = new HashSet<ElementId>();
+            public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
+        }
+
+        private static readonly object _pendingLock = new object();
+        private static PendingCad? _pending;
 
         private sealed class Hook
         {
@@ -50,11 +70,10 @@ namespace BA.App.Guards
         private static readonly List<Hook> _hooks = new();
 
         // Command IDs
-        private const string CmdImportGeneric = "ID_FILE_IMPORT";          // commonly used for Import CAD routing :contentReference[oaicite:2]{index=2}
-        private const string CmdImportCad = "ID_FILE_CADFORMAT_IMPORT";    // exists in some builds
+        private const string CmdImportGeneric = "ID_FILE_IMPORT";
+        private const string CmdImportCad = "ID_FILE_CADFORMAT_IMPORT";
         private const string CmdLinkCad = "ID_FILE_CADFORMAT_LINK";
 
-        // Extra fallbacks (safe: LookupCommandId may return null)
         private static readonly string[] ImportCommandIds =
         {
             CmdImportGeneric,
@@ -70,8 +89,11 @@ namespace BA.App.Guards
 
             _uiControlledApp = app;
 
-            // Capture UIApplication once via Idling (sender is UIApplication)
-            app.Idling += OnIdlingCaptureUiApp;
+            // Idling: capture UIApplication once AND process any pending CAD insertions.
+            app.Idling += OnIdling;
+
+            // DocumentChanged: catch drag&drop / paste / any path that inserts ImportInstance without a command binding.
+            app.ControlledApplication.DocumentChanged += OnDocumentChanged;
 
             foreach (var cmdId in ImportCommandIds.Distinct())
             {
@@ -81,7 +103,6 @@ namespace BA.App.Guards
                 TryBind(app, cmdId);
             }
 
-            // Optional: write a small startup log of which command IDs are available
             TryWriteStartupBindingLog();
         }
 
@@ -89,7 +110,8 @@ namespace BA.App.Guards
         {
             if (app == null) return;
 
-            try { app.Idling -= OnIdlingCaptureUiApp; } catch { }
+            try { app.Idling -= OnIdling; } catch { }
+            try { app.ControlledApplication.DocumentChanged -= OnDocumentChanged; } catch { }
 
             foreach (var h in _hooks.ToList())
             {
@@ -114,17 +136,185 @@ namespace BA.App.Guards
 
             _suppressForSession = false;
             _isHandling = false;
+
+            lock (_pendingLock) { _pending = null; }
         }
 
-        private static void OnIdlingCaptureUiApp(object sender, IdlingEventArgs e)
+        private static void OnIdling(object sender, IdlingEventArgs e)
         {
-            if (_capturedUiAppOnce) return;
-            if (sender is UIApplication uiapp)
+            // 1) Capture UIApplication once
+            if (!_capturedUiAppOnce && sender is UIApplication uiapp)
             {
                 _cachedUiApp = uiapp;
                 _capturedUiAppOnce = true;
+            }
 
-                try { _uiControlledApp!.Idling -= OnIdlingCaptureUiApp; } catch { }
+            // 2) Process pending CAD insertions (drag & drop etc.)
+            if (!Enabled) return;
+            if (_suppressForSession) return;
+
+            PendingCad? pending;
+            lock (_pendingLock)
+            {
+                pending = _pending;
+                _pending = null;
+            }
+
+            if (pending == null) return;
+            if (pending.Doc == null) return;
+            if (pending.AddedImportInstanceIds.Count == 0) return;
+
+            // We must show UI on the UI thread => Idling is correct place.
+            var uiApp = (sender as UIApplication) ?? _cachedUiApp;
+            if (uiApp == null) return;
+
+            // Only act if the doc is still alive and (ideally) active
+            // If the user inserted into another open doc, ActiveUIDocument may differ.
+            // We'll still attempt, but safely.
+            TryPromptForDetectedCad(uiApp, pending.Doc, pending.AddedImportInstanceIds.ToList());
+        }
+
+        private static void OnDocumentChanged(object sender, DocumentChangedEventArgs e)
+        {
+            if (!Enabled) return;
+            if (_suppressForSession) return;
+            if (_isHandling) return;
+
+            if (DateTime.UtcNow < _ignoreDocChangesUntilUtc)
+                return;
+
+            Document doc;
+            try { doc = e.GetDocument(); }
+            catch { return; }
+
+            if (doc == null) return;
+
+            // Look for added ImportInstance that is CAD (CADLinkType behind it).
+            var added = e.GetAddedElementIds();
+            if (added == null || added.Count == 0) return;
+
+            List<ElementId> cadImports = new List<ElementId>();
+
+            foreach (var id in added)
+            {
+                Element? el = null;
+                try { el = doc.GetElement(id); }
+                catch { }
+
+                if (el is ImportInstance ii)
+                {
+                    if (IsCadImportInstance(doc, ii))
+                        cadImports.Add(id);
+                }
+            }
+
+            if (cadImports.Count == 0) return;
+
+            lock (_pendingLock)
+            {
+                if (_pending == null || _pending.Doc != doc)
+                    _pending = new PendingCad { Doc = doc };
+
+                foreach (var id in cadImports)
+                    _pending.AddedImportInstanceIds.Add(id);
+            }
+        }
+
+        private static bool IsCadImportInstance(Document doc, ImportInstance ii)
+        {
+            // For DWG/DXF/DGN etc Revit uses CADLinkType as the type element.
+            // CADLinkType represents both links and imports. (IsLink distinguishes)
+            try
+            {
+                var type = doc.GetElement(ii.GetTypeId());
+                return type is CADLinkType;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void TryPromptForDetectedCad(UIApplication uiapp, Document doc, List<ElementId> importInstanceIds)
+        {
+            // Validate ids still exist (user might undo/delete before idling)
+            var stillThere = importInstanceIds
+                .Where(id =>
+                {
+                    try { return doc.GetElement(id) is ImportInstance; }
+                    catch { return false; }
+                })
+                .ToList();
+
+            if (stillThere.Count == 0)
+                return;
+
+            _isHandling = true;
+            try
+            {
+                var w = new ImportCadWarningWindow();
+                SetOwnerToRevit(w);
+
+                // Optional: if your WPF window supports changing text, this is where you’d set it.
+                // e.g. w.MainInstruction = "CAD was added (drag & drop). What do you want to do?";
+
+                bool? ok = w.ShowDialog();
+
+                if (w.SuppressForSession)
+                    _suppressForSession = true;
+
+                // If user closes window oddly => do nothing (keep whatever got inserted)
+                if (ok != true)
+                    return;
+
+                // Reuse your existing decisions:
+                // - ContinueImport => keep inserted CAD
+                // - CancelImport   => delete inserted CAD
+                // - UseLinkCad     => delete inserted CAD then open Link CAD command
+                if (w.Decision == ImportCadDecision.ContinueImport)
+                {
+                    TryLog(uiapp, "DOC_CHANGED", "KeepInsertedCad");
+                    // ignore ensuing doc changes for a moment (safety)
+                    _ignoreDocChangesUntilUtc = DateTime.UtcNow.AddSeconds(2);
+                    return;
+                }
+
+                if (w.Decision == ImportCadDecision.CancelImport)
+                {
+                    TryLog(uiapp, "DOC_CHANGED", "DeleteInsertedCad");
+                    DeleteElementsSafe(doc, stillThere);
+                    _ignoreDocChangesUntilUtc = DateTime.UtcNow.AddSeconds(2);
+                    return;
+                }
+
+                // UseLinkCad
+                TryLog(uiapp, "DOC_CHANGED", "DeleteThenLinkCad");
+                DeleteElementsSafe(doc, stillThere);
+
+                _ignoreDocChangesUntilUtc = DateTime.UtcNow.AddSeconds(3);
+
+                var linkCmd = RevitCommandId.LookupCommandId(CmdLinkCad);
+                if (linkCmd != null)
+                    uiapp.PostCommand(linkCmd);
+            }
+            finally
+            {
+                _isHandling = false;
+            }
+        }
+
+        private static void DeleteElementsSafe(Document doc, List<ElementId> ids)
+        {
+            try
+            {
+                using var t = new Transaction(doc, "BA – Remove CAD");
+                t.Start();
+                doc.Delete(ids);
+                t.Commit();
+            }
+            catch
+            {
+                // swallow: never crash Revit because of a guard
             }
         }
 
@@ -170,14 +360,15 @@ namespace BA.App.Guards
                 if (ok != true)
                     return;
 
-                // Continue import (do NOT cancel) => command proceeds after this handler returns
                 if (w.Decision == ImportCadDecision.ContinueImport)
                 {
                     TryLog(uiapp, boundCmdId, "ContinueImport");
+                    // This import/link is allowed by us => ignore resulting doc changes briefly
+                    _ignoreDocChangesUntilUtc = DateTime.UtcNow.AddSeconds(3);
                     return;
                 }
 
-                // Otherwise cancel the import command
+                // Cancel the import command
                 e.Cancel = true;
 
                 if (w.Decision == ImportCadDecision.CancelImport)
@@ -186,8 +377,10 @@ namespace BA.App.Guards
                     return;
                 }
 
-                // Use Link CAD
+                // Use Link CAD instead
                 TryLog(uiapp, boundCmdId, "UseLinkCad");
+
+                _ignoreDocChangesUntilUtc = DateTime.UtcNow.AddSeconds(3);
 
                 if (uiapp != null)
                 {
@@ -267,6 +460,8 @@ namespace BA.App.Guards
                     var cmd = RevitCommandId.LookupCommandId(id);
                     lines.Add($" - {id} => {(cmd == null ? "NULL" : "OK")}");
                 }
+
+                lines.Add("DocumentChanged hook: ENABLED");
 
                 File.WriteAllLines(logPath, lines);
             }

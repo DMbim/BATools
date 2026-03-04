@@ -1,13 +1,15 @@
-﻿using System.Collections.Generic;
-using Autodesk.Revit.DB;
+﻿using Autodesk.Revit.DB;
+using System.Collections.Generic;
 
 namespace BA.Core.Overhead
 {
     public static class ProxyManager
     {
-        public static void CreateOrUpdateRectangleProxy(Document doc, ViewPlan view, Element owner, BoundingBoxXYZ bb, GraphicsStyle gs)
+        private const string ProxyCommentPrefix = "OAD_OVERHEAD_PROXY_";
+
+        public static void CreateOrUpdateRectangleProxy(Document doc, ViewPlan view, Element owner, BoundingBoxXYZ bb, GraphicsStyle gs, OverheadSettings settings)
         {
-            if (doc == null || view == null || owner == null || bb == null)
+            if (doc == null || view == null || owner == null || bb == null || settings == null)
                 return;
 
             if (gs == null)
@@ -23,6 +25,7 @@ namespace BA.Core.Overhead
                 view.SketchPlane = SketchPlane.Create(doc, plane);
             }
 
+            // Remove old proxies for this owner in this view
             ProxyStateStore.RemoveProxies(view, owner.Id);
 
             double planeZ = view.SketchPlane.GetPlane().Origin.Z;
@@ -40,7 +43,7 @@ namespace BA.Core.Overhead
             };
 
             var created = new List<ElementId>();
-            double minLen = UnitUtils.ConvertToInternalUnits(0.5, UnitTypeId.Millimeters);
+            double minLen = UnitUtils.ConvertToInternalUnits(1.0, UnitTypeId.Millimeters);
 
             foreach (var e in edges)
             {
@@ -48,13 +51,13 @@ namespace BA.Core.Overhead
 
                 var ln = Line.CreateBound(e.Start, e.End);
                 var dc = doc.Create.NewDetailCurve(view, ln);
-
                 dc.LineStyle = gs;
-                created.Add(dc.Id);
 
                 var cmt = dc.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
                 if (cmt != null && !cmt.IsReadOnly)
-                    cmt.Set($"OAD_OVERHEAD_PROXY_{owner.Id.Value}");
+                    cmt.Set($"{ProxyCommentPrefix}{owner.Id.Value}");
+
+                created.Add(dc.Id);
             }
 
             if (created.Count > 0)

@@ -13,14 +13,15 @@ namespace BA.Ribbon
     /// </summary>
     public static class RibbonExtensions
     {
-        
+
         /// <summary>
         /// Adds a push button to the given panel, wired to TCommand.
         /// </summary>
+        ///
         public static PushButton AddPushButton<TCommand>(
             this RibbonPanel panel,
             string internalName,
-            string text,
+            string text,    /// <summary>
             string longDescription,
             string smallImagePath = null,
             string largeImagePath = null)
@@ -41,7 +42,10 @@ namespace BA.Ribbon
 
             if (!string.IsNullOrWhiteSpace(largeImagePath))
                 button.SetLargeImage(NormalizePackUri(largeImagePath));
-
+            if (text == null)
+            {
+                text = internalName;
+            }
             return button;
         }
 

@@ -17,7 +17,7 @@ namespace BATools_Installer
         public const string AddinManifestName = "BA.addin";
 
         public const string AddinAssemblyName = "BA.dll";
-        public const string AddinFullClassName = "BA.App";
+        public const string AddinFullClassName = "BA.BAApplication.BaApplication";
 
         // Generate once and keep forever
         public const string AddinIdGuid = "8D83B3C3-7C9B-4E3B-9A5B-2E4E3E5A8F21";
