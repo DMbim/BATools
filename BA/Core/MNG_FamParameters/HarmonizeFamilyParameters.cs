@@ -57,12 +57,15 @@ namespace BA.Core
 
                         // Only act on rows that are mapped to Replace/Map Shared/etc.
                         // Assuming UI sets Action string: "Keep", "Replace", etc. We treat NOT 'Keep' as a request to replace.
-                        if (string.Equals(d.Action, "Keep", StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(d.EffectiveAction, "Keep", StringComparison.OrdinalIgnoreCase))
                         {
+
                             log?.AppendLine($"KEEP: '{d.Name}'");
                             skipped++;
                             continue;
                         }
+
+
 
                         using (var t = new Transaction(doc, $"Replace '{d.Name}'"))
                         {

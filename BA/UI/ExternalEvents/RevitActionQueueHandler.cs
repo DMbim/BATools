@@ -43,7 +43,10 @@ namespace BA.UI.ExternalEvents
                         Dispatcher.BeginInvoke(new Action(() =>
                         {
                             try { job.OnCompleted(result); }
-                            catch { /* swallow UI callback exceptions */ }
+                            catch (Exception uiEx)
+                            {
+                                System.Diagnostics.Debug.WriteLine(uiEx);
+                            }
                         }));
                     }
                 }
@@ -54,7 +57,10 @@ namespace BA.UI.ExternalEvents
                         Dispatcher.BeginInvoke(new Action(() =>
                         {
                             try { job.OnError(ex); }
-                            catch { /* swallow UI callback exceptions */ }
+                            catch (Exception uiEx)
+                            {
+                                System.Diagnostics.Debug.WriteLine(uiEx);
+                            }
                         }));
                     }
                 }

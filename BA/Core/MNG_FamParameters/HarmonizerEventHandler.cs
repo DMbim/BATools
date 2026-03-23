@@ -77,24 +77,34 @@ namespace BA.Core
                 return;
             }
 
-            var action = (p.Action ?? "").Trim();
-            ForgeTypeId desiredGroup = string.IsNullOrWhiteSpace(p.GroupTypeId)
-                ? GroupTypeId.Data
-                : new ForgeTypeId(p.GroupTypeId);
+            var action = (p.EffectiveAction ?? "").Trim();
 
-            bool desiredIsInstance = p.DesiredIsInstance;
 
             using var t = new Transaction(doc, $"Apply: {p.Name}");
             t.Start();
 
             try
             {
-                // 1) DELETE
                 if (action.Equals("Delete", StringComparison.OrdinalIgnoreCase))
                 {
                     if (source.IsBuiltIn())
                     {
                         Log.AppendLine($"DELETE BLOCKED (built-in): {p.Name}");
+                        t.Commit();
+                        return;
+                    }
+
+                    // Revit limitation checks
+                    if (IsUsedByAnyDimensionLabel(doc, source, out var dimWhy))
+                    {
+                        Log.AppendLine($"DELETE BLOCKED (dimension label): {p.Name} | {dimWhy}");
+                        t.Commit();
+                        return;
+                    }
+
+                    if (IsReferencedByOtherFormulas(fm, source, out var refs))
+                    {
+                        Log.AppendLine($"DELETE BLOCKED (referenced by formulas): {p.Name} | Used by: {string.Join(", ", refs)}");
                         t.Commit();
                         return;
                     }
@@ -106,24 +116,7 @@ namespace BA.Core
                 }
 
                 // 2) Scope switch (in-place)
-                TryApplyScope(fm, source, desiredIsInstance, Log);
 
-                // 3) Group change (recreate) - this may replace "source" with new param object
-                // 3) Group change (recreate) - this may replace "source" with new param object
-                desiredGroup = string.IsNullOrWhiteSpace(p.GroupTypeId)
-                    ? GroupTypeId.Data
-                    : new ForgeTypeId(p.GroupTypeId);
-
-                var currentGroup = SafeGetGroupTypeId(source);
-
-                if (!ForgeTypeIdEquals(desiredGroup, currentGroup))
-                {
-                    source = RecreateSameParameterDifferentGroup(fm, source, desiredGroup, desiredIsInstance, Log);
-
-                    // use the UI-friendly name if available, else fall back to TypeId
-                    var label = !string.IsNullOrWhiteSpace(p.GroupName) ? p.GroupName : p.GroupTypeId;
-                    Log.AppendLine($"GROUP: {p.Name} -> {label}");
-                }
 
                 // 4) Keep / Rename / Replace
                 if (action.Equals("Keep", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(action))
@@ -139,7 +132,6 @@ namespace BA.Core
                     t.Commit();
                     return;
                 }
-
                 if (action.Equals("Replace", StringComparison.OrdinalIgnoreCase))
                 {
                     bool ok = FamilyParamUtils.TryReplaceByName(UiApplication, fm, p, Log);
@@ -148,7 +140,8 @@ namespace BA.Core
                     return;
                 }
 
-                Log.AppendLine($"UNKNOWN ACTION '{p.Action}' for {p.Name} - skipped.");
+
+                Log.AppendLine($"UNKNOWN ACTION '{p.EffectiveAction}' for {p.Name} - skipped.");
                 t.Commit();
             }
             catch (Exception ex)
@@ -243,13 +236,65 @@ namespace BA.Core
 
             return created;
         }
+        private bool IsUsedByAnyDimensionLabel(Document doc, FamilyParameter fp, out string details)
+        {
+            details = "";
+            try
+            {
+                // Dimensions exist in family docs and can have FamilyLabel
+                var dims = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Dimension))
+                    .Cast<Dimension>();
 
+                foreach (var d in dims)
+                {
+                    FamilyParameter label = null;
+                    try { label = d.FamilyLabel; } catch { }
+
+                    if (label != null && label.Id == fp.Id)
+                    {
+                        details = $"Dimension label in view '{doc.GetElement(d.OwnerViewId)?.Name ?? "<view>"}' (DimensionId {d.Id.Value})";
+                        return true;
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private bool IsReferencedByOtherFormulas(FamilyManager fm, FamilyParameter target, out List<string> referrers)
+        {
+            referrers = new List<string>();
+            try
+            {
+                var targetName = target?.Definition?.Name;
+                if (string.IsNullOrWhiteSpace(targetName)) return false;
+
+                foreach (var p in fm.GetParameters())
+                {
+                    if (p == null) continue;
+                    if (p.Id == target.Id) continue;
+
+                    try
+                    {
+                        if (!p.CanAssignFormula) continue;
+                        var f = p.Formula;
+                        if (string.IsNullOrWhiteSpace(f)) continue;
+
+                        // Best-effort: string contains (Revit formula language)
+                        if (f.IndexOf(targetName, StringComparison.OrdinalIgnoreCase) >= 0)
+                            referrers.Add(p.Definition?.Name ?? "<unnamed>");
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+
+            return referrers.Count > 0;
+        }
         private void RenameFamilyParam(FamilyManager fm, FamilyParameter source, ParameterPreview p)
         {
-            var targetName =
-                !string.IsNullOrWhiteSpace(p.NewName) ? p.NewName :
-                !string.IsNullOrWhiteSpace(p.MatchedShared) ? p.MatchedShared :
-                null;
+            var targetName = (p.TargetName ?? "").Trim();
 
             if (string.IsNullOrWhiteSpace(targetName) ||
                 targetName.Equals(source.Definition.Name, StringComparison.OrdinalIgnoreCase))
@@ -268,7 +313,6 @@ namespace BA.Core
             fm.RenameParameter(source, targetName);
             Log.AppendLine($"RENAME: {p.Name} -> {targetName}");
         }
-
         // ---------------- Value capture/restore ----------------
 
         private Dictionary<string, object> CaptureValuesAcrossFamilyTypes(FamilyManager fm, FamilyParameter fp)

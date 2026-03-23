@@ -1,5 +1,6 @@
 ﻿using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
+using BA.App.Commands;
 using BA.App.Guards;
 using BA.App.Overhead;
 using BA.BIM.Commands.Anno;
@@ -89,6 +90,15 @@ namespace BA.BAApplication
                 var fin32 = "/BA;component/Resources/Icons32/FIN32.png";
                 var txt16 = "/BA;component/Resources/Icons16/txt6.png";
                 var txt32 = "/BA;component/Resources/Icons32/txt6.png";
+                var brws16 = "/BA;component/Resources/Icons16/brws_16.png";
+                var brws32 = "/BA;component/Resources/Icons32/brws_32.png";
+
+                var contBrws = panelElements.AddPushButton<Cmd_OpenContentBrowserCommand>(
+                    "Content Browser",
+                    "Content\nBrowser",
+                    "Browse and place family types from the content library.",
+                    brws16,
+                    brws32);
 
                 var cmdRoomFinishes = panelRooms.AddPushButton<ApplyFinishesByRoomsCommand>(
                     "Room Finishes",

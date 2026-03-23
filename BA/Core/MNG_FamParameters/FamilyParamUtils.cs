@@ -10,6 +10,7 @@ namespace BA.Core
 {
     public static class FamilyParamUtils
     {
+        
         // ---------------- Value Get/Set ----------------
 
         public static object GetParameterValue(FamilyManager fm, FamilyParameter fp)
@@ -56,7 +57,9 @@ namespace BA.Core
             SharedParamUtils.LoadSharedParameterFile(uiapp.Application);
             var lookup = SharedParamUtils.BuildExternalDefinitionLookup();
 
-            string target = string.IsNullOrWhiteSpace(decision.NewName) ? decision.Name : decision.NewName;
+            string target = string.IsNullOrWhiteSpace(decision.MatchedShared)
+                ? decision.Name
+                : decision.MatchedShared;
 
             string matchedName;
             var extDef = SharedParamUtils.FindBestSharedDefinition(target, lookup, out matchedName, minScore: 0.66);
@@ -74,7 +77,6 @@ namespace BA.Core
                 return false;
             }
 
-            // Spec check
             var a = fpToReplace.Definition.GetDataType();
             var b = extDef.GetDataType();
             if (!SpecUtils.AreSpecsCompatible(a, b))
@@ -118,29 +120,43 @@ namespace BA.Core
                     return false;
                 }
 
-                // Cache old info
                 object oldValue = GetParameterValue(fm, oldFp);
                 bool isInstance = oldFp.IsInstance;
 
-                // Group is a ForgeTypeId in RVT 2026; retrieve from Definition
                 ForgeTypeId groupId = oldFp.Definition.GetGroupTypeId();
-                if (groupId == null) groupId = GroupTypeId.Data; // default safety
+                if (groupId == null) groupId = GroupTypeId.Data;
 
-                // Avoid collision – rename old first
                 string oldName = oldFp.Definition.Name;
-                string tempName = oldName + "__OLD";
-                try { fm.RenameParameter(oldFp, tempName); } catch { /* best effort */ }
+                string tempOldName = oldName + "_OLD";
 
-                // Add new shared parameter (ExternalDefinition, ForgeTypeId group, bool isInstance)
+                // Ensure unique temp name
+                string finalTempName = tempOldName;
+                int suffix = 1;
+                while (fm.GetParameters().Any(p => p.Definition.Name.Equals(finalTempName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    finalTempName = tempOldName + "_" + suffix;
+                    suffix++;
+                }
+
+                fm.RenameParameter(oldFp, finalTempName);
+
                 FamilyParameter newFp = fm.AddParameter(extDef, groupId, isInstance);
 
-                // Copy value
-                if (oldValue != null) SetParameterValue(fm, newFp, oldValue);
+                if (oldValue != null)
+                    SetParameterValue(fm, newFp, oldValue);
 
-                // Remove old (temp)
-                try { fm.RemoveParameter(oldFp); } catch { /* best effort */ }
+                try
+                {
+                    fm.RemoveParameter(oldFp);
+                    log?.AppendLine($"Replaced '{oldName}' with shared '{extDef.Name}' and removed old parameter.");
+                }
+                catch (Exception removeEx)
+                {
+                    log?.AppendLine(
+                        $"Replaced '{oldName}' with shared '{extDef.Name}', but old parameter was kept as '{finalTempName}' " +
+                        $"because Revit would not remove it ({removeEx.Message}).");
+                }
 
-                log?.AppendLine($"Replaced '{oldName}' with shared '{extDef.Name}'.");
                 return true;
             }
             catch (Exception ex)
@@ -149,7 +165,6 @@ namespace BA.Core
                 return false;
             }
         }
-
         // ---------------- Utilities ----------------
 
         public static bool MatchesExternalDefinition(FamilyParameter fp, Definition def)

@@ -1,0 +1,194 @@
+﻿<Window x:Class="BA.UI.Views.ScopeBoxes.ScopeBoxManagerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="BA – Scope Box Manager"
+        Width="1280"
+        Height="760"
+        MinWidth="1100"
+        MinHeight="700"
+        Background="#0F0F10"
+        Foreground="#F2F2F2"
+        FontFamily="Segoe UI"
+        FontSize="12"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+
+                <ResourceDictionary Source="/BA;component\UI\A_Templ\Theme.xaml"/>
+                <!-- If that fails in your setup, try:
+                <ResourceDictionary Source="Resources/Theme.xaml"/>
+                -->
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Top toolbar -->
+        <Border Grid.Row="0"
+                Style="{StaticResource BaPanelBorder}"
+                Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="260"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="220"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="150"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Style="{StaticResource BaPanelText}"
+                           Margin="0,0,8,0"
+                           Text="Scope Box:"/>
+
+                <ComboBox x:Name="CmbScopeBoxes"
+                          Grid.Column="1"
+                          Style="{StaticResource BaComboBox}"
+                          DisplayMemberPath="Name"
+                          SelectedValuePath="Id"/>
+
+                <TextBlock Grid.Column="3"
+                           Style="{StaticResource BaPanelText}"
+                           Margin="0,0,8,0"
+                           Text="View Filter:"/>
+
+                <TextBox x:Name="TxtFilter"
+                         Grid.Column="4"
+                         Style="{StaticResource BaTextBox}"
+                         TextChanged="TxtFilter_TextChanged"/>
+
+                <CheckBox x:Name="ChkOnlySelectedViews"
+                          Grid.Column="6"
+                          Style="{StaticResource BaPanelCheckBox}"
+                          Content="Only selected views"
+                          Margin="0,0,8,0"/>
+
+                <Button x:Name="BtnReload"
+                        Grid.Column="7"
+                        Width="120"
+                        Style="{StaticResource BaPanelButton}"
+                        Content="Reload"
+                        Click="BtnReload_Click"/>
+            </Grid>
+        </Border>
+
+        <!-- Action row -->
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    Margin="0,0,0,10">
+            <Button x:Name="BtnCheckAll"
+                    Width="110"
+                    Margin="0,0,8,0"
+                    Style="{StaticResource BaSecondaryButton}"
+                    Content="Check All"
+                    Click="BtnCheckAll_Click"/>
+
+            <Button x:Name="BtnUncheckAll"
+                    Width="110"
+                    Margin="0,0,8,0"
+                    Style="{StaticResource BaSecondaryButton}"
+                    Content="Uncheck All"
+                    Click="BtnUncheckAll_Click"/>
+
+            <Button x:Name="BtnCheckUnlocked"
+                    Width="130"
+                    Margin="0,0,8,0"
+                    Style="{StaticResource BaSecondaryButton}"
+                    Content="Check Unlocked"
+                    Click="BtnCheckUnlocked_Click"/>
+
+            <Separator Width="20" Margin="8,0"/>
+
+            <Button x:Name="BtnApply"
+                    Width="130"
+                    Margin="0,0,8,0"
+                    Style="{StaticResource BaPrimaryButton}"
+                    Content="Apply Scope Box"
+                    Click="BtnApply_Click"/>
+
+            <Button x:Name="BtnClear"
+                    Width="130"
+                    Margin="0,0,8,0"
+                    Style="{StaticResource BaSecondaryButton}"
+                    Content="Clear Scope Box"
+                    Click="BtnClear_Click"/>
+        </StackPanel>
+
+        <!-- Main grid -->
+        <Border Grid.Row="2"
+                Style="{StaticResource BaPanelBorder}">
+            <DataGrid x:Name="GridViews"
+                      Style="{StaticResource BaDataGrid}"
+                      ColumnHeaderStyle="{StaticResource BaDataGridColumnHeader}"
+                      CellStyle="{StaticResource BaDataGridCell}"
+                      RowStyle="{StaticResource BaDataGridRow}"
+                      IsReadOnly="False"
+                      SelectionMode="Extended"
+                      SelectionUnit="FullRow">
+                <DataGrid.Columns>
+                    <DataGridCheckBoxColumn Header="Use"
+                                            Binding="{Binding IsChecked, Mode=TwoWay}"
+                                            Width="55"/>
+
+                    <DataGridTextColumn Header="View Name"
+                                        Binding="{Binding ViewName}"
+                                        Width="*"/>
+
+                    <DataGridTextColumn Header="Type Name"
+                                        Binding="{Binding ViewTypeName}"
+                                        Width="220"/>
+
+                    <DataGridTextColumn Header="Family"
+                                        Binding="{Binding FamilyName}"
+                                        Width="170"/>
+
+                    <DataGridTextColumn Header="Current Scope Box"
+                                        Binding="{Binding CurrentScopeBoxName}"
+                                        Width="220"/>
+
+                    <DataGridCheckBoxColumn Header="Locked"
+                                            Binding="{Binding IsLocked}"
+                                            Width="80"
+                                            IsReadOnly="True"/>
+
+                    <DataGridTextColumn Header="Status"
+                                        Binding="{Binding Status}"
+                                        Width="220"
+                                        IsReadOnly="True"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <!-- Bottom -->
+        <DockPanel Grid.Row="3"
+                   Margin="0,10,0,0">
+            <TextBlock x:Name="TxtSummary"
+                       Style="{StaticResource BaMutedTextDark}"
+                       Text="Ready."
+                       VerticalAlignment="Center"/>
+
+            <StackPanel Orientation="Horizontal"
+                        DockPanel.Dock="Right">
+                <Button Width="100"
+                        Margin="8,0,0,0"
+                        Style="{StaticResource BaSecondaryButton}"
+                        Content="Close"
+                        Click="BtnClose_Click"/>
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>
