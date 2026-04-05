@@ -38,6 +38,24 @@
         <DeployRevitAddin>true</DeployRevitAddin>
     </PropertyGroup>
     <ItemGroup>
+      <Compile Remove="Keyplan\New\**" />
+      <Compile Remove="Keyplan\Update\**" />
+      <Compile Remove="Keyplan\Utils§\**" />
+      <EmbeddedResource Remove="Keyplan\New\**" />
+      <EmbeddedResource Remove="Keyplan\Update\**" />
+      <EmbeddedResource Remove="Keyplan\Utils§\**" />
+      <None Remove="Keyplan\New\**" />
+      <None Remove="Keyplan\Update\**" />
+      <None Remove="Keyplan\Utils§\**" />
+      <Page Remove="Keyplan\New\**" />
+      <Page Remove="Keyplan\Update\**" />
+      <Page Remove="Keyplan\Utils§\**" />
+    </ItemGroup>
+    <ItemGroup>
+      <Compile Remove="Commands\Anno\Cmd_GenerateKeyplanDraftingView .cs" />
+      <Compile Remove="Commands\Anno\Cmd_UpdateKeyplansOnSheets.CS" />
+    </ItemGroup>
+    <ItemGroup>
       <None Remove="Resources\Icons16\ArAnnoStt_16.png" />
       <None Remove="Resources\Icons16\ArAnnoSt_16.png" />
       <None Remove="Resources\Icons16\ArAnno_16.png" />
@@ -55,8 +73,11 @@
       <None Remove="Resources\Icons16\ElementToRoom16.png" />
       <None Remove="Resources\Icons16\FIN16.png" />
       <None Remove="Resources\Icons16\General_Test16.png" />
+      <None Remove="Resources\Icons16\lib_16.png" />
       <None Remove="Resources\Icons16\Menu_16.png" />
       <None Remove="Resources\Icons16\OverheadCommand_OverheadCommand166.png" />
+      <None Remove="Resources\Icons16\Temp16.png" />
+      <None Remove="Resources\Icons16\TRA_16.png" />
       <None Remove="Resources\Icons16\txt16.png" />
       <None Remove="Resources\Icons16\use16.png" />
       <None Remove="Resources\Icons16\ZoomtoRoom16.png" />
@@ -77,7 +98,10 @@
       <None Remove="Resources\Icons32\ElementToRoom32.png" />
       <None Remove="Resources\Icons32\FIN32.png" />
       <None Remove="Resources\Icons32\General_Test32.png" />
+      <None Remove="Resources\Icons32\lib_32.png" />
       <None Remove="Resources\Icons32\Menu_32.png" />
+      <None Remove="Resources\Icons32\Temp32.png" />
+      <None Remove="Resources\Icons32\TRA_32.png" />
       <None Remove="Resources\Icons32\use32.png" />
       <None Remove="Resources\Icons32\ZoomtoRoom32.png" />
     </ItemGroup>
@@ -151,6 +175,7 @@
         <Resource Include="Resources\Icons16\General_Test16.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
+        <Resource Include="Resources\Icons16\lib_16.png" />
         <Resource Include="Resources\Icons16\Menu_16.png" />
         <Resource Include="Resources\Icons16\OverheadCommand16.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
@@ -164,6 +189,8 @@
         <Resource Include="Resources\Icons16\SheetDateAndRevision16.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
+        <Resource Include="Resources\Icons16\Temp16.png" />
+        <Resource Include="Resources\Icons16\TRA_16.png" />
         <Resource Include="Resources\Icons16\txt16.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
@@ -245,6 +272,7 @@
         <Resource Include="Resources\Icons32\General_Test32.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
+        <Resource Include="Resources\Icons32\lib_32.png" />
         <Resource Include="Resources\Icons32\Menu_32.png" />
         <Resource Include="Resources\Icons32\OverheadCommand32.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
@@ -255,6 +283,8 @@
         <Resource Include="Resources\Icons32\SheetDateAndRevision32.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
+        <Resource Include="Resources\Icons32\Temp32.png" />
+        <Resource Include="Resources\Icons32\TRA_32.png" />
         <Resource Include="Resources\Icons32\use32.png">
           <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Resource>
@@ -267,6 +297,7 @@
 
     <ItemGroup>
         <Folder Include="Models" />
+        <Folder Include="NewFolder\" />
         <Folder Include="ViewModels\" />
     </ItemGroup>
 

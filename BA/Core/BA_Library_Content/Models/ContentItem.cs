@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Autodesk.Revit.DB.Visual;
+using System;
 using System.Collections.Generic;
 
 namespace BA.Core.Content.Models
@@ -31,7 +32,16 @@ namespace BA.Core.Content.Models
 
         public bool IsFavorite { get; set; }
         public DateTime? LastUsedUtc { get; set; }
+        public string ClassDomainCode { get; set; } = string.Empty;
 
+        public string ClassDomainName { get; set; } = string.Empty;
+
+        public string ClassGroupCode { get; set; } = string.Empty;
+        public string ClassGroupName { get; set; } = string.Empty;
+
+        public string ClassCode { get; set; } = string.Empty;
+        public string ClassName { get; set; } = string.Empty;
         public string SearchBlob { get; set; } = string.Empty;
+
     }
 }

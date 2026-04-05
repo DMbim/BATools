@@ -14,6 +14,12 @@ using System.Windows.Threading;
 
 namespace BA.UI.ContentBrowser
 {
+    public enum TreeMode
+    {
+        Classification,
+        Folder
+    }
+
     public sealed class ContentBrowserViewModel : INotifyPropertyChanged
     {
         private readonly ContentIndexService _indexService;
@@ -26,7 +32,6 @@ namespace BA.UI.ContentBrowser
 
         private string _searchText = string.Empty;
         private string _selectedCategory = "All";
-        private string _selectedApprovalState = "All";
         private string _selectedRoot = "All";
         private bool _favoritesOnly;
         private ContentItem? _selectedItem;
@@ -35,18 +40,23 @@ namespace BA.UI.ContentBrowser
         private DispatcherTimer? _previewTimer;
         private bool _previewRunning;
         private int _previewPollAttempts;
-        private const int MaxPreviewPollAttempts = 30; // 30 * 200ms = ~6 seconds
+        private const int MaxPreviewPollAttempts = 30;
 
         private DispatcherTimer? _loadTimer;
         private bool _loadRunning;
         private int _loadPollAttempts;
-        private const int MaxLoadPollAttempts = 30; // ~6s
+        private const int MaxLoadPollAttempts = 30;
         private bool _pendingPlaceAfterLoad;
         private string _pendingFamilyPath = string.Empty;
 
+        private readonly KeynoteHierarchyParser _keynoteParser = new();
+
+        private TreeMode _treeMode = TreeMode.Classification;
+        private ObservableCollection<object> _treeRoots = new();
+        private object? _selectedTreeNode;
+
         public ObservableCollection<ContentItem> Items { get; } = new();
         public ObservableCollection<string> Categories { get; } = new();
-        public ObservableCollection<string> ApprovalStates { get; } = new();
         public ObservableCollection<string> Roots { get; } = new();
 
         public RelayCommand RefreshIndexCommand { get; }
@@ -70,13 +80,40 @@ namespace BA.UI.ContentBrowser
             _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
 
             RefreshIndexCommand = new RelayCommand(_ => RefreshIndex());
-            LoadSelectedCommand = new RelayCommand(_ => LoadSelected(false), _ => SelectedItem != null && !_previewRunning);
-            LoadAndPlaceCommand = new RelayCommand(_ => LoadSelected(true), _ => SelectedItem != null && !_previewRunning);
+            LoadSelectedCommand = new RelayCommand(_ => LoadSelected(false), _ => SelectedItem != null && !_previewRunning && !_loadRunning);
+            LoadAndPlaceCommand = new RelayCommand(_ => LoadSelected(true), _ => SelectedItem != null && !_previewRunning && !_loadRunning);
             ToggleFavoriteCommand = new RelayCommand(_ => ToggleFavorite(), _ => SelectedItem != null);
             OpenFolderCommand = new RelayCommand(_ => OpenFolder(), _ => SelectedItem != null);
-            ExportPreviewCommand = new RelayCommand(_ => ExportPreview(), _ => SelectedItem != null && !_previewRunning);
+            ExportPreviewCommand = new RelayCommand(_ => ExportPreview(), _ => SelectedItem != null && !_previewRunning && !_loadRunning);
 
             LoadInitial();
+            RebuildTree();
+        }
+
+        public TreeMode TreeMode
+        {
+            get => _treeMode;
+            set
+            {
+                if (SetField(ref _treeMode, value))
+                    RebuildTree();
+            }
+        }
+
+        public ObservableCollection<object> TreeRoots
+        {
+            get => _treeRoots;
+            set => SetField(ref _treeRoots, value);
+        }
+
+        public object? SelectedTreeNode
+        {
+            get => _selectedTreeNode;
+            set
+            {
+                if (SetField(ref _selectedTreeNode, value))
+                    ApplyFilter();
+            }
         }
 
         public string SearchText
@@ -95,16 +132,6 @@ namespace BA.UI.ContentBrowser
             set
             {
                 if (SetField(ref _selectedCategory, value))
-                    ApplyFilter();
-            }
-        }
-
-        public string SelectedApprovalState
-        {
-            get => _selectedApprovalState;
-            set
-            {
-                if (SetField(ref _selectedApprovalState, value))
                     ApplyFilter();
             }
         }
@@ -213,13 +240,13 @@ namespace BA.UI.ContentBrowser
             }
 
             RebuildFacets();
+            RebuildTree();
             ApplyFilter();
         }
 
         private void RebuildFacets()
         {
             Categories.Clear();
-            ApprovalStates.Clear();
             Roots.Clear();
 
             Categories.Add("All");
@@ -230,16 +257,6 @@ namespace BA.UI.ContentBrowser
                 .OrderBy(x => x))
             {
                 Categories.Add(x);
-            }
-
-            ApprovalStates.Add("All");
-            foreach (string x in _allItems
-                .Select(i => i.ApprovalState)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct()
-                .OrderBy(x => x))
-            {
-                ApprovalStates.Add(x);
             }
 
             Roots.Add("All");
@@ -253,15 +270,53 @@ namespace BA.UI.ContentBrowser
             }
         }
 
+        private void RebuildTree()
+        {
+            if (TreeMode == TreeMode.Classification)
+            {
+                TreeRoots = new ObservableCollection<object>(LoadClassificationTreeNodes().Cast<object>());
+            }
+            else
+            {
+                // Requires FolderTreeBuilder.Build(_allItems)
+                TreeRoots = new ObservableCollection<object>(FolderTreeBuilder.Build(_allItems).Cast<object>());
+            }
+
+            SelectedTreeNode = null;
+        }
+
+        private IReadOnlyList<ClassificationNode> LoadClassificationTreeNodes()
+        {
+            try
+            {
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                string keynotePath = Path.Combine(appData, "BA", "ContentBrowser", "classification-keynotes.txt");
+
+                if (!File.Exists(keynotePath))
+                    return Array.Empty<ClassificationNode>();
+
+                return _keynoteParser.ParseFile(keynotePath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "BA Content Browser - Classification Tree");
+                return Array.Empty<ClassificationNode>();
+            }
+        }
+
         private void ApplyFilter()
         {
+            ClassificationNode? selectedClassificationNode = SelectedTreeNode as ClassificationNode;
+            FolderNode? selectedFolderNode = SelectedTreeNode as FolderNode;
+
             var filtered = _searchService.Filter(
                 _allItems,
                 SearchText,
                 SelectedCategory,
-                SelectedApprovalState,
                 SelectedRoot,
-                FavoritesOnly);
+                FavoritesOnly,
+                selectedClassificationNode,
+                selectedFolderNode);
 
             Items.Clear();
 
@@ -270,6 +325,7 @@ namespace BA.UI.ContentBrowser
 
             StatusText = $"{Items.Count} items shown.";
         }
+
         private void CompleteLoad()
         {
             StopLoadPolling();
@@ -300,9 +356,10 @@ namespace BA.UI.ContentBrowser
             StatusText = message;
             MessageBox.Show(message, "BA Content Browser - Load Error");
         }
+
         private void LoadSelected(bool placeAfterLoad)
         {
-            if (SelectedItem != null && !_previewRunning && !_loadRunning)
+            if (SelectedItem == null || _previewRunning || _loadRunning)
                 return;
 
             try
@@ -333,6 +390,7 @@ namespace BA.UI.ContentBrowser
                 StatusText = ex.Message;
             }
         }
+
         private void LoadTimer_Tick(object? sender, EventArgs e)
         {
             try
@@ -341,23 +399,18 @@ namespace BA.UI.ContentBrowser
 
                 string error = _dispatcher.ConsumeLastLoadError();
 
-                // If handler reported an error → fail
                 if (!string.IsNullOrWhiteSpace(error))
                 {
                     FailLoad(error);
                     return;
                 }
 
-                // We don't get a positive "result" from load handler,
-                // so success = no error + a short delay threshold
-                // (Revit load is usually quick; we give it a few ticks)
                 if (_loadPollAttempts >= 3)
                 {
                     CompleteLoad();
                     return;
                 }
 
-                // Timeout safety
                 if (_loadPollAttempts >= MaxLoadPollAttempts)
                 {
                     FailLoad("Load operation timed out.");
@@ -369,9 +422,10 @@ namespace BA.UI.ContentBrowser
                 FailLoad(ex.Message);
             }
         }
+
         private void ExportPreview()
         {
-            if (SelectedItem == null || _previewRunning)
+            if (SelectedItem == null || _previewRunning || _loadRunning)
                 return;
 
             try
@@ -401,6 +455,7 @@ namespace BA.UI.ContentBrowser
                 StatusText = ex.Message;
             }
         }
+
         private void StopLoadPolling()
         {
             if (_loadTimer != null)
@@ -421,6 +476,7 @@ namespace BA.UI.ContentBrowser
             _loadTimer.Stop();
             _loadTimer.Start();
         }
+
         private void StartPreviewPolling()
         {
             if (_previewTimer == null)
@@ -466,7 +522,6 @@ namespace BA.UI.ContentBrowser
 
                 if (!string.IsNullOrWhiteSpace(error))
                 {
-                    // Files may still have been created, so filesystem wins if success artifacts exist.
                     if (pngExists)
                     {
                         CompletePreview(expectedPng, jpgExists);
@@ -501,7 +556,6 @@ namespace BA.UI.ContentBrowser
                     return;
                 }
 
-                // Fallback: async result not consumed yet, but file exists already.
                 if (pngExists)
                 {
                     CompletePreview(expectedPng, jpgExists);

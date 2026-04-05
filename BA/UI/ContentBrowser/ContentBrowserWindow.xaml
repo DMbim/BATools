@@ -3,15 +3,92 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:BA.UI.ContentBrowser"
         mc:Ignorable="d"
         Title="BA Content Browser"
         Width="1450"
         Height="850"
         WindowStartupLocation="CenterOwner"
-        Background="#0B0C0F"
+        Background="#0F0F10"
         Foreground="#F2F2F2"
         FontFamily="Segoe UI"
         FontSize="12">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Local browser tree styles -->
+            <Style x:Key="BrowserTreeView" TargetType="{x:Type TreeView}">
+                <Setter Property="Background" Value="{StaticResource Brush.ControlBgDark}"/>
+                <Setter Property="Foreground" Value="{StaticResource Brush.ControlFgDark}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource Brush.ControlBorderDark}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="4"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+            </Style>
+
+            <Style x:Key="BrowserTreeViewItem" TargetType="{x:Type TreeViewItem}">
+                <Setter Property="Foreground" Value="{StaticResource Brush.ControlFgDark}"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Padding" Value="2"/>
+                <Setter Property="Margin" Value="0,1,0,1"/>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="{StaticResource Brush.Selected}"/>
+                        <Setter Property="Foreground" Value="{StaticResource Brush.PanelFg}"/>
+                    </Trigger>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{StaticResource Brush.HoverDark}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- Local dark DataGrid styles -->
+            <Style x:Key="BrowserDataGrid" TargetType="{x:Type DataGrid}" BasedOn="{StaticResource BaDataGrid}">
+                <Setter Property="Background" Value="{StaticResource Brush.ControlBgDark}"/>
+                <Setter Property="Foreground" Value="{StaticResource Brush.ControlFgDark}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource Brush.ControlBorderDark}"/>
+                <Setter Property="RowBackground" Value="{StaticResource Brush.ControlBgDark}"/>
+                <Setter Property="AlternatingRowBackground" Value="{StaticResource Brush.HoverDark}"/>
+                <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+                <Setter Property="HeadersVisibility" Value="Column"/>
+                <Setter Property="CanUserAddRows" Value="False"/>
+                <Setter Property="CanUserDeleteRows" Value="False"/>
+                <Setter Property="AutoGenerateColumns" Value="False"/>
+            </Style>
+
+            <Style x:Key="BrowserDataGridColumnHeader"
+                   TargetType="{x:Type DataGridColumnHeader}"
+                   BasedOn="{StaticResource BaDataGridColumnHeader}">
+                <Setter Property="Background" Value="{StaticResource Brush.DarkPanelBg}"/>
+                <Setter Property="Foreground" Value="{StaticResource Brush.DarkPanelFg}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource Brush.DarkPanelBorder}"/>
+            </Style>
+
+            <Style x:Key="BrowserDataGridCell"
+                   TargetType="{x:Type DataGridCell}"
+                   BasedOn="{StaticResource BaDataGridCell}">
+                <Setter Property="Foreground" Value="{StaticResource Brush.ControlFgDark}"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="{StaticResource Brush.Selected}"/>
+                        <Setter Property="Foreground" Value="{StaticResource Brush.PanelFg}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="BrowserDataGridRow"
+                   TargetType="{x:Type DataGridRow}"
+                   BasedOn="{StaticResource BaDataGridRow}">
+                <Setter Property="Foreground" Value="{StaticResource Brush.ControlFgDark}"/>
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -21,94 +98,144 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="#121722" BorderBrush="#2E3545" BorderThickness="1" CornerRadius="8" Padding="10">
+        <!-- Top filter bar -->
+        <Border Grid.Row="0"
+                Style="{StaticResource BaDarkPanelBorder}"
+                Padding="10">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="280"/>
                     <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="170"/>
+                    <ColumnDefinition Width="12"/>
                     <ColumnDefinition Width="180"/>
                     <ColumnDefinition Width="12"/>
-                    <ColumnDefinition Width="160"/>
-                    <ColumnDefinition Width="12"/>
-                    <ColumnDefinition Width="160"/>
+                    <ColumnDefinition Width="180"/>
                     <ColumnDefinition Width="12"/>
                     <ColumnDefinition Width="110"/>
                     <ColumnDefinition Width="12"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="42"/>
-                    <ColumnDefinition Width="76"/>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="120"/>
                 </Grid.ColumnDefinitions>
 
                 <TextBox Grid.Column="0"
-                         VerticalContentAlignment="Center"
-                         Padding="8,4"
+                         Style="{StaticResource BaDarkTextBox}"
                          Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
 
                 <ComboBox Grid.Column="2"
-                          ItemsSource="{Binding Categories}"
-                          SelectedItem="{Binding SelectedCategory}" Background="Black" />
+                          Width="160"
+                          Style="{StaticResource BaDarkComboBox}"
+                          SelectedValue="{Binding TreeMode, Mode=TwoWay}"
+                          SelectedValuePath="Tag">
+                    <ComboBoxItem Content="Classification"
+                                  Tag="{x:Static local:TreeMode.Classification}" />
+                    <ComboBoxItem Content="Folders"
+                                  Tag="{x:Static local:TreeMode.Folder}" />
+                </ComboBox>
 
                 <ComboBox Grid.Column="4"
-                          ItemsSource="{Binding ApprovalStates}"
-                          SelectedItem="{Binding SelectedApprovalState}" Background="Black" />
+                          Style="{StaticResource BaDarkComboBox}"
+                          ItemsSource="{Binding Categories}"
+                          SelectedItem="{Binding SelectedCategory}" />
 
                 <ComboBox Grid.Column="6"
+                          Style="{StaticResource BaDarkComboBox}"
                           ItemsSource="{Binding Roots}"
-                          SelectedItem="{Binding SelectedRoot}" Background="Black" />
+                          SelectedItem="{Binding SelectedRoot}" />
 
                 <CheckBox Grid.Column="8"
+                          Style="{StaticResource BaCheckBox}"
                           VerticalAlignment="Center"
                           IsChecked="{Binding FavoritesOnly}"
-                          Content="Favorites" Foreground="#FFFFF9F9" Height="16"/>
+                          Content="Favorites" />
 
-                <Button Grid.Column="13"
-                        Content="Rebuild Index"
-                        Command="{Binding RefreshIndexCommand}" Margin="159,-1,-279,1" />
-
-                <Button Grid.Column="11"
+                <Button Grid.Column="10"
+                        Style="{StaticResource BaPanelButton}"
                         Content="Open Folder"
-                        Command="{Binding OpenFolderCommand}" Grid.ColumnSpan="3" Margin="0,0,-2,0" />
+                        Command="{Binding OpenFolderCommand}" />
 
-
+                <Button Grid.Column="12"
+                        Style="{StaticResource BaPanelButton}"
+                        Content="Rebuild Index"
+                        Command="{Binding RefreshIndexCommand}" />
             </Grid>
         </Border>
 
+        <!-- Main content -->
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="1.5*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="2.7*"/>
                 <ColumnDefinition Width="12"/>
                 <ColumnDefinition Width="2*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Background="#121722" BorderBrush="#2E3545" BorderThickness="1" CornerRadius="8">
+            <!-- Tree -->
+            <Border Grid.Column="0"
+                    Style="{StaticResource BaDarkPanelBorder}"
+                    Padding="8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="8"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0"
+                               Text="Navigation"
+                               Style="{StaticResource BaDarkSectionTitleText}" />
+
+                    <TreeView Grid.Row="2"
+                              ItemsSource="{Binding TreeRoots}"
+                              SelectedItemChanged="ClassificationTree_SelectedItemChanged"
+                              Style="{StaticResource BrowserTreeView}">
+                        <TreeView.ItemContainerStyle>
+                            <Style TargetType="{x:Type TreeViewItem}"
+                                   BasedOn="{StaticResource BrowserTreeViewItem}" />
+                        </TreeView.ItemContainerStyle>
+                        <TreeView.ItemTemplate>
+                            <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                <TextBlock Text="{Binding DisplayText}" />
+                            </HierarchicalDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                </Grid>
+            </Border>
+
+            <!-- Family list -->
+            <Border Grid.Column="2"
+                    Style="{StaticResource BaDarkPanelBorder}"
+                    Padding="0">
                 <DataGrid ItemsSource="{Binding Items}"
                           SelectedItem="{Binding SelectedItem}"
-                          AutoGenerateColumns="False"
-                          HeadersVisibility="Column"
-                          GridLinesVisibility="Horizontal"
-                          RowBackground="#121722"
-                          AlternatingRowBackground="#151B27"
-                          Background="White"
-                          Foreground="#FF121111"
+                          Style="{StaticResource BrowserDataGrid}"
+                          ColumnHeaderStyle="{StaticResource BrowserDataGridColumnHeader}"
+                          CellStyle="{StaticResource BrowserDataGridCell}"
+                          RowStyle="{StaticResource BrowserDataGridRow}"
                           BorderThickness="0"
                           IsReadOnly="True"
                           SelectionMode="Single"
                           SelectionUnit="FullRow"
                           MouseDoubleClick="DataGrid_MouseDoubleClick">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" Width="2.5*" />
+                        <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" Width="2.4*" />
                         <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="*" />
-                        <DataGridTextColumn Header="State" Binding="{Binding ApprovalState}" Width="*" />
                         <DataGridTextColumn Header="Root" Binding="{Binding RootName}" Width="*" />
                         <DataGridTextColumn Header="Path" Binding="{Binding RelativePath}" Width="2*" />
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>
 
-            <Border Grid.Column="2" Background="#121722" BorderBrush="#2E3545" BorderThickness="1" CornerRadius="8" Padding="12">
+            <!-- Details -->
+            <Border Grid.Column="4"
+                    Style="{StaticResource BaDarkPanelBorder}"
+                    Padding="12">
                 <Grid>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="8"/>
                         <RowDefinition Height="260"/>
                         <RowDefinition Height="12"/>
                         <RowDefinition Height="Auto"/>
@@ -118,48 +245,127 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="6"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="6"/>
+                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="8"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <Border Grid.Row="0" BorderBrush="#2E3545" BorderThickness="1" Background="#0E1118" CornerRadius="8">
+                    <TextBlock Grid.Row="0"
+                               Text="Details"
+                               Style="{StaticResource BaDarkSectionTitleText}" />
+
+                    <Border Grid.Row="2"
+                            BorderBrush="{StaticResource Brush.DarkPanelBorder}"
+                            BorderThickness="1"
+                            Background="{StaticResource Brush.ControlBgDark}"
+                            CornerRadius="6">
                         <Grid>
                             <TextBlock Text="No Preview"
-                                       Foreground="#7F8A9A"
+                                       Style="{StaticResource BaMutedTextDark}"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center"
-                                       FontSize="20" />
-                            <Image Source="{Binding SelectedPreviewPath}" Stretch="Uniform" Margin="8"/>
+                                       FontSize="20"/>
+                            <Image Source="{Binding SelectedPreviewPath}"
+                                   Stretch="Uniform"
+                                   Margin="8"/>
                         </Grid>
                     </Border>
 
-                    <TextBlock Grid.Row="2" Text="{Binding SelectedItem.DisplayName}" FontSize="20" FontWeight="SemiBold"/>
-                    <TextBlock Grid.Row="4" Text="{Binding SelectedItem.FullPath}" TextWrapping="Wrap" Foreground="#BFC7D5"/>
-                    <TextBlock Grid.Row="6" Text="{Binding SelectedItem.Description}" TextWrapping="Wrap"/>
-                    <TextBlock Grid.Row="8" Text="{Binding SelectedItem.Category}" FontWeight="SemiBold"/>
+                    <TextBlock Grid.Row="4"
+                               Text="{Binding SelectedItem.DisplayName}"
+                               Style="{StaticResource BaDarkPanelText}"
+                               FontSize="20"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap"/>
 
-                    <StackPanel Grid.Row="10" Orientation="Vertical">
-                        <WrapPanel Margin="0,0,0,8">
-                            <Button Width="120" Height="34" Margin="0,0,8,0" Content="Load" Command="{Binding LoadSelectedCommand}" />
-                            <Button Width="140" Height="34" Margin="0,0,8,0" Content="Load + Place" Command="{Binding LoadAndPlaceCommand}" />
-                            <Button Width="120" Height="34" Margin="0,0,8,0" Content="Favorite" Command="{Binding ToggleFavoriteCommand}" />
-                            <Button Width="140" Height="34" Margin="0,0,8,0" Content="Export Preview" Command="{Binding ExportPreviewCommand}" />
-                        </WrapPanel>
+                    <TextBlock Grid.Row="6"
+                               Text="{Binding SelectedItem.FullPath}"
+                               Style="{StaticResource BaMutedTextDark}"
+                               TextWrapping="Wrap"/>
 
-                        <TextBlock Text="Metadata" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,6"/>
-                        <TextBlock Text="{Binding SelectedItem.RootName, StringFormat=Root: {0}}" Margin="0,0,0,4" Background="#FFF9F2F2" Foreground="#FF2F2E2E"/>
-                        <TextBlock Text="{Binding SelectedItem.ApprovalState, StringFormat=Approval: {0}}" Margin="0,0,0,4"/>
-                        <TextBlock Text="{Binding SelectedItem.Manufacturer, StringFormat=Manufacturer: {0}}" Margin="0,0,0,4"/>
-                        <TextBlock Text="{Binding SelectedItem.FileName, StringFormat=File: {0}}" Margin="0,0,0,4"/>
-                        <TextBlock Text="{Binding SelectedItem.FileSizeBytes, StringFormat=Size: {0:N0} bytes}" Margin="0,0,0,4"/>
-                        <TextBlock Text="{Binding SelectedItem.ModifiedUtc, StringFormat=Modified UTC: {0:yyyy-MM-dd HH:mm}}" Margin="0,0,0,4"/>
+                    <TextBlock Grid.Row="8"
+                               Text="{Binding SelectedItem.Description}"
+                               Style="{StaticResource BaDarkPanelText}"
+                               TextWrapping="Wrap"/>
+
+                    <TextBlock Grid.Row="10"
+                               Text="{Binding SelectedItem.Category}"
+                               Style="{StaticResource BaDarkPanelText}"
+                               FontWeight="SemiBold"/>
+
+                    <WrapPanel Grid.Row="12">
+                        <Button Width="120"
+                                Margin="0,0,8,0"
+                                Style="{StaticResource BaPanelButton}"
+                                Content="Load"
+                                Command="{Binding LoadSelectedCommand}" />
+
+                        <Button Width="140"
+                                Margin="0,0,8,0"
+                                Style="{StaticResource BaPanelButton}"
+                                Content="Load + Place"
+                                Command="{Binding LoadAndPlaceCommand}" />
+
+                        <Button Width="120"
+                                Margin="0,0,8,0"
+                                Style="{StaticResource BaPanelButton}"
+                                Content="Favorite"
+                                Command="{Binding ToggleFavoriteCommand}" />
+
+                        <Button Width="140"
+                                Style="{StaticResource BaPanelButton}"
+                                Content="Export Preview"
+                                Command="{Binding ExportPreviewCommand}" />
+                    </WrapPanel>
+
+                    <StackPanel Grid.Row="14">
+                        <TextBlock Text="Metadata"
+                                   Style="{StaticResource BaDarkSectionTitleText}"
+                                   Margin="0,0,0,6"/>
+
+                        <TextBlock Text="{Binding SelectedItem.RootName, StringFormat=Root: {0}}"
+                                   Style="{StaticResource BaDarkPanelText}"
+                                   Margin="0,0,0,4"/>
+
+                        <TextBlock Text="{Binding SelectedItem.Manufacturer, StringFormat=Manufacturer: {0}}"
+                                   Style="{StaticResource BaDarkPanelText}"
+                                   Margin="0,0,0,4"/>
+
+                        <TextBlock Text="{Binding SelectedItem.FileName, StringFormat=File: {0}}"
+                                   Style="{StaticResource BaDarkPanelText}"
+                                   Margin="0,0,0,4"/>
+
+                        <TextBlock Text="{Binding SelectedItem.FileSizeBytes, StringFormat=Size: {0:N0} bytes}"
+                                   Style="{StaticResource BaDarkPanelText}"
+                                   Margin="0,0,0,4"/>
+
+                        <TextBlock Text="{Binding SelectedItem.ModifiedUtc, StringFormat=Modified UTC: {0:yyyy-MM-dd HH:mm}}"
+                                   Style="{StaticResource BaDarkPanelText}"
+                                   Margin="0,0,0,4"/>
+
+                        <TextBlock Text="{Binding SelectedItem.ClassDomainCode, StringFormat=Class Domain: {0}}"
+                                   Style="{StaticResource BaDarkPanelText}"
+                                   Margin="0,6,0,4"/>
+
+                        <TextBlock Text="{Binding SelectedItem.ClassGroupCode, StringFormat=Class Group: {0}}"
+                                   Style="{StaticResource BaDarkPanelText}"
+                                   Margin="0,0,0,4"/>
+
+                        <TextBlock Text="{Binding SelectedItem.ClassCode, StringFormat=Class Code: {0}}"
+                                   Style="{StaticResource BaDarkPanelText}"
+                                   Margin="0,0,0,4"/>
                     </StackPanel>
                 </Grid>
             </Border>
         </Grid>
 
-        <Border Grid.Row="4" Background="#121722" BorderBrush="#2E3545" BorderThickness="1" CornerRadius="8" Padding="8">
-            <TextBlock Text="{Binding StatusText}" />
+        <!-- Status -->
+        <Border Grid.Row="4"
+                Style="{StaticResource BaDarkPanelBorder}"
+                Padding="8">
+            <TextBlock Text="{Binding StatusText}"
+                       Style="{StaticResource BaDarkPanelText}" />
         </Border>
     </Grid>
 </Window>

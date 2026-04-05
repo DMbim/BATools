@@ -7,11 +7,14 @@ using BA.BIM.Commands.Anno;
 using BA.Classification;
 using BA.Commands;
 using BA.Commands.Anno;
+using BA.Commands.Families;
 using BA.Commands.Finishes;
 using BA.Commands.Management;
 using BA.Commands.Rooms;
+using BA.Commands.Standards;
 using BA.Commands.TextHub;
 using BA.Core.Overhead;
+using BA.KeyplanGrid;
 using BA.Ribbon;
 using Microsoft.VisualBasic;
 using Nice3point.Revit.Extensions;
@@ -90,8 +93,62 @@ namespace BA.BAApplication
                 var fin32 = "/BA;component/Resources/Icons32/FIN32.png";
                 var txt16 = "/BA;component/Resources/Icons16/txt6.png";
                 var txt32 = "/BA;component/Resources/Icons32/txt6.png";
-                var brws16 = "/BA;component/Resources/Icons16/brws_16.png";
-                var brws32 = "/BA;component/Resources/Icons32/brws_32.png";
+                var brws16 = "/BA;component/Resources/Icons16/lib_16.png";
+                var brws32 = "/BA;component/Resources/Icons32/lib_32.png";
+                var Tra16 = "/BA;component/Resources/Icons16/Temp16.png";
+                var Tra32 = "/BA;component/Resources/Icons32/Temp32.png";
+                var kPath16 = "/BA;component/Resources/Icons16/KeyPlan16.png";
+                var kPath32 = "/BA;component/Resources/Icons32/KeyPlan32.png";
+
+
+
+
+                ///
+                //// Key Plan buttons               
+                ///
+                #region KeyPlan
+
+                var cmdKeyPln = panelAnnotation.AddPulldownButton<Cmd_KeyplanGridGenerator>(
+                    "Set Key Plan",
+                    "Set Key\nPlan",
+                    "Create Key Plan",
+                    kPath16,
+                    kPath32);
+
+                cmdKeyPln.AddPushButton<Cmd_KeyplanGridGenerator>(
+                    "Generate Keyplan Grids",
+                    "KeyPlan\nGrids",
+                    "Generate grids in the key plan based on the grids in the current view.",
+                    kPath16,
+                    kPath32);
+
+
+                #endregion
+
+                ///
+                //// TEMPLATE TRANSFERER            TEMPLATE TRANSFERER             TEMPLATE TRANSFERER             TEMPLATE TRANSFERER             TEMPLATE TRANSFERER
+                ////
+                var cmdVTTRan = panelElements.AddPushButton<Cmd_ViewTemplateTransfer>(
+                    "Transfer ViewTempl",
+                    "Transfer\nViewTempl",
+                    "Pick a Source Template, desired properties and Target Template",
+                    Tra16,
+                    Tra32);
+
+                var cmdSubCa = panelElements.AddPushButton<Cmd_SubcategoryAuditor>(
+                    "SubCat Audit",
+                    "SubCat\n Audit",
+                    "Create subcategories for all families in the project, and assign them to the appropriate elements.",
+                    cmClassify16,
+                    cmClassify32);
+
+                var cmdTextTools = panelRooms.AddPushButton<CmdTextHub>(
+                    "Modify Text",
+                    "Modify\nText",
+                    "Modify Text throughout the model.",
+                    txt16,
+                    txt32);
+
 
                 var contBrws = panelElements.AddPushButton<Cmd_OpenContentBrowserCommand>(
                     "Content Browser",
@@ -107,12 +164,6 @@ namespace BA.BAApplication
                     fin16,
                     fin32);
 
-                var cmdTextTools = panelRooms.AddPushButton<CmdTextHub>(
-                    "Modify Text",
-                    "Modify\nText",
-                    "Modify Text throughout the model.",
-                    txt16,
-                    txt32);
 
 
                 var cmdUse = panelElements.AddPushButton<Cmd_FinishToRoom>(
@@ -301,7 +352,7 @@ namespace BA.BAApplication
                 // ---------------------------
                 // RayBounce
                 // ---------------------------
-                panelElements.AddPushButton<Cmd_RayBounceCeiling>(
+                var RBC = panelElements.AddPushButton<Cmd_RayBounceCeiling>(
                     "RayBounceCeiling",
                     "Ray Bounce\nCeiling",
                     "Calculate the ceiling above the selected element.",

@@ -123,7 +123,26 @@
            BasedOn="{StaticResource BaPanelText}">
         <Setter Property="Foreground" Value="{StaticResource Brush.MutedTextLightPanel}"/>
     </Style>
+    
+    <Style x:Key="BaDarkComboBoxItem" TargetType="{x:Type ComboBoxItem}">
+        <Setter Property="Foreground" Value="#000000"/>
+        <!-- BLACK TEXT -->
+        <Setter Property="Background" Value="#FFFFFF"/>
+        <Setter Property="Padding" Value="4,2"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
 
+        <Style.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+                <Setter Property="Background" Value="#DCEBFF"/>
+                <Setter Property="Foreground" Value="#000000"/>
+            </Trigger>
+
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="#DCEBFF"/>
+                <Setter Property="Foreground" Value="#000000"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
     <!-- =========================================================
          Window style
          NOTE: Do NOT put WindowStartupLocation here.
@@ -209,12 +228,12 @@
         <Setter Property="Height" Value="{StaticResource Size.InputHeight}"/>
         <Setter Property="Padding" Value="4,2,4,2"/>
         <Setter Property="Background" Value="{StaticResource Brush.ControlBgDark}"/>
-        <Setter Property="Foreground" Value="{StaticResource Brush.ControlFgDark}"/>
+        <Setter Property="Foreground" Value="#000000"/>
         <Setter Property="BorderBrush" Value="{StaticResource Brush.ControlBorderDark}"/>
         <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="ItemContainerStyle" Value="{StaticResource BaDarkComboBoxItem}"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
     </Style>
-
     <!-- =========================================================
          CheckBox / RadioButton
          ========================================================= -->
@@ -381,5 +400,27 @@
         <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
         <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
     </Style>
+    <Style x:Key="BaTreeView" TargetType="{x:Type TreeView}">
+        <Setter Property="Background" Value="{StaticResource Brush.ControlBgDark}"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.ControlFgDark}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.ControlBorderDark}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="4"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+    </Style>
 
+    <Style x:Key="BaTreeViewItem" TargetType="{x:Type TreeViewItem}">
+        <Setter Property="Foreground" Value="{StaticResource Brush.ControlFgDark}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Padding" Value="2"/>
+        <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.Selected}"/>
+                <Setter Property="Foreground" Value="{StaticResource Brush.PanelFg}"/>
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.HoverDark}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
 </ResourceDictionary>

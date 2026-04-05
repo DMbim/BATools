@@ -5,13 +5,13 @@
         Width="1080"
         Height="900"
         MinWidth="980"
-        MinHeight="900"
-        Style="{StaticResource BaWindow}">
+        MinHeight="900">
+
 
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="/BA.UI;A_Templ/Theme.xaml"/>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Window.Resources>
@@ -140,14 +140,14 @@
 
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                             <RadioButton x:Name="RbBindToCategories"
-                                         Style="{StaticResource BaPanelCheckBox}"
+                                         Style="{StaticResource BaRadioButton}"
                                          Content="Bind to Categories (Project Parameter)"
                                          IsChecked="True"
                                          Margin="0,0,14,0"
                                          Checked="Mode_Checked"/>
 
                             <RadioButton x:Name="RbInjectIntoFamilies"
-                                         Style="{StaticResource BaPanelCheckBox}"
+                                         Style="{StaticResource BaRadioButton}"
                                          Content="Inject into Families (Family Instance Parameter)"
                                          Checked="Mode_Checked"/>
                         </StackPanel>

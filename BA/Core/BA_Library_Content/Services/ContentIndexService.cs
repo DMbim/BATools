@@ -305,6 +305,24 @@ namespace BA.Core.Content.Services
                 if (!string.IsNullOrWhiteSpace(meta.Manufacturer))
                     item.Manufacturer = meta.Manufacturer;
 
+                if (!string.IsNullOrWhiteSpace(meta.ClassDomainCode))
+                    item.ClassDomainCode = meta.ClassDomainCode;
+
+                if (!string.IsNullOrWhiteSpace(meta.ClassDomainName))
+                    item.ClassDomainName = meta.ClassDomainName;
+
+                if (!string.IsNullOrWhiteSpace(meta.ClassGroupCode))
+                    item.ClassGroupCode = meta.ClassGroupCode;
+
+                if (!string.IsNullOrWhiteSpace(meta.ClassGroupName))
+                    item.ClassGroupName = meta.ClassGroupName;
+
+                if (!string.IsNullOrWhiteSpace(meta.ClassCode))
+                    item.ClassCode = meta.ClassCode;
+
+                if (!string.IsNullOrWhiteSpace(meta.ClassName))
+                    item.ClassName = meta.ClassName;
+
                 if (meta.Tags != null)
                     item.Tags = meta.Tags.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
 
@@ -319,16 +337,22 @@ namespace BA.Core.Content.Services
         private static string BuildSearchBlob(ContentItem item)
         {
             var parts = new List<string>
-            {
-                item.DisplayName,
-                item.FileName,
-                item.RelativePath,
-                item.RootName,
-                item.Category,
-                item.ApprovalState,
-                item.Description,
-                item.Manufacturer
-            };
+    {
+        item.DisplayName,
+        item.FileName,
+        item.RelativePath,
+        item.RootName,
+        item.Category,
+        item.Description,
+        item.Manufacturer,
+
+        item.ClassDomainCode,
+        item.ClassDomainName,
+        item.ClassGroupCode,
+        item.ClassGroupName,
+        item.ClassCode,
+        item.ClassName
+    };
 
             parts.AddRange(item.Tags);
             parts.AddRange(item.Keywords);
@@ -346,6 +370,12 @@ namespace BA.Core.Content.Services
             public string Manufacturer { get; set; } = string.Empty;
             public List<string>? Tags { get; set; }
             public List<string>? Keywords { get; set; }
+            public string ClassDomainCode { get; set; } = string.Empty;
+            public string ClassDomainName { get; set; } = string.Empty;
+            public string ClassGroupCode { get; set; } = string.Empty;
+            public string ClassGroupName { get; set; } = string.Empty;
+            public string ClassCode { get; set; } = string.Empty;
+            public string ClassName { get; set; } = string.Empty;
         }
     }
 }
