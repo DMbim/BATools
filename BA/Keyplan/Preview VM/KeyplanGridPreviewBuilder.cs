@@ -19,24 +19,47 @@ namespace BA.UI.KeyplanGrid
             bool useOutlineAsPrimaryFill,
             bool drawGridLines,
             bool drawFilledPolygons,
+            double globalScaleFactor,
             double canvasWidth,
             double canvasHeight,
             double padding,
             IReadOnlyDictionary<string, CellEditState> cellEdits,
-            IReadOnlyCollection<string> selectedCellKeys)
+            IReadOnlyCollection<string> selectedCellKeys,
+            IReadOnlyCollection<KeyplanSplitLineItem> verticalSplits,
+            IReadOnlyCollection<KeyplanSplitLineItem> horizontalSplits)
         {
             if (outerLoop == null) throw new ArgumentNullException(nameof(outerLoop));
 
             KeyplanGridPreviewData preview = new KeyplanGridPreviewData();
 
-            List<XYZ> outlinePts = KeyplanPolygonUtils.CurveLoopToPolyline(outerLoop);
-            if (outlinePts.Count == 0)
+            KeyplanGridOptions options = new KeyplanGridOptions
+            {
+                DrawOutline = drawOutline,
+                UseOutlineAsPrimaryFill = useOutlineAsPrimaryFill,
+                DrawGridLines = drawGridLines,
+                CreateFilledRegions = drawFilledPolygons,
+                FillMode = fillMode,
+                MinimumOccupancyRatio = minimumOccupancyRatio,
+                GlobalScaleFactor = globalScaleFactor
+            };
+
+            KeyplanGraphicModel graphicModel = KeyplanGraphicBuilder.Build(
+                outerLoop,
+                options,
+                verticalSplits,
+                horizontalSplits,
+                cellEdits);
+
+            graphicModel = KeyplanGraphicScaleService.ScaleModel(graphicModel, options.GlobalScaleFactor);
+
+            List<XYZ> allPoints = CollectAllPoints(graphicModel);
+            if (allPoints.Count == 0)
                 return preview;
 
-            double minX = outlinePts.Min(p => p.X);
-            double minY = outlinePts.Min(p => p.Y);
-            double maxX = outlinePts.Max(p => p.X);
-            double maxY = outlinePts.Max(p => p.Y);
+            double minX = allPoints.Min(p => p.X);
+            double minY = allPoints.Min(p => p.Y);
+            double maxX = allPoints.Max(p => p.X);
+            double maxY = allPoints.Max(p => p.Y);
 
             double dx = Math.Max(1e-6, maxX - minX);
             double dy = Math.Max(1e-6, maxY - minY);
@@ -57,138 +80,90 @@ namespace BA.UI.KeyplanGrid
                 Scale = scale
             };
 
-            if (drawOutline)
-                preview.Outline = outlinePts.Select(p => ModelToCanvas(p, preview.Transform)).ToList();
-
-            List<GridCellResult> cells = KeyplanGridBuilder.BuildCells(
-                outerLoop,
-                xBreaks,
-                yBreaks,
-                fillMode,
-                minimumOccupancyRatio);
-
-            ApplyCellEditStates(cells, cellEdits);
-
             HashSet<string> selectedKeys = selectedCellKeys != null
                 ? new HashSet<string>(selectedCellKeys, StringComparer.Ordinal)
                 : new HashSet<string>(StringComparer.Ordinal);
 
-            if (drawFilledPolygons && useOutlineAsPrimaryFill)
+            if (drawOutline && graphicModel.OutlineLines.Count > 0)
             {
-                List<List<XYZ>> faces = KeyplanFaceBuilder.BuildFaces(outerLoop, xBreaks, yBreaks);
-
-                for (int i = 0; i < faces.Count; i++)
+                List<XYZ> outlinePolyline = BuildOutlinePolylineFromConnectivity(graphicModel.OutlineLines);
+                if (outlinePolyline.Count > 0)
+                    preview.Outline = outlinePolyline.Select(p => ModelToCanvas(p, preview.Transform)).ToList();
+            }
+            if (drawFilledPolygons)
+            {
+                foreach (KeyplanPolygonGraphicItem polygon in graphicModel.FilledRegions
+                    .OrderBy(x => x.StableKey, StringComparer.Ordinal))
                 {
-                    List<XYZ> polygon = faces[i];
-                    if (polygon == null || polygon.Count < 3)
+                    if (polygon?.Polygon == null || polygon.Polygon.Count < 3)
                         continue;
+                    string previewKey = polygon.StableKey;
+
 
                     preview.FilledPolygons.Add(new PreviewCellPolygon
                     {
-                        CellKey = "face:" + i,
+                        CellKey = previewKey,
                         XIndex = -1,
                         YIndex = -1,
                         IsExcluded = false,
-                        IsSelected = false,
-                        Points = polygon.Select(p => ModelToCanvas(p, preview.Transform)).ToList()
+                        IsSelected = selectedKeys.Contains(previewKey),
+                        Points = polygon.Polygon.Select(p => ModelToCanvas(p, preview.Transform)).ToList()
                     });
-                }
-            }
-            else if (drawFilledPolygons)
-            {
-                foreach (GridCellResult cell in cells)
-                {
-                    if (cell == null)
-                        continue;
-
-                    foreach (List<XYZ> polygon in cell.GetPreviewPolygons(fillMode))
-                    {
-                        if (polygon == null || polygon.Count < 3)
-                            continue;
-
-                        preview.FilledPolygons.Add(new PreviewCellPolygon
-                        {
-                            CellKey = cell.CellKey,
-                            XIndex = cell.XIndex,
-                            YIndex = cell.YIndex,
-                            IsExcluded = cell.IsExcluded,
-                            IsSelected = selectedKeys.Contains(cell.CellKey),
-                            Points = polygon.Select(p => ModelToCanvas(p, preview.Transform)).ToList()
-                        });
-                    }
                 }
             }
 
             if (drawGridLines)
             {
-                foreach ((XYZ A, XYZ B) line in KeyplanGridBuilder.BuildGridLines(outerLoop, xBreaks, yBreaks))
+                foreach (KeyplanLineGraphicItem line in graphicModel.GridLines
+                    .OrderBy(x => x.StableKey, StringComparer.Ordinal))
                 {
-                    List<(XYZ A, XYZ B)> segments =
-                        KeyplanPolygonUtils.ClipLineByPolygon(outerLoop, line.A, line.B);
-
-                    foreach ((XYZ A, XYZ B) seg in segments)
-                    {
-                        Point p0 = ModelToCanvas(seg.A, preview.Transform);
-                        Point p1 = ModelToCanvas(seg.B, preview.Transform);
-                        preview.GridLines.Add((p0, p1));
-                    }
+                    Point p0 = ModelToCanvas(line.A, preview.Transform);
+                    Point p1 = ModelToCanvas(line.B, preview.Transform);
+                    preview.GridLines.Add((p0, p1));
                 }
             }
 
-            for (int i = 1; i < xBreaks.Length - 1; i++)
+            foreach (KeyplanSplitLineItem split in (verticalSplits ?? Array.Empty<KeyplanSplitLineItem>())
+                .Where(x => x != null)
+                .OrderBy(x => x.Normalized))
             {
-                double modelX = minX + (maxX - minX) * xBreaks[i];
+                double modelX = minX + (maxX - minX) * split.Normalized;
                 Point pt = ModelToCanvas(new XYZ(modelX, minY, 0.0), preview.Transform);
 
                 preview.VerticalAxes.Add(new AxisPreviewInfo
                 {
+                    SplitId = split.Id,
                     Orientation = AxisOrientation.Vertical,
-                    InteriorIndex = i - 1,
-                    Normalized = xBreaks[i],
-                    CanvasPosition = pt.X
+                    InteriorIndex = -1,
+                    Normalized = split.Normalized,
+                    CanvasPosition = pt.X,
+                    IsSelected = split.IsSelected,
+                    IsEnabled = split.IsEnabled,
+                    DisplayName = split.Name
                 });
             }
 
-            for (int i = 1; i < yBreaks.Length - 1; i++)
+            foreach (KeyplanSplitLineItem split in (horizontalSplits ?? Array.Empty<KeyplanSplitLineItem>())
+                .Where(x => x != null)
+                .OrderBy(x => x.Normalized))
             {
-                double modelY = minY + (maxY - minY) * yBreaks[i];
+                double modelY = minY + (maxY - minY) * split.Normalized;
                 Point pt = ModelToCanvas(new XYZ(minX, modelY, 0.0), preview.Transform);
 
                 preview.HorizontalAxes.Add(new AxisPreviewInfo
                 {
+                    SplitId = split.Id,
                     Orientation = AxisOrientation.Horizontal,
-                    InteriorIndex = i - 1,
-                    Normalized = yBreaks[i],
-                    CanvasPosition = pt.Y
+                    InteriorIndex = -1,
+                    Normalized = split.Normalized,
+                    CanvasPosition = pt.Y,
+                    IsSelected = split.IsSelected,
+                    IsEnabled = split.IsEnabled,
+                    DisplayName = split.Name
                 });
             }
 
             return preview;
-        }
-
-        private static void ApplyCellEditStates(
-            IEnumerable<GridCellResult> cells,
-            IReadOnlyDictionary<string, CellEditState> cellEdits)
-        {
-            if (cells == null)
-                return;
-
-            foreach (GridCellResult cell in cells)
-            {
-                if (cell == null)
-                    continue;
-
-                if (cellEdits != null && cellEdits.TryGetValue(cell.CellKey, out CellEditState edit) && edit != null)
-                {
-                    cell.IsExcluded = edit.IsExcluded;
-                    cell.MergeGroupId = edit.MergeGroupId ?? string.Empty;
-                }
-                else
-                {
-                    cell.IsExcluded = false;
-                    cell.MergeGroupId = string.Empty;
-                }
-            }
         }
 
         public static Point ModelToCanvas(XYZ p, PreviewTransformInfo t)
@@ -196,6 +171,114 @@ namespace BA.UI.KeyplanGrid
             double x = t.Padding + (p.X - t.ModelMinX) * t.Scale;
             double y = t.CanvasHeight - t.Padding - (p.Y - t.ModelMinY) * t.Scale;
             return new Point(x, y);
+        }
+
+        private static List<XYZ> CollectAllPoints(KeyplanGraphicModel model)
+        {
+            List<XYZ> pts = new List<XYZ>();
+
+            foreach (KeyplanPolygonGraphicItem poly in model.FilledRegions ?? Enumerable.Empty<KeyplanPolygonGraphicItem>())
+            {
+                if (poly?.Polygon == null)
+                    continue;
+
+                pts.AddRange(poly.Polygon.Where(p => p != null).Select(KeyplanPolygonUtils.FlattenPoint));
+            }
+
+            foreach (KeyplanLineGraphicItem line in model.GridLines ?? Enumerable.Empty<KeyplanLineGraphicItem>())
+            {
+                if (line == null)
+                    continue;
+
+                pts.Add(KeyplanPolygonUtils.FlattenPoint(line.A));
+                pts.Add(KeyplanPolygonUtils.FlattenPoint(line.B));
+            }
+
+            foreach (KeyplanLineGraphicItem line in model.OutlineLines ?? Enumerable.Empty<KeyplanLineGraphicItem>())
+            {
+                if (line == null)
+                    continue;
+
+                pts.Add(KeyplanPolygonUtils.FlattenPoint(line.A));
+                pts.Add(KeyplanPolygonUtils.FlattenPoint(line.B));
+            }
+
+            return pts.Where(p => p != null).ToList();
+        }
+
+        private static List<XYZ> BuildOutlinePolylineFromConnectivity(IList<KeyplanLineGraphicItem> outlineLines)
+        {
+            List<XYZ> result = new List<XYZ>();
+            if (outlineLines == null || outlineLines.Count == 0)
+                return result;
+
+            List<Segment2D> remaining = outlineLines
+                .Where(x => x != null && x.A != null && x.B != null)
+                .Select(x => new Segment2D(
+                    KeyplanPolygonUtils.FlattenPoint(x.A),
+                    KeyplanPolygonUtils.FlattenPoint(x.B)))
+                .Where(x => x.A.DistanceTo(x.B) > KeyplanGeometryTolerance.MinModelSegment)
+                .ToList();
+
+            if (remaining.Count == 0)
+                return result;
+
+            Segment2D first = remaining[0];
+            remaining.RemoveAt(0);
+
+            result.Add(first.A);
+            result.Add(first.B);
+
+            while (remaining.Count > 0)
+            {
+                XYZ tail = result[result.Count - 1];
+                int nextIndex = -1;
+                bool reverse = false;
+
+                for (int i = 0; i < remaining.Count; i++)
+                {
+                    Segment2D seg = remaining[i];
+
+                    if (tail.DistanceTo(seg.A) <= KeyplanGeometryTolerance.Point)
+                    {
+                        nextIndex = i;
+                        reverse = false;
+                        break;
+                    }
+
+                    if (tail.DistanceTo(seg.B) <= KeyplanGeometryTolerance.Point)
+                    {
+                        nextIndex = i;
+                        reverse = true;
+                        break;
+                    }
+                }
+
+                if (nextIndex < 0)
+                    break;
+
+                Segment2D next = remaining[nextIndex];
+                remaining.RemoveAt(nextIndex);
+
+                result.Add(reverse ? next.A : next.B);
+            }
+
+            if (result.Count > 1 && result.First().DistanceTo(result.Last()) <= KeyplanGeometryTolerance.Point)
+                result.RemoveAt(result.Count - 1);
+
+            return KeyplanPolygonUtils.CleanPolygonStrict(result);
+        }
+
+        private sealed class Segment2D
+        {
+            public XYZ A { get; }
+            public XYZ B { get; }
+
+            public Segment2D(XYZ a, XYZ b)
+            {
+                A = a;
+                B = b;
+            }
         }
     }
 }

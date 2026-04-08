@@ -26,5 +26,12 @@
         /// Range 0.0 - 1.0.
         /// </summary>
         public double MinimumOccupancyRatio { get; set; } = 0.05;
+
+        /// <summary>
+        /// Uniform scale applied to the generated keyplan graphics before creation.
+        /// 1.0 = original size.
+        /// Example: 1/300 = 0.003333333333...
+        /// </summary>
+        public double GlobalScaleFactor { get; set; } = 1.0;
     }
 }

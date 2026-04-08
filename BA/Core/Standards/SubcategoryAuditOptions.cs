@@ -13,4 +13,4 @@
         /// </summary>
         public bool WarnIfNoBaNames { get; set; } = true;
     }
-}
+};

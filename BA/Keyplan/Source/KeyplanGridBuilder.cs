@@ -63,7 +63,6 @@ namespace BA.UI.KeyplanGrid
                     bool hasCellCenterInside = KeyplanPolygonUtils.IsPointInsideOrOnPolygon(outlinePts, center);
 
                     bool containsPolygonVertex = outlinePts.Any(p => IsPointInsideRectangleInclusive(p, x0, x1, y0, y1, 1e-6));
-
                     bool hasMeaningfulBoundaryCrossing = HasMeaningfulBoundaryCrossing(outlinePts, x0, x1, y0, y1);
 
                     bool touchesPolygon =
@@ -130,7 +129,25 @@ namespace BA.UI.KeyplanGrid
             return result;
         }
 
-        public static List<(XYZ A, XYZ B)> BuildGridLines(CurveLoop outerLoop, double[] xBreaks, double[] yBreaks)
+        public static List<GridCellResult> BuildCells(
+            CurveLoop outerLoop,
+            IReadOnlyCollection<KeyplanSplitLineItem> verticalSplits,
+            IReadOnlyCollection<KeyplanSplitLineItem> horizontalSplits,
+            KeyplanCellFillMode fillMode,
+            double minimumOccupancyRatio)
+        {
+            if (outerLoop == null) throw new ArgumentNullException(nameof(outerLoop));
+
+            double[] xBreaks = KeyplanSplitConversionService.ToBreakArray(verticalSplits, AxisOrientation.Vertical);
+            double[] yBreaks = KeyplanSplitConversionService.ToBreakArray(horizontalSplits, AxisOrientation.Horizontal);
+
+            return BuildCells(outerLoop, xBreaks, yBreaks, fillMode, minimumOccupancyRatio);
+        }
+
+        public static List<(XYZ A, XYZ B)> BuildGridLines(
+            CurveLoop outerLoop,
+            double[] xBreaks,
+            double[] yBreaks)
         {
             if (outerLoop == null) throw new ArgumentNullException(nameof(outerLoop));
             if (xBreaks == null) throw new ArgumentNullException(nameof(xBreaks));
@@ -156,6 +173,39 @@ namespace BA.UI.KeyplanGrid
             foreach (double yb in ys)
             {
                 double y = minY + (maxY - minY) * yb;
+                lines.Add((new XYZ(minX, y, 0.0), new XYZ(maxX, y, 0.0)));
+            }
+
+            return lines;
+        }
+
+        public static List<(XYZ A, XYZ B)> BuildGridLines(
+            CurveLoop outerLoop,
+            IReadOnlyCollection<KeyplanSplitLineItem> verticalSplits,
+            IReadOnlyCollection<KeyplanSplitLineItem> horizontalSplits)
+        {
+            if (outerLoop == null) throw new ArgumentNullException(nameof(outerLoop));
+
+            List<(XYZ A, XYZ B)> lines = new List<(XYZ A, XYZ B)>();
+
+            BoundingBoxUV bb = KeyplanPolygonUtils.GetBoundingBox2D(outerLoop);
+            double minX = bb.Min.U;
+            double minY = bb.Min.V;
+            double maxX = bb.Max.U;
+            double maxY = bb.Max.V;
+
+            List<KeyplanSplitLineItem> vSplits = KeyplanSplitConversionService.CloneEnabledOrdered(verticalSplits, AxisOrientation.Vertical);
+            List<KeyplanSplitLineItem> hSplits = KeyplanSplitConversionService.CloneEnabledOrdered(horizontalSplits, AxisOrientation.Horizontal);
+
+            foreach (KeyplanSplitLineItem split in vSplits)
+            {
+                double x = minX + (maxX - minX) * split.Normalized;
+                lines.Add((new XYZ(x, minY, 0.0), new XYZ(x, maxY, 0.0)));
+            }
+
+            foreach (KeyplanSplitLineItem split in hSplits)
+            {
+                double y = minY + (maxY - minY) * split.Normalized;
                 lines.Add((new XYZ(minX, y, 0.0), new XYZ(maxX, y, 0.0)));
             }
 

@@ -101,8 +101,22 @@ namespace BA.BAApplication
                 var kPath32 = "/BA;component/Resources/Icons32/KeyPlan32.png";
 
 
-
-
+                var cmdGrid = panelAnnotation.AddPushButton<SyncBaLineStylesCommand>(
+                    "Grid Numbering",
+                    "Grid\nNumbering",
+                    "Renumber grids based on rules you set.",
+                    "/BA;component/Resources/Icons16/GridNumbering16.png",
+                    "/BA;component/Resources/Icons32/GridNumbering32.png");
+                ///
+                /// ///Scchedule Sync buttons
+                /// 
+                /// 
+                var cmdSchSync = panelAnnotation.AddPushButton<Cmd_ScheduleSync>(
+                    "Schedule Sync",
+                    "Schedule\nSync",
+                    "Synchronize schedule data across multiple schedules based on matching parameters.",
+                    "/BA;component/Resources/Icons16/ScheduleSync16.png",
+                    "/BA;component/Resources/Icons32/ScheduleSync32.png");
                 ///
                 //// Key Plan buttons               
                 ///

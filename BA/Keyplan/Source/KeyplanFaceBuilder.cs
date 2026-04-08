@@ -1,17 +1,12 @@
 ﻿using Autodesk.Revit.DB;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 
 namespace BA.UI.KeyplanGrid
 {
     public static class KeyplanFaceBuilder
     {
-        private const double Tol = 1e-5;
-        private const double SnapTol = 5e-3;
-        private const double AreaTol = 1e-5;
-
         public static List<List<XYZ>> BuildFaces(
             CurveLoop outerLoop,
             double[] xBreaks,
@@ -21,6 +16,27 @@ namespace BA.UI.KeyplanGrid
             if (xBreaks == null) throw new ArgumentNullException(nameof(xBreaks));
             if (yBreaks == null) throw new ArgumentNullException(nameof(yBreaks));
 
+            return BuildFacesInternal(
+                outerLoop,
+                KeyplanGridBuilder.BuildGridLines(outerLoop, xBreaks, yBreaks));
+        }
+
+        public static List<List<XYZ>> BuildFaces(
+            CurveLoop outerLoop,
+            IReadOnlyCollection<KeyplanSplitLineItem> verticalSplits,
+            IReadOnlyCollection<KeyplanSplitLineItem> horizontalSplits)
+        {
+            if (outerLoop == null) throw new ArgumentNullException(nameof(outerLoop));
+
+            return BuildFacesInternal(
+                outerLoop,
+                KeyplanGridBuilder.BuildGridLines(outerLoop, verticalSplits, horizontalSplits));
+        }
+
+        private static List<List<XYZ>> BuildFacesInternal(
+            CurveLoop outerLoop,
+            IList<(XYZ A, XYZ B)> gridLines)
+        {
             List<XYZ> outline = KeyplanPolygonUtils.CurveLoopToPolyline(outerLoop);
             outline = KeyplanPolygonUtils.CleanPolygonStrict(outline);
 
@@ -34,18 +50,18 @@ namespace BA.UI.KeyplanGrid
                 XYZ a = KeyplanPolygonUtils.FlattenPoint(outline[i]);
                 XYZ b = KeyplanPolygonUtils.FlattenPoint(outline[(i + 1) % outline.Count]);
 
-                if (a.DistanceTo(b) > Tol)
+                if (a.DistanceTo(b) > KeyplanGeometryTolerance.FaceSplitPoint)
                     rawSegments.Add(new Segment2D(a, b));
             }
 
-            foreach ((XYZ A, XYZ B) line in KeyplanGridBuilder.BuildGridLines(outerLoop, xBreaks, yBreaks))
+            foreach ((XYZ A, XYZ B) line in gridLines ?? Enumerable.Empty<(XYZ A, XYZ B)>())
             {
                 foreach ((XYZ A, XYZ B) seg in KeyplanPolygonUtils.ClipLineByPolygon(outline, line.A, line.B))
                 {
                     XYZ a = KeyplanPolygonUtils.FlattenPoint(seg.A);
                     XYZ b = KeyplanPolygonUtils.FlattenPoint(seg.B);
 
-                    if (a != null && b != null && a.DistanceTo(b) > Tol)
+                    if (a != null && b != null && a.DistanceTo(b) > KeyplanGeometryTolerance.FaceSplitPoint)
                         rawSegments.Add(new Segment2D(a, b));
                 }
             }
@@ -85,66 +101,15 @@ namespace BA.UI.KeyplanGrid
                 if (signedArea < 0.0)
                     cleaned.Reverse();
 
-                string sig = MakePolygonSignature(cleaned);
-                bool exists = faces.Any(x => MakePolygonSignature(x) == sig);
+                string sig = KeyplanGeometryKeyService.MakePolygonKey(cleaned);
+                bool exists = faces.Any(x => KeyplanGeometryKeyService.MakePolygonKey(x) == sig);
                 if (!exists)
                     faces.Add(cleaned);
             }
 
-            return faces;
-        }
-        private static XYZ SnapPointToPolygonBoundary(XYZ p, IList<XYZ> polygon, double snapTol)
-        {
-            if (p == null || polygon == null || polygon.Count < 2)
-                return p;
-
-            XYZ bestPoint = p;
-            double bestDist = double.MaxValue;
-
-            for (int i = 0; i < polygon.Count; i++)
-            {
-                XYZ a = polygon[i];
-                XYZ b = polygon[(i + 1) % polygon.Count];
-
-                XYZ projected = ProjectPointToSegment2D(p, a, b);
-                if (projected == null)
-                    continue;
-
-                double d = projected.DistanceTo(p);
-                if (d < bestDist)
-                {
-                    bestDist = d;
-                    bestPoint = projected;
-                }
-            }
-
-            if (bestDist <= snapTol)
-                return new XYZ(bestPoint.X, bestPoint.Y, 0.0);
-
-            return p;
-        }
-
-        private static XYZ ProjectPointToSegment2D(XYZ p, XYZ a, XYZ b)
-        {
-            if (p == null || a == null || b == null)
-                return null;
-
-            XYZ ab = b - a;
-            double lenSq = ab.DotProduct(ab);
-            if (lenSq < 1e-12)
-                return a;
-
-            double t = ((p - a).DotProduct(ab)) / lenSq;
-
-            if (t < 0.0) t = 0.0;
-            if (t > 1.0) t = 1.0;
-
-            XYZ q = a + (ab * t);
-            return new XYZ(q.X, q.Y, 0.0);
-        }
-        private static List<(XYZ A, XYZ B)> ClipLineByPolygonExact(IList<XYZ> polygon, XYZ lineStart, XYZ lineEnd)
-        {
-            return KeyplanPolygonUtils.ClipLineByPolygon(polygon, lineStart, lineEnd);
+            return faces
+                .OrderBy(KeyplanGeometryKeyService.MakePolygonKey, StringComparer.Ordinal)
+                .ToList();
         }
 
         private static List<Segment2D> SplitSegmentsAtIntersections(IList<Segment2D> segments)
@@ -174,7 +139,7 @@ namespace BA.UI.KeyplanGrid
                     XYZ a = ordered[k];
                     XYZ b = ordered[k + 1];
 
-                    if (a.DistanceTo(b) > Tol)
+                    if (a.DistanceTo(b) > KeyplanGeometryTolerance.FaceSplitPoint)
                         result.Add(new Segment2D(a, b));
                 }
             }
@@ -188,9 +153,7 @@ namespace BA.UI.KeyplanGrid
                 return;
 
             if (TryIntersectSegments(s.A, s.B, o.A, o.B, out XYZ ip))
-            {
                 AddUniquePoint(output, ip);
-            }
 
             if (AreCollinearAndOverlapping(s.A, s.B, o.A, o.B))
             {
@@ -209,8 +172,8 @@ namespace BA.UI.KeyplanGrid
             return pts
                 .Where(p => p != null)
                 .Select(KeyplanPolygonUtils.FlattenPoint)
-                .Distinct(new XyzEqualityComparer(Tol))
-                .OrderBy(p => lenSq < Tol ? 0.0 : ((p - a).DotProduct(dir) / lenSq))
+                .Distinct(new XyzEqualityComparer(KeyplanGeometryTolerance.FaceSplitPoint))
+                .OrderBy(p => lenSq < KeyplanGeometryTolerance.Epsilon ? 0.0 : ((p - a).DotProduct(dir) / lenSq))
                 .ToList();
         }
 
@@ -220,15 +183,17 @@ namespace BA.UI.KeyplanGrid
 
             foreach (Segment2D seg in segments ?? Enumerable.Empty<Segment2D>())
             {
-                if (seg == null || seg.Length < Tol)
+                if (seg == null || seg.Length < KeyplanGeometryTolerance.FaceSplitPoint)
                     continue;
 
-                string key = MakeUndirectedSegmentKey(seg.A, seg.B);
+                string key = KeyplanGeometryKeyService.MakeUndirectedLineKey(seg.A, seg.B);
                 if (!unique.ContainsKey(key))
                     unique[key] = seg;
             }
 
-            return unique.Values.ToList();
+            return unique.Values
+                .OrderBy(x => KeyplanGeometryKeyService.MakeUndirectedLineKey(x.A, x.B), StringComparer.Ordinal)
+                .ToList();
         }
 
         private static List<List<XYZ>> PolygonizeSegments(IList<Segment2D> segments)
@@ -242,8 +207,8 @@ namespace BA.UI.KeyplanGrid
 
             foreach (Segment2D seg in segments)
             {
-                string aKey = MakePointKey(seg.A);
-                string bKey = MakePointKey(seg.B);
+                string aKey = KeyplanGeometryKeyService.MakePointKey(seg.A);
+                string bKey = KeyplanGeometryKeyService.MakePointKey(seg.B);
 
                 if (aKey == bKey)
                     continue;
@@ -260,7 +225,7 @@ namespace BA.UI.KeyplanGrid
 
             HashSet<string> used = new HashSet<string>(StringComparer.Ordinal);
 
-            foreach (KeyValuePair<string, List<HalfEdge>> kvp in outgoing)
+            foreach (KeyValuePair<string, List<HalfEdge>> kvp in outgoing.OrderBy(x => x.Key, StringComparer.Ordinal))
             {
                 foreach (HalfEdge start in kvp.Value)
                 {
@@ -272,7 +237,7 @@ namespace BA.UI.KeyplanGrid
                     if (loop == null || loop.Count < 3)
                         continue;
 
-                    if (loop.Count > 1 && loop[0].DistanceTo(loop[loop.Count - 1]) < Tol)
+                    if (loop.Count > 1 && loop[0].DistanceTo(loop[loop.Count - 1]) < KeyplanGeometryTolerance.Point)
                         loop.RemoveAt(loop.Count - 1);
 
                     result.Add(loop);
@@ -361,38 +326,6 @@ namespace BA.UI.KeyplanGrid
             return new XYZ(x / pts.Count, y / pts.Count, 0.0);
         }
 
-        private static XYZ Lerp(XYZ a, XYZ b, double t)
-        {
-            return new XYZ(
-                a.X + (b.X - a.X) * t,
-                a.Y + (b.Y - a.Y) * t,
-                0.0);
-        }
-
-        private static double RefineBoundary(
-            XYZ a,
-            XYZ b,
-            IList<XYZ> poly,
-            double t0,
-            double t1,
-            bool entering)
-        {
-            for (int i = 0; i < 10; i++)
-            {
-                double tm = 0.5 * (t0 + t1);
-                XYZ p = Lerp(a, b, tm);
-
-                bool inside = KeyplanPolygonUtils.IsPointInsideOrOnPolygon(poly, p);
-
-                if (inside == entering)
-                    t1 = tm;
-                else
-                    t0 = tm;
-            }
-
-            return 0.5 * (t0 + t1);
-        }
-
         private static bool TryIntersectSegments(XYZ p1, XYZ p2, XYZ q1, XYZ q2, out XYZ intersection)
         {
             intersection = null;
@@ -403,13 +336,14 @@ namespace BA.UI.KeyplanGrid
             double dy2 = q2.Y - q1.Y;
 
             double denom = dx1 * dy2 - dy1 * dx2;
-            if (Math.Abs(denom) < 1e-9)
+            if (Math.Abs(denom) < KeyplanGeometryTolerance.SegmentIntersection)
                 return false;
 
             double t = ((q1.X - p1.X) * dy2 - (q1.Y - p1.Y) * dx2) / denom;
             double u = ((q1.X - p1.X) * dy1 - (q1.Y - p1.Y) * dx1) / denom;
 
-            if (t < -1e-9 || t > 1.0 + 1e-9 || u < -1e-9 || u > 1.0 + 1e-9)
+            if (t < -KeyplanGeometryTolerance.Parameter || t > 1.0 + KeyplanGeometryTolerance.Parameter ||
+                u < -KeyplanGeometryTolerance.Parameter || u > 1.0 + KeyplanGeometryTolerance.Parameter)
                 return false;
 
             intersection = new XYZ(
@@ -425,23 +359,21 @@ namespace BA.UI.KeyplanGrid
             if (!KeyplanPolygonUtils.AreCollinear2D(a1, a2, b1)) return false;
             if (!KeyplanPolygonUtils.AreCollinear2D(a1, a2, b2)) return false;
 
-            bool aVertical = Math.Abs(a1.X - a2.X) < Tol;
+            bool aVertical = Math.Abs(a1.X - a2.X) < KeyplanGeometryTolerance.FaceSplitPoint;
             if (aVertical)
             {
                 double aMin = Math.Min(a1.Y, a2.Y);
                 double aMax = Math.Max(a1.Y, a2.Y);
                 double bMin = Math.Min(b1.Y, b2.Y);
                 double bMax = Math.Max(b1.Y, b2.Y);
-                return Math.Max(aMin, bMin) <= Math.Min(aMax, bMax) + Tol;
+                return Math.Max(aMin, bMin) <= Math.Min(aMax, bMax) + KeyplanGeometryTolerance.FaceSplitPoint;
             }
-            else
-            {
-                double aMin = Math.Min(a1.X, a2.X);
-                double aMax = Math.Max(a1.X, a2.X);
-                double bMin = Math.Min(b1.X, b2.X);
-                double bMax = Math.Max(b1.X, b2.X);
-                return Math.Max(aMin, bMin) <= Math.Min(aMax, bMax) + Tol;
-            }
+
+            double aMinX = Math.Min(a1.X, a2.X);
+            double aMaxX = Math.Max(a1.X, a2.X);
+            double bMinX = Math.Min(b1.X, b2.X);
+            double bMaxX = Math.Max(b1.X, b2.X);
+            return Math.Max(aMinX, bMinX) <= Math.Min(aMaxX, bMaxX) + KeyplanGeometryTolerance.FaceSplitPoint;
         }
 
         private static bool PointOnSegment(XYZ p, XYZ a, XYZ b)
@@ -450,15 +382,15 @@ namespace BA.UI.KeyplanGrid
                 return false;
 
             double cross = (b.X - a.X) * (p.Y - a.Y) - (b.Y - a.Y) * (p.X - a.X);
-            if (Math.Abs(cross) > SnapTol)
+            if (Math.Abs(cross) > KeyplanGeometryTolerance.FaceSnap)
                 return false;
 
             double dot = (p.X - a.X) * (b.X - a.X) + (p.Y - a.Y) * (b.Y - a.Y);
-            if (dot < -SnapTol)
+            if (dot < -KeyplanGeometryTolerance.FaceSnap)
                 return false;
 
             double lenSq = (b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y);
-            if (dot > lenSq + SnapTol)
+            if (dot > lenSq + KeyplanGeometryTolerance.FaceSnap)
                 return false;
 
             return true;
@@ -471,54 +403,16 @@ namespace BA.UI.KeyplanGrid
 
             foreach (XYZ q in pts)
             {
-                if (q.DistanceTo(p) <= SnapTol)
+                if (q.DistanceTo(p) <= KeyplanGeometryTolerance.FaceSplitPoint)
                     return;
             }
 
             pts.Add(p);
         }
 
-        private static string MakePointKey(XYZ p)
-        {
-            long x = (long)Math.Round(p.X / Tol);
-            long y = (long)Math.Round(p.Y / Tol);
-            return x.ToString(CultureInfo.InvariantCulture) + "," + y.ToString(CultureInfo.InvariantCulture);
-        }
-
-        private static string MakeUndirectedSegmentKey(XYZ a, XYZ b)
-        {
-            string ka = MakePointKey(a);
-            string kb = MakePointKey(b);
-
-            return string.CompareOrdinal(ka, kb) <= 0
-                ? ka + "|" + kb
-                : kb + "|" + ka;
-        }
-
         private static string MakeDirectedSegmentKey(string from, string to)
         {
             return from + "->" + to;
-        }
-
-        private static string MakePolygonSignature(IList<XYZ> polygon)
-        {
-            if (polygon == null || polygon.Count == 0)
-                return string.Empty;
-
-            List<string> keys = polygon.Select(MakePointKey).ToList();
-            int minIndex = 0;
-
-            for (int i = 1; i < keys.Count; i++)
-            {
-                if (string.CompareOrdinal(keys[i], keys[minIndex]) < 0)
-                    minIndex = i;
-            }
-
-            List<string> rotated = new List<string>();
-            for (int i = 0; i < keys.Count; i++)
-                rotated.Add(keys[(minIndex + i) % keys.Count]);
-
-            return string.Join(";", rotated);
         }
 
         private sealed class Segment2D

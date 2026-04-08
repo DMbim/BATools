@@ -15,13 +15,44 @@ namespace BA.UI.KeyplanGrid
 {
     public sealed class KeyplanInteractiveCanvas : Canvas
     {
+        // -------------------------------------------------------------------------
+        // Constants
+        // -------------------------------------------------------------------------
+
         private const double AxisHitThreshold = 8.0;
+        private const double HandleRadius = 6.0;
+
+        // Zone pick role colours.
+        private static readonly Color _zoneFirstColour = Color.FromRgb(30, 160, 70);   // green
+        private static readonly Color _zoneSecondColour = Color.FromRgb(30, 100, 230);  // blue
+        private static readonly Color _zoneLastColour = Color.FromRgb(210, 50, 50);  // red
+        private static readonly Color _zoneInRangeColour = Color.FromRgb(255, 140, 0);  // orange
+
+        // -------------------------------------------------------------------------
+        // State
+        // -------------------------------------------------------------------------
 
         private KeyplanGridPreviewData _data;
         private AxisPreviewInfo _dragAxis;
+        private bool _dragStarted;
+
+        /// <summary>
+        /// When true, cell clicks are routed to the zone label session rather than
+        /// normal selection.  Cursor changes to indicate pick mode.
+        /// </summary>
+        public bool ZoneLabelPickModeActive { get; set; }
+
+        // -------------------------------------------------------------------------
+        // Events
+        // -------------------------------------------------------------------------
 
         public event EventHandler<PreviewCellClickEventArgs> CellPolygonClicked;
-        public event Action<AxisOrientation, int, double> AxisDragged;
+        public event EventHandler<PreviewAxisClickEventArgs> AxisClicked;
+        public event EventHandler<PreviewAxisEventArgs> AxisDragged;
+
+        // -------------------------------------------------------------------------
+        // Constructor
+        // -------------------------------------------------------------------------
 
         public KeyplanInteractiveCanvas()
         {
@@ -31,6 +62,10 @@ namespace BA.UI.KeyplanGrid
             MouseLeftButtonUp += Canvas_MouseLeftButtonUp;
             MouseMove += Canvas_MouseMove;
         }
+
+        // -------------------------------------------------------------------------
+        // Public render entry point
+        // -------------------------------------------------------------------------
 
         public void RenderPreview(KeyplanGridPreviewData data)
         {
@@ -45,11 +80,19 @@ namespace BA.UI.KeyplanGrid
             DrawGridLines(data);
             DrawOutline(data);
             DrawAxisHandles(data);
+
+            // Show a semi-transparent overlay banner when in zone pick mode.
+            if (ZoneLabelPickModeActive)
+                DrawZonePickModeBanner();
         }
+
+        // -------------------------------------------------------------------------
+        // Draw methods
+        // -------------------------------------------------------------------------
 
         private void DrawPrimaryFill(KeyplanGridPreviewData data)
         {
-
+            // Reserved for future primary-fill overlay.
         }
 
         private void DrawFilledPolygons(KeyplanGridPreviewData data)
@@ -62,32 +105,108 @@ namespace BA.UI.KeyplanGrid
                 if (poly?.Points == null || poly.Points.Count < 3)
                     continue;
 
-                Polygon shape = new Polygon
-                {
-                    StrokeThickness = poly.IsSelected ? 2.4 : 1.0
-                };
-
-                if (poly.IsExcluded)
-                {
-                    shape.Stroke = new SolidColorBrush(Color.FromRgb(180, 80, 80));
-                    shape.Fill = new SolidColorBrush(Color.FromArgb(40, 220, 80, 80));
-                }
-                else if (poly.IsSelected)
-                {
-                    shape.Stroke = new SolidColorBrush(Color.FromRgb(255, 140, 0));
-                    shape.Fill = new SolidColorBrush(Color.FromArgb(70, 255, 190, 90));
-                }
-                else
-                {
-                    shape.Stroke = new SolidColorBrush(Color.FromArgb(35, 120, 90, 180));
-                    shape.Fill = Brushes.Transparent;
-                }
-
-                foreach (Point pt in poly.Points)
-                    shape.Points.Add(pt);
-
+                Polygon shape = BuildFilledPolygonShape(poly);
                 Children.Add(shape);
+
+                // If a zone label has been committed, draw it at the centroid.
+                if (!string.IsNullOrWhiteSpace(poly.ZoneLabel))
+                    Children.Add(BuildZoneLabelText(poly));
             }
+        }
+
+        private Polygon BuildFilledPolygonShape(PreviewCellPolygon poly)
+        {
+            Polygon shape = new Polygon();
+
+            // Zone pick mode overrides normal selection colours.
+            if (poly.ZonePickRole != ZonePickRole.None)
+            {
+                ApplyZonePickStyle(shape, poly.ZonePickRole, poly.IsSelected);
+            }
+            else if (poly.IsExcluded)
+            {
+                shape.Stroke = new SolidColorBrush(Color.FromRgb(180, 80, 80));
+                shape.Fill = new SolidColorBrush(Color.FromArgb(40, 220, 80, 80));
+                shape.StrokeThickness = 1.0;
+            }
+            else if (poly.IsSelected)
+            {
+                shape.Stroke = new SolidColorBrush(Color.FromRgb(255, 140, 0));
+                shape.Fill = new SolidColorBrush(Color.FromArgb(70, 255, 190, 90));
+                shape.StrokeThickness = 2.4;
+            }
+            else
+            {
+                shape.Stroke = new SolidColorBrush(Color.FromArgb(35, 120, 90, 180));
+                shape.Fill = Brushes.Transparent;
+                shape.StrokeThickness = 1.0;
+            }
+
+            foreach (Point pt in poly.Points)
+                shape.Points.Add(pt);
+
+            return shape;
+        }
+
+        private static void ApplyZonePickStyle(Polygon shape, ZonePickRole role, bool isSelected)
+        {
+            Color baseColor;
+
+            switch (role)
+            {
+                case ZonePickRole.First: baseColor = _zoneFirstColour; break;
+                case ZonePickRole.Second: baseColor = _zoneSecondColour; break;
+                case ZonePickRole.Last: baseColor = _zoneLastColour; break;
+                case ZonePickRole.InRange: baseColor = _zoneInRangeColour; break;
+                default: baseColor = Color.FromRgb(120, 120, 120); break;
+            }
+
+            shape.Stroke = new SolidColorBrush(baseColor);
+            shape.Fill = new SolidColorBrush(Color.FromArgb(60, baseColor.R, baseColor.G, baseColor.B));
+            shape.StrokeThickness = isSelected ? 3.0 : 2.2;
+
+            // Dashed stroke for InRange regions so they look "pending".
+            if (role == ZonePickRole.InRange)
+                shape.StrokeDashArray = new DoubleCollection { 6, 3 };
+        }
+
+        private static System.Windows.Controls.TextBlock BuildZoneLabelText(PreviewCellPolygon poly)
+        {
+            // Approximate centroid from canvas points.
+            double cx = poly.Points.Average(p => p.X);
+            double cy = poly.Points.Average(p => p.Y);
+
+            System.Windows.Controls.TextBlock tb = new System.Windows.Controls.TextBlock
+            {
+                Text = poly.ZoneLabel,
+                Foreground = Brushes.White,
+                FontSize = 11.0,
+                FontWeight = System.Windows.FontWeights.Bold,
+                IsHitTestVisible = false
+            };
+
+            SetLeft(tb, cx - 6.0);
+            SetTop(tb, cy - 8.0);
+
+            return tb;
+        }
+
+        private void DrawZonePickModeBanner()
+        {
+            // Thin coloured border around the entire canvas to signal pick mode.
+            System.Windows.Shapes.Rectangle border = new System.Windows.Shapes.Rectangle
+            {
+                Width = ActualWidth > 0 ? ActualWidth : 800,
+                Height = ActualHeight > 0 ? ActualHeight : 600,
+                Stroke = new SolidColorBrush(Color.FromArgb(160, 255, 140, 0)),
+                StrokeThickness = 3.0,
+                Fill = Brushes.Transparent,
+                IsHitTestVisible = false
+            };
+
+            SetLeft(border, 0);
+            SetTop(border, 0);
+            Children.Add(border);
         }
 
         private void DrawGridLines(KeyplanGridPreviewData data)
@@ -107,7 +226,6 @@ namespace BA.UI.KeyplanGrid
                     StrokeThickness = 1.4,
                     StrokeDashArray = new DoubleCollection { 8, 4, 1.5, 4 }
                 };
-
                 Children.Add(l);
             }
         }
@@ -142,81 +260,108 @@ namespace BA.UI.KeyplanGrid
 
             foreach (AxisPreviewInfo axis in data.VerticalAxes ?? Enumerable.Empty<AxisPreviewInfo>())
             {
-                Line l = new Line
+                if (!axis.IsEnabled || double.IsNaN(axis.CanvasPosition))
+                    continue;
+
+                Brush stroke = axis.IsSelected
+                    ? new SolidColorBrush(Color.FromRgb(255, 140, 0))
+                    : new SolidColorBrush(Color.FromRgb(0, 100, 255));
+
+                Children.Add(new Line
                 {
                     X1 = axis.CanvasPosition,
                     X2 = axis.CanvasPosition,
                     Y1 = top,
                     Y2 = bottom,
-                    Stroke = new SolidColorBrush(Color.FromRgb(0, 100, 255)),
-                    StrokeThickness = 2.6,
-                    Opacity = 0.35
-                };
-                Children.Add(l);
+                    Stroke = stroke,
+                    StrokeThickness = axis.IsSelected ? 3.5 : 2.6,
+                    Opacity = axis.IsSelected ? 0.65 : 0.35
+                });
 
                 Ellipse handle = new Ellipse
                 {
-                    Width = 10,
-                    Height = 10,
+                    Width = HandleRadius * 2.0,
+                    Height = HandleRadius * 2.0,
                     Fill = Brushes.White,
-                    Stroke = new SolidColorBrush(Color.FromRgb(0, 100, 255)),
-                    StrokeThickness = 2
+                    Stroke = stroke,
+                    StrokeThickness = axis.IsSelected ? 2.4 : 2.0
                 };
-
-                SetLeft(handle, axis.CanvasPosition - 5);
-                SetTop(handle, top - 5);
+                SetLeft(handle, axis.CanvasPosition - HandleRadius);
+                SetTop(handle, top - HandleRadius);
                 Children.Add(handle);
             }
 
             foreach (AxisPreviewInfo axis in data.HorizontalAxes ?? Enumerable.Empty<AxisPreviewInfo>())
             {
+                if (!axis.IsEnabled || double.IsNaN(axis.CanvasPosition))
+                    continue;
+
+                Brush stroke = axis.IsSelected
+                    ? new SolidColorBrush(Color.FromRgb(255, 140, 0))
+                    : new SolidColorBrush(Color.FromRgb(0, 100, 255));
+
                 Line l = new Line
                 {
                     X1 = left,
                     X2 = right,
                     Y1 = axis.CanvasPosition,
                     Y2 = axis.CanvasPosition,
-                    Stroke = new SolidColorBrush(Color.FromRgb(0, 100, 255)),
-                    StrokeThickness = 2.6,
-                    Opacity = 0.35
+                    Stroke = stroke,
+                    StrokeThickness = axis.IsSelected ? 3.5 : 2.6,
+                    Opacity = axis.IsSelected ? 0.65 : 0.35
                 };
                 Children.Add(l);
 
                 Ellipse handle = new Ellipse
                 {
-                    Width = 10,
-                    Height = 10,
+                    Width = HandleRadius * 2.0,
+                    Height = HandleRadius * 2.0,
                     Fill = Brushes.White,
-                    Stroke = new SolidColorBrush(Color.FromRgb(0, 100, 255)),
-                    StrokeThickness = 2
+                    Stroke = stroke,
+                    StrokeThickness = axis.IsSelected ? 2.4 : 2.0
                 };
 
-                SetLeft(handle, left - 5);
-                SetTop(handle, axis.CanvasPosition - 5);
+                SetLeft(handle, left - HandleRadius);
+                SetTop(handle, axis.CanvasPosition - HandleRadius);
                 Children.Add(handle);
             }
         }
 
+        // -------------------------------------------------------------------------
+        // Mouse handlers
+        // -------------------------------------------------------------------------
+
         private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (_data == null)
-                return;
+            if (_data == null) return;
 
             Point p = e.GetPosition(this);
 
-            _dragAxis = FindNearestAxis(p);
-            if (_dragAxis != null)
+            // In zone pick mode, axis drag is suppressed — only cell clicks matter.
+            if (!ZoneLabelPickModeActive)
             {
-                CaptureMouse();
-                Cursor = _dragAxis.Orientation == AxisOrientation.Vertical ? Cursors.SizeWE : Cursors.SizeNS;
-                e.Handled = true;
-                return;
+                _dragAxis = FindNearestAxis(p);
+                _dragStarted = false;
+
+                if (_dragAxis != null)
+                {
+                    AxisClicked?.Invoke(this,
+                        new PreviewAxisClickEventArgs(_dragAxis.SplitId, _dragAxis.Orientation));
+
+                    CaptureMouse();
+                    Cursor = _dragAxis.Orientation == AxisOrientation.Vertical
+                        ? Cursors.SizeWE
+                        : Cursors.SizeNS;
+                    e.Handled = true;
+                    return;
+                }
             }
 
             PreviewCellPolygon hitCell = FindTopmostCellPolygon(p);
             if (hitCell != null && !string.IsNullOrWhiteSpace(hitCell.CellKey))
             {
-                CellPolygonClicked?.Invoke(this, new PreviewCellClickEventArgs(hitCell.CellKey));
+                CellPolygonClicked?.Invoke(this,
+                    new PreviewCellClickEventArgs(hitCell.CellKey));
                 e.Handled = true;
             }
         }
@@ -226,6 +371,7 @@ namespace BA.UI.KeyplanGrid
             if (_dragAxis != null)
             {
                 _dragAxis = null;
+                _dragStarted = false;
                 ReleaseMouseCapture();
                 Cursor = Cursors.Arrow;
                 e.Handled = true;
@@ -234,15 +380,23 @@ namespace BA.UI.KeyplanGrid
 
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
         {
-            if (_dragAxis == null || _data?.Transform == null || e.LeftButton != MouseButtonState.Pressed)
+            if (_dragAxis == null ||
+                _data?.Transform == null ||
+                e.LeftButton != MouseButtonState.Pressed)
                 return;
 
             Point p = e.GetPosition(this);
             double normalized = CanvasToNormalized(_dragAxis.Orientation, p, _data.Transform);
 
-            AxisDragged?.Invoke(_dragAxis.Orientation, _dragAxis.InteriorIndex, normalized);
+            _dragStarted = true;
+            AxisDragged?.Invoke(this,
+                new PreviewAxisEventArgs(_dragAxis.SplitId, _dragAxis.Orientation, normalized));
             e.Handled = true;
         }
+
+        // -------------------------------------------------------------------------
+        // Hit testing
+        // -------------------------------------------------------------------------
 
         private PreviewCellPolygon FindTopmostCellPolygon(Point p)
         {
@@ -252,11 +406,8 @@ namespace BA.UI.KeyplanGrid
             for (int i = _data.FilledPolygons.Count - 1; i >= 0; i--)
             {
                 PreviewCellPolygon poly = _data.FilledPolygons[i];
-                if (poly?.Points == null || poly.Points.Count < 3)
-                    continue;
-
-                if (IsPointInPolygon(p, poly.Points))
-                    return poly;
+                if (poly?.Points == null || poly.Points.Count < 3) continue;
+                if (IsPointInPolygon(p, poly.Points)) return poly;
             }
 
             return null;
@@ -269,33 +420,30 @@ namespace BA.UI.KeyplanGrid
 
             foreach (AxisPreviewInfo axis in _data?.VerticalAxes ?? Enumerable.Empty<AxisPreviewInfo>())
             {
+                if (!axis.IsEnabled || double.IsNaN(axis.CanvasPosition)) continue;
                 double d = Math.Abs(p.X - axis.CanvasPosition);
-                if (d < AxisHitThreshold && d < bestDist)
-                {
-                    best = axis;
-                    bestDist = d;
-                }
+                if (d < AxisHitThreshold && d < bestDist) { best = axis; bestDist = d; }
             }
 
             foreach (AxisPreviewInfo axis in _data?.HorizontalAxes ?? Enumerable.Empty<AxisPreviewInfo>())
             {
+                if (!axis.IsEnabled || double.IsNaN(axis.CanvasPosition)) continue;
                 double d = Math.Abs(p.Y - axis.CanvasPosition);
-                if (d < AxisHitThreshold && d < bestDist)
-                {
-                    best = axis;
-                    bestDist = d;
-                }
+                if (d < AxisHitThreshold && d < bestDist) { best = axis; bestDist = d; }
             }
 
             return best;
         }
 
+        // -------------------------------------------------------------------------
+        // Geometry helpers
+        // -------------------------------------------------------------------------
+
         private static bool IsPointInPolygon(Point testPoint, IList<Point> polygon)
         {
             bool inside = false;
             int count = polygon?.Count ?? 0;
-            if (count < 3)
-                return false;
+            if (count < 3) return false;
 
             for (int i = 0, j = count - 1; i < count; j = i++)
             {
@@ -304,28 +452,31 @@ namespace BA.UI.KeyplanGrid
 
                 bool intersect =
                     ((pi.Y > testPoint.Y) != (pj.Y > testPoint.Y)) &&
-                    (testPoint.X < (pj.X - pi.X) * (testPoint.Y - pi.Y) / ((pj.Y - pi.Y) + 1e-12) + pi.X);
+                    (testPoint.X < (pj.X - pi.X) * (testPoint.Y - pi.Y) /
+                                   ((pj.Y - pi.Y) + 1e-12) + pi.X);
 
-                if (intersect)
-                    inside = !inside;
+                if (intersect) inside = !inside;
             }
 
             return inside;
         }
 
-        private static double CanvasToNormalized(AxisOrientation orientation, Point p, PreviewTransformInfo t)
+        private static double CanvasToNormalized(
+            AxisOrientation orientation,
+            Point p,
+            PreviewTransformInfo t)
         {
             if (orientation == AxisOrientation.Vertical)
             {
+                double denom = Math.Max(1e-12, t.ModelMaxX - t.ModelMinX);
                 double modelX = t.ModelMinX + ((p.X - t.Padding) / t.Scale);
-                double normalized = (modelX - t.ModelMinX) / (t.ModelMaxX - t.ModelMinX);
-                return Clamp01(normalized);
+                return Clamp01((modelX - t.ModelMinX) / denom);
             }
             else
             {
+                double denom = Math.Max(1e-12, t.ModelMaxY - t.ModelMinY);
                 double modelY = t.ModelMinY + (((t.CanvasHeight - t.Padding) - p.Y) / t.Scale);
-                double normalized = (modelY - t.ModelMinY) / (t.ModelMaxY - t.ModelMinY);
-                return Clamp01(normalized);
+                return Clamp01((modelY - t.ModelMinY) / denom);
             }
         }
 
