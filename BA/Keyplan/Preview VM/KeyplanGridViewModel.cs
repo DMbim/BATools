@@ -41,6 +41,12 @@ namespace BA.UI.KeyplanGrid
         private KeyplanGridPreviewData _previewData = new KeyplanGridPreviewData();
         private string _statusText = "Ready.";
 
+        // Last canvas dimensions passed by the window — used for internal rebuilds
+        // so polygon coordinates always match the actual canvas size.
+        private double _cachedCanvasWidth = 860.0;
+        private double _cachedCanvasHeight = 720.0;
+        private double _cachedPadding = 24.0;
+
         // Single-selection state (used by nudge / delete).
         private string _selectedSplitId;
         private AxisOrientation? _selectedSplitOrientation;
@@ -353,10 +359,17 @@ namespace BA.UI.KeyplanGrid
         // -------------------------------------------------------------------------
 
         public void RebuildPreview(
-            double canvasWidth = 860.0,
-            double canvasHeight = 720.0,
-            double padding = 24.0)
+            double canvasWidth = 0.0,
+            double canvasHeight = 0.0,
+            double padding = 0.0)
         {
+            // Cache dimensions when the window provides real values so that
+            // internal rebuilds (e.g. from zone pick handlers) reuse the same
+            // coordinate space and IsPointInPolygon hit-testing stays accurate.
+            if (canvasWidth > 0) _cachedCanvasWidth = canvasWidth;
+            if (canvasHeight > 0) _cachedCanvasHeight = canvasHeight;
+            if (padding > 0) _cachedPadding = padding;
+
             if (_sourceOuterLoop == null)
                 return;
 
@@ -376,9 +389,9 @@ namespace BA.UI.KeyplanGrid
                     DrawGridLines,
                     CreateFilledRegions,
                     GlobalScaleFactor,
-                    canvasWidth,
-                    canvasHeight,
-                    padding,
+                    _cachedCanvasWidth,
+                    _cachedCanvasHeight,
+                    _cachedPadding,
                     _cellEdits,
                     _selectedCellKeys,
                     VerticalSplits.Where(x => x.IsEnabled).ToList(),
@@ -686,6 +699,7 @@ namespace BA.UI.KeyplanGrid
                     if (stableKey == _activeZoneSession.FirstRegionKey)
                     {
                         StatusText = "Second region must be different from the first. Pick again.";
+                        RebuildPreview();
                         return;
                     }
 
@@ -703,6 +717,7 @@ namespace BA.UI.KeyplanGrid
                         StatusText = dirError;
                         // Roll back to AwaitingSecond so user can try again.
                         _activeZoneSession.SecondRegionKey = null;
+                        RebuildPreview();
                         return;
                     }
 
@@ -723,6 +738,7 @@ namespace BA.UI.KeyplanGrid
 
                     // Build assignments immediately so InRange regions are highlighted.
                     RefreshReadySessionAssignments();
+                    OnPropertyChanged(nameof(ActiveZoneSession)); // ← ADD THIS
                     break;
 
                 case ZonePickState.Ready:

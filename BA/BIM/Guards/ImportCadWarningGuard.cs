@@ -27,9 +27,12 @@ namespace BA.App.Guards
         public static bool Enabled { get; set; } = true;
 
         /// <summary>
-        /// Bind generic import as well; many builds route CAD import via ID_FILE_IMPORT.
+        /// Bind the generic ID_FILE_IMPORT command.
+        /// Disabled by default — that command is too broad and also fires for Link CAD
+        /// in some Revit builds. The CAD-specific bindings plus DocumentChanged are sufficient.
+        /// Enable only if you find that imports slip through on a specific Revit version.
         /// </summary>
-        public static bool BindGenericImport { get; set; } = true;
+        public static bool BindGenericImport { get; set; } = false;
 
         // ---------- State ----------
         private static bool _suppressForSession;
@@ -223,9 +226,11 @@ namespace BA.App.Guards
         private static bool IsCadImportInstance(Document doc, ImportInstance ii)
         {
             // For DWG/DXF/DGN etc Revit uses CADLinkType as the type element.
-            // CADLinkType represents both links and imports. (IsLink distinguishes)
+            // CADLinkType represents both links AND imports — IsLinked distinguishes them.
+            // We only want to warn on imports, not on Link CAD.
             try
             {
+                if (ii.IsLinked) return false;
                 var type = doc.GetElement(ii.GetTypeId());
                 return type is CADLinkType;
             }
@@ -275,7 +280,7 @@ namespace BA.App.Guards
                 {
                     TryLog(uiapp, "DOC_CHANGED", "KeepInsertedCad");
                     // ignore ensuing doc changes for a moment (safety)
-                    _ignoreDocChangesUntilUtc = DateTime.UtcNow.AddSeconds(2);
+                    _ignoreDocChangesUntilUtc = DateTime.UtcNow.AddSeconds(10);
                     return;
                 }
 
@@ -283,7 +288,7 @@ namespace BA.App.Guards
                 {
                     TryLog(uiapp, "DOC_CHANGED", "DeleteInsertedCad");
                     DeleteElementsSafe(doc, stillThere);
-                    _ignoreDocChangesUntilUtc = DateTime.UtcNow.AddSeconds(2);
+                    _ignoreDocChangesUntilUtc = DateTime.UtcNow.AddSeconds(10);
                     return;
                 }
 
@@ -291,7 +296,7 @@ namespace BA.App.Guards
                 TryLog(uiapp, "DOC_CHANGED", "DeleteThenLinkCad");
                 DeleteElementsSafe(doc, stillThere);
 
-                _ignoreDocChangesUntilUtc = DateTime.UtcNow.AddSeconds(3);
+                _ignoreDocChangesUntilUtc = DateTime.UtcNow.AddSeconds(10);
 
                 var linkCmd = RevitCommandId.LookupCommandId(CmdLinkCad);
                 if (linkCmd != null)

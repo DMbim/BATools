@@ -49,11 +49,14 @@ namespace BA.KeyplanGrid
                     WindowStartupLocation = WindowStartupLocation.CenterScreen
                 };
 
-                bool? ok = window.ShowDialog();
-                if (ok != true)
-                    return Result.Cancelled;
+                window.ShowDialog();
 
-                return Result.Succeeded;
+                // Return Succeeded if the user generated anything so that
+                // Revit keeps the committed filled-region transactions.
+                // Result.Cancelled would cause Revit to roll them back.
+                return vm.LastGenerationResult != null
+                    ? Result.Succeeded
+                    : Result.Cancelled;
             }
             catch (Exception ex)
             {

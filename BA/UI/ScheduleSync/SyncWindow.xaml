@@ -1,9 +1,9 @@
-﻿<Window x:Class="BA.SyncWindow"
+<Window x:Class="BA.SyncWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="BA Schedule Sync"
         Height="600"
-        Width="1000"
+        Width="700"
         Background="#0B0C0F"
         Foreground="#F2F2F2"
         FontFamily="Segoe UI">
@@ -22,52 +22,53 @@
                 BorderBrush="{StaticResource BorderSoft}"
                 BorderThickness="0,0,0,1"
                 Padding="10">
-
             <StackPanel Orientation="Horizontal">
-
-                <Button Content="Add Mapping" Command="{Binding AddCommand}"/>
-                <Button Content="Remove" Command="{Binding RemoveCommand}"/>
+                <Button Content="Add Mapping" Command="{Binding AddCommand}" Margin="0,0,6,0"/>
+                <Button Content="Remove" Command="{Binding RemoveCommand}" Margin="0,0,6,0"/>
                 <Button Content="Sync Now" Command="{Binding SyncCommand}"/>
-
             </StackPanel>
         </Border>
 
-        <!-- MAIN GRID -->
-        <Grid Margin="10">
+        <!-- SCHEDULE SELECTOR -->
+        <Border DockPanel.Dock="Top"
+                Background="{StaticResource BgPanel}"
+                BorderBrush="{StaticResource BorderSoft}"
+                BorderThickness="0,0,0,1"
+                Padding="10,8">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Schedule:" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="#A0A8B4"/>
+                <ComboBox ItemsSource="{Binding Schedules}"
+                          SelectedItem="{Binding SelectedSchedule, Mode=TwoWay}"
+                          DisplayMemberPath="Name"
+                          Width="320"/>
+            </StackPanel>
+        </Border>
 
+        <!-- MAPPING GRID -->
+        <Grid Margin="10">
             <DataGrid ItemsSource="{Binding Mappings}"
                       SelectedItem="{Binding SelectedRow}"
-                      AutoGenerateColumns="False">
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False">
 
                 <DataGrid.Columns>
 
-                    <!-- Schedule -->
-                    <DataGridTemplateColumn Header="Schedule" Width="200">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <ComboBox ItemsSource="{Binding DataContext.Schedules, RelativeSource={RelativeSource AncestorType=Window}}"
-                                          SelectedItem="{Binding Schedule}"
-                                          DisplayMemberPath="Name"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-
-                    <!-- Source -->
-                    <DataGridTemplateColumn Header="Source Column" Width="200">
+                    <!-- Source Column -->
+                    <DataGridTemplateColumn Header="Source Column" Width="*">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <ComboBox ItemsSource="{Binding DataContext.Columns, RelativeSource={RelativeSource AncestorType=Window}}"
-                                          SelectedItem="{Binding SourceColumn}"/>
+                                          SelectedItem="{Binding SourceColumn, UpdateSourceTrigger=PropertyChanged}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <!-- Destination -->
-                    <DataGridTemplateColumn Header="Destination Param" Width="200">
+                    <!-- Destination Parameter -->
+                    <DataGridTemplateColumn Header="Destination Parameter" Width="*">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <ComboBox ItemsSource="{Binding DataContext.Parameters, RelativeSource={RelativeSource AncestorType=Window}}"
-                                          SelectedItem="{Binding DestinationParameter}"/>
+                                          SelectedItem="{Binding DestinationParameter, UpdateSourceTrigger=PropertyChanged}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
@@ -75,7 +76,7 @@
                 </DataGrid.Columns>
 
             </DataGrid>
-
         </Grid>
+
     </DockPanel>
 </Window>

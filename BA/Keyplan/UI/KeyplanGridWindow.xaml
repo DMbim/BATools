@@ -7,7 +7,7 @@
         mc:Ignorable="d"
         Title="Keyplan Grid Generator"
         Width="1520"
-        Height="1460"
+        Height="1160"
         MinWidth="1320"
         MinHeight="800"
         WindowStartupLocation="CenterOwner"

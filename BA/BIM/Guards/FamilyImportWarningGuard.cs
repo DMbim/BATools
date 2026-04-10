@@ -57,6 +57,7 @@ namespace BA.App.Guards
 
         private static bool _suppressForSession;
         private static bool _isHandling;
+        private static bool _isAnalyzing; // ADD THIS
 
         private static readonly List<AddInCommandBinding> _bindings = new();
 
@@ -273,6 +274,9 @@ namespace BA.App.Guards
         private static void OnDocumentChanged(object sender, DocumentChangedEventArgs e)
         {
             if (!Enabled) return;
+            if (_suppressForSession) return;  // respect "suppress for session" on all paths
+            if (_isHandling) return;          // don't re-enter when the guard itself loads a family
+            if (_isAnalyzing) return;
 
             Document doc = e.GetDocument();
             if (doc == null || !doc.IsValidObject) return;
@@ -308,7 +312,7 @@ namespace BA.App.Guards
         private static void EnqueuePending(Document projectDoc, ElementId familyId, string source)
         {
             // De-dupe (bucket by ~3 seconds)
-            long bucket = DateTime.UtcNow.Ticks / TimeSpan.FromSeconds(3).Ticks;
+            long bucket = DateTime.UtcNow.Ticks / TimeSpan.FromSeconds(10).Ticks;
             string key = $"{projectDoc.GetHashCode()}|{IDD.Of(familyId)}|{bucket}";
             if (_recentlyProcessed.Contains(key)) return;
 
@@ -434,7 +438,17 @@ namespace BA.App.Guards
         private static void ShowWarningAndApplyFixes(UIApplication uiapp, Document projectDoc, Family family, string source)
         {
             // Analyze by opening the family doc (best effort)
-            var analysis = FamilyAnalyzer.AnalyzeLoadedFamilyInProject(projectDoc, family, RequiredPrefix, MaxRecommendedSizeMb, DefaultTypeName, MaxRecommendedFamilyElementCount);
+            _isAnalyzing = true;  // ADD
+            FamilyAnalysis analysis;
+            try
+            {
+                analysis = FamilyAnalyzer.AnalyzeLoadedFamilyInProject(projectDoc, family,
+                    RequiredPrefix, MaxRecommendedSizeMb, DefaultTypeName, MaxRecommendedFamilyElementCount);
+            }
+            finally
+            {
+                _isAnalyzing = false;  // ADD
+            }
 
             if (!ShouldShow(analysis))
             {

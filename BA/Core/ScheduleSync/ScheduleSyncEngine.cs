@@ -1,41 +1,41 @@
-﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace BA
 {
     public static class ScheduleSyncEngine
     {
-        public static void Execute(Document doc, List<ScheduleMappingRow> mappings)
+        public static void Execute(Document doc, ViewSchedule schedule, List<ScheduleMappingRow> mappings)
         {
+            if (schedule == null || mappings == null || mappings.Count == 0) return;
+
             using (Transaction t = new Transaction(doc, "BA Schedule Sync"))
             {
                 t.Start();
 
+                var tableData = schedule.GetTableData();
+                var body = tableData.GetSectionData(SectionType.Body);
+                int rows = body.NumberOfRows;
+
+                int idCol = GetColumnIndex(schedule, "Element ID");
+                if (idCol < 0) { t.RollBack(); return; }
+
                 foreach (var mapping in mappings)
                 {
-                    if (mapping.Schedule == null) continue;
-
-                    var schedule = mapping.Schedule;
-                    var tableData = schedule.GetTableData();
-                    var body = tableData.GetSectionData(SectionType.Body);
-
-                    int rows = body.NumberOfRows;
+                    if (string.IsNullOrEmpty(mapping.SourceColumn)
+                        || string.IsNullOrEmpty(mapping.DestinationParameter))
+                        continue;
 
                     int sourceCol = GetColumnIndex(schedule, mapping.SourceColumn);
-                    int idCol = GetColumnIndex(schedule, "Element ID");
-
-                    if (sourceCol < 0 || idCol < 0) continue;
+                    if (sourceCol < 0) continue;
 
                     for (int r = 0; r < rows; r++)
                     {
                         try
                         {
                             string idText = schedule.GetCellText(SectionType.Body, r, idCol);
-
-                            if (!int.TryParse(idText, out int idInt))
-                                continue;
+                            if (!int.TryParse(idText, out int idInt)) continue;
 
                             Element el = doc.GetElement(new ElementId(idInt));
                             if (el == null) continue;
@@ -58,13 +58,11 @@ namespace BA
         private static int GetColumnIndex(ViewSchedule schedule, string name)
         {
             var def = schedule.Definition;
-
             for (int i = 0; i < def.GetFieldCount(); i++)
             {
                 if (def.GetField(i).GetName() == name)
                     return i;
             }
-
             return -1;
         }
 
@@ -75,12 +73,10 @@ namespace BA
                 case StorageType.String:
                     p.Set(val);
                     break;
-
                 case StorageType.Double:
                     if (double.TryParse(val, out double d))
                         p.Set(d);
                     break;
-
                 case StorageType.Integer:
                     if (int.TryParse(val, out int i))
                         p.Set(i);

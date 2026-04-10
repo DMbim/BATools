@@ -36,6 +36,10 @@ namespace BA.UI.KeyplanGrid
             {
                 if (e.PropertyName == nameof(KeyplanGridViewModel.PreviewData))
                     RenderPreview();
+
+                if (e.PropertyName == nameof(KeyplanGridViewModel.ActiveZoneSession) ||
+                    e.PropertyName == nameof(KeyplanGridViewModel.IsZoneSessionActive))
+                    UpdateZoneButtonVisibility();
             };
         }
 
@@ -319,7 +323,9 @@ namespace BA.UI.KeyplanGrid
 
         private void BtnCancel_Click(object sender, RoutedEventArgs e)
         {
-            DialogResult = false;
+            // Return true if anything was generated so the command returns
+            // Result.Succeeded — prevents Revit from rolling back committed regions.
+            DialogResult = _vm.LastGenerationResult != null;
             Close();
         }
 
