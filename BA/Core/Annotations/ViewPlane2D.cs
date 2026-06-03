@@ -15,7 +15,7 @@ namespace BA.BIM.Core.Annotations
             Up = up;
         }
 
-        public static ViewPlane2D FromView(View view)
+        public static ViewPlane2D FromView(Autodesk.Revit.DB.View view)
         {
             return new ViewPlane2D(
                 view.Origin,

@@ -35,19 +35,50 @@ namespace BATools_Installer
             }
         }
 
-        private static async Task InstallOrUpdate(InstallerArgs args, bool isUpdate, Action<string> log)
+        private static async Task InstallOrUpdate(
+                 InstallerArgs args, bool isUpdate, Action<string> log)
         {
             var installDir = RevitInstallPaths.GetInstallDir(args.RevitYear);
             var manifestPath = RevitInstallPaths.GetManifestPath(args.RevitYear);
 
-            log((isUpdate ? "Updating..." : "Installing..."));
+            log(isUpdate ? "Updating..." : "Installing...");
 
+            // ── Guard: Revit must not be running when we copy files ───────────
+            // Skip this check when WaitPid is set — the caller already waited
+            // for the specific Revit process that launched us to exit.
+            if (args.WaitPid <= 0 && RevitProcessGuard.IsRevitRunning())
+            {
+                log("Revit is currently running. Requesting close...");
+
+                // Give Revit 30 seconds to close gracefully after WM_CLOSE
+                bool closed = await RevitProcessGuard
+                    .RequestCloseAndWaitAsync(timeoutMs: 30_000, log)
+                    .ConfigureAwait(false);
+
+                if (!closed)
+                {
+                    // Still running — ask user to force-kill or abort
+                    // This runs on the UI thread because ConfigureAwait(true)
+                    // is used in MainWindow.Run, so MessageBox is safe here
+                    // only when called from UI. Use the log+exception pattern
+                    // so MainWindow can intercept and show dialog.
+                    throw new InvalidOperationException(
+                        "Revit is still running and could not be closed automatically.\n\n" +
+                        "Please save your work and close Revit manually, then run the update again.\n\n" +
+                        "If you want to force-close Revit, click OK on this message — " +
+                        "any unsaved work in Revit will be lost.");
+                }
+            }
+
+            // ── Download ──────────────────────────────────────────────────────
             var client = new GitHubReleaseClient(InstallerConfig.RepoOwner, InstallerConfig.RepoName);
-            var payloadZip = await client.DownloadLatestAssetToTempAsync(args.AssetName).ConfigureAwait(false);
-
+            var payloadZip = await client.DownloadLatestAssetToTempAsync(args.AssetName)
+                                          .ConfigureAwait(false);
             var extractedDir = ZipPayload.ExtractToTempFolder(payloadZip);
+
             Directory.CreateDirectory(installDir);
 
+            // ── Backup ────────────────────────────────────────────────────────
             if (isUpdate && Directory.Exists(installDir))
             {
                 var backupDir = installDir + "_backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss");
@@ -55,9 +86,9 @@ namespace BATools_Installer
                 FileCopy.CopyDirectory(installDir, backupDir, overwrite: true);
             }
 
+            // ── Copy new files ────────────────────────────────────────────────
             FileCopy.CopyDirectory(extractedDir, installDir, overwrite: true);
 
-            // Copy THIS installer exe into install folder so BA.dll can launch it later
             TryCopySelfToInstallDir(installDir, log);
 
             ManifestWriter.WriteApplicationAddinManifest(
@@ -69,6 +100,8 @@ namespace BATools_Installer
                 vendorId: InstallerConfig.VendorId,
                 vendorDescription: "Bogle Architects - BA Tools"
             );
+
+            IssueReporterSettingsInstaller.InstallOrUpdate(log);
 
             log("Done.");
         }

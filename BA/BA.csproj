@@ -9,7 +9,6 @@
 		<RootNamespace>BA.UI</RootNamespace>
 	</PropertyGroup>
 
-
 	<PropertyGroup Condition="$(Configuration.Contains('R26'))">
 		<RevitVersion>2026</RevitVersion>
 		<TargetFramework>net8.0-windows</TargetFramework>
@@ -23,7 +22,6 @@
 		<DeployRevitAddin>true</DeployRevitAddin>
 	</PropertyGroup>
 
-	<!-- RevitAPIIFC — jedna reference, správná cesta -->
 	<ItemGroup>
 		<Reference Include="RevitAPIIFC">
 			<HintPath>C:\Program Files\Autodesk\Revit $(RevitVersion)\RevitAPIIFC.dll</HintPath>
@@ -31,7 +29,6 @@
 		</Reference>
 	</ItemGroup>
 
-	<!-- NuGet packages — jeden blok -->
 	<ItemGroup>
 		<PackageReference Include="Clipper2" Version="2.0.0" />
 		<PackageReference Include="ClosedXML" Version="0.105.0" />
@@ -41,10 +38,9 @@
 		<PackageReference Include="Nice3point.Revit.Extensions" Version="2026.0.2-preview.1.20251113" />
 		<PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" />
 		<PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" />
-		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
 	</ItemGroup>
 
-	<!-- Compile excludes -->
 	<ItemGroup>
 		<Compile Remove="Keyplan\New\**" />
 		<Compile Remove="Keyplan\Update\**" />
@@ -63,7 +59,6 @@
 		<None Remove="Keyplan\New\**" />
 		<None Remove="Keyplan\Update\**" />
 		<None Remove="Keyplan\Utils§\**" />
-		<!-- ... zbytek None Remove beze změny ... -->
 	</ItemGroup>
 
 	<ItemGroup>
@@ -72,20 +67,556 @@
 		<Page Remove="Keyplan\Utils§\**" />
 	</ItemGroup>
 
-	<!-- Resources — beze změny, ponech jak máš -->
 	<ItemGroup>
-		<!-- ... všechny Resource Include beze změny ... -->
+	  <None Remove="Application\Resources\Icons16\ArAnno_16.png" />
+	  <None Remove="Application\Resources\Icons16\areas_16.png" />
+	  <None Remove="Application\Resources\Icons16\ause16.png" />
+	  <None Remove="Application\Resources\Icons16\AxisToRoom16.png" />
+	  <None Remove="Application\Resources\Icons16\AxistoRoom_Link16.png" />
+	  <None Remove="Application\Resources\Icons16\AxistoRoom_Local16.png" />
+	  <None Remove="Application\Resources\Icons16\brws_16.png" />
+	  <None Remove="Application\Resources\Icons16\ChangeMonitor16.png" />
+	  <None Remove="Application\Resources\Icons16\ChangeMonitorClear16.png" />
+	  <None Remove="Application\Resources\Icons16\ChangeMonitorLive16.png" />
+	  <None Remove="Application\Resources\Icons16\ChangeMonitorLivep16.png" />
+	  <None Remove="Application\Resources\Icons16\ChangeMonitorS16.png" />
+	  <None Remove="Application\Resources\Icons16\ChangeMonitorStop16.png" />
+	  <None Remove="Application\Resources\Icons16\Classif16.png" />
+	  <None Remove="Application\Resources\Icons16\Classify16.png" />
+	  <None Remove="Application\Resources\Icons16\Cleanup_Cleanup16.png" />
+	  <None Remove="Application\Resources\Icons16\CLSRoom16.png" />
+	  <None Remove="Application\Resources\Icons16\DimOveride_OverrideDimension16.png" />
+	  <None Remove="Application\Resources\Icons16\DimOveride_OverrideDimensionSegment16.png" />
+	  <None Remove="Application\Resources\Icons16\DimOverride16.png" />
+	  <None Remove="Application\Resources\Icons16\ElementToRoom16.png" />
+	  <None Remove="Application\Resources\Icons16\ElementToRoom_link16.png" />
+	  <None Remove="Application\Resources\Icons16\ElementToRoom_local16.png" />
+	  <None Remove="Application\Resources\Icons16\evilr16.png" />
+	  <None Remove="Application\Resources\Icons16\evilr_16.png" />
+	  <None Remove="Application\Resources\Icons16\ExpExc16.png" />
+	  <None Remove="Application\Resources\Icons16\ExpIExc16.png" />
+	  <None Remove="Application\Resources\Icons16\FamilyParameters16.png" />
+	  <None Remove="Application\Resources\Icons16\Fi16.png" />
+	  <None Remove="Application\Resources\Icons16\FIN16.png" />
+	  <None Remove="Application\Resources\Icons16\General_Test16.png" />
+	  <None Remove="Application\Resources\Icons16\ImpExc16.png" />
+	  <None Remove="Application\Resources\Icons16\Issues_16.png" />
+	  <None Remove="Application\Resources\Icons16\KeyPlan16.png" />
+	  <None Remove="Application\Resources\Icons16\lib_16.png" />
+	  <None Remove="Application\Resources\Icons16\LineS16.png" />
+	  <None Remove="Application\Resources\Icons16\LineStyles16.png" />
+	  <None Remove="Application\Resources\Icons16\ManageIssues_16.png" />
+	  <None Remove="Application\Resources\Icons16\men16.png" />
+	  <None Remove="Application\Resources\Icons16\Menu_16.png" />
+	  <None Remove="Application\Resources\Icons16\OverheadCommand16.png" />
+	  <None Remove="Application\Resources\Icons16\OverheadCommand_OverheadCommand166.png" />
+	  <None Remove="Application\Resources\Icons16\RayBounceCeiling16.png" />
+	  <None Remove="Application\Resources\Icons16\RoomClassification16.png" />
+	  <None Remove="Application\Resources\Icons16\SaveFamilies16.png" />
+	  <None Remove="Application\Resources\Icons16\SB16.png" />
+	  <None Remove="Application\Resources\Icons16\scd_16.png" />
+	  <None Remove="Application\Resources\Icons16\ScopeBoxManager16.png" />
+	  <None Remove="Application\Resources\Icons16\SelectionManager16.png" />
+	  <None Remove="Application\Resources\Icons16\Settings_16.png" />
+	  <None Remove="Application\Resources\Icons16\SheetDateAndRevision16.png" />
+	  <None Remove="Application\Resources\Icons16\Sub16.png" />
+	  <None Remove="Application\Resources\Icons16\SubmitIssue_16.png" />
+	  <None Remove="Application\Resources\Icons16\Temp16.png" />
+	  <None Remove="Application\Resources\Icons16\TextHub16.png" />
+	  <None Remove="Application\Resources\Icons16\TRA_16.png" />
+	  <None Remove="Application\Resources\Icons16\txt16.png" />
+	  <None Remove="Application\Resources\Icons16\txt616.png" />
+	  <None Remove="Application\Resources\Icons16\use16.png" />
+	  <None Remove="Application\Resources\Icons16\Zoom16.png" />
+	  <None Remove="Application\Resources\Icons16\ZoomE16.png" />
+	  <None Remove="Application\Resources\Icons16\ZoomL16.png" />
+	  <None Remove="Application\Resources\Icons16\ZoomLo16.png" />
+	  <None Remove="Application\Resources\Icons16\ZoomtoRoom16.png" />
+	  <None Remove="Application\Resources\Icons32\ArAnnoStt_32.png" />
+	  <None Remove="Application\Resources\Icons32\ArAnnoSt_32.bak.png" />
+	  <None Remove="Application\Resources\Icons32\ArAnnoSt_32.png" />
+	  <None Remove="Application\Resources\Icons32\ArAnno_32-01.png" />
+	  <None Remove="Application\Resources\Icons32\areas_32.png" />
+	  <None Remove="Application\Resources\Icons32\ause32.png" />
+	  <None Remove="Application\Resources\Icons32\AxisToRoom32.png" />
+	  <None Remove="Application\Resources\Icons32\AxisToRoom_Link32.png" />
+	  <None Remove="Application\Resources\Icons32\AxisToRoom_Local32.png" />
+	  <None Remove="Application\Resources\Icons32\AxisToRoo_Link32.png" />
+	  <None Remove="Application\Resources\Icons32\AxisToRoo_Local32.png" />
+	  <None Remove="Application\Resources\Icons32\brws_32.png" />
+	  <None Remove="Application\Resources\Icons32\ChangeMonitor32.png" />
+	  <None Remove="Application\Resources\Icons32\ChangeMonitorClear32.png" />
+	  <None Remove="Application\Resources\Icons32\ChangeMonitorLive32.png" />
+	  <None Remove="Application\Resources\Icons32\ChangeMonitorS32.png" />
+	  <None Remove="Application\Resources\Icons32\ChangeMonitorStop32.png" />
+	  <None Remove="Application\Resources\Icons32\Classif32.png" />
+	  <None Remove="Application\Resources\Icons32\Classify32.png" />
+	  <None Remove="Application\Resources\Icons32\Cleanup_Cleanup16.png" />
+	  <None Remove="Application\Resources\Icons32\Cleanup_Cleanup32.png" />
+	  <None Remove="Application\Resources\Icons32\CLSRoom32.png" />
+	  <None Remove="Application\Resources\Icons32\DimOveride_OverrideDimension32.png" />
+	  <None Remove="Application\Resources\Icons32\DimOveride_OverrideDimensionSegment32.png" />
+	  <None Remove="Application\Resources\Icons32\DimOverride32.png" />
+	  <None Remove="Application\Resources\Icons32\ElementToRoom32.png" />
+	  <None Remove="Application\Resources\Icons32\ElementToRoom_link32.png" />
+	  <None Remove="Application\Resources\Icons32\ElementToRoom_local32.png" />
+	  <None Remove="Application\Resources\Icons32\evilr32.png" />
+	  <None Remove="Application\Resources\Icons32\evilr_32.png" />
+	  <None Remove="Application\Resources\Icons32\ExpExc32.png" />
+	  <None Remove="Application\Resources\Icons32\ExpIExc32.png" />
+	  <None Remove="Application\Resources\Icons32\FamilyParameters32.png" />
+	  <None Remove="Application\Resources\Icons32\Fi32.png" />
+	  <None Remove="Application\Resources\Icons32\FIN32.png" />
+	  <None Remove="Application\Resources\Icons32\General_Test32.png" />
+	  <None Remove="Application\Resources\Icons32\ImpExc32.png" />
+	  <None Remove="Application\Resources\Icons32\Issues_32.png" />
+	  <None Remove="Application\Resources\Icons32\KeyPlan32.png" />
+	  <None Remove="Application\Resources\Icons32\lib_32.png" />
+	  <None Remove="Application\Resources\Icons32\LineS32.png" />
+	  <None Remove="Application\Resources\Icons32\LineStyles32.png" />
+	  <None Remove="Application\Resources\Icons32\ManageIssues_32.png" />
+	  <None Remove="Application\Resources\Icons32\Menu_32.png" />
+	  <None Remove="Application\Resources\Icons32\OverheadCommand32.png" />
+	  <None Remove="Application\Resources\Icons32\RayBounceCeiling32.png" />
+	  <None Remove="Application\Resources\Icons32\RoomClassification32.png" />
+	  <None Remove="Application\Resources\Icons32\SaveFamilies32.png" />
+	  <None Remove="Application\Resources\Icons32\SB32.png" />
+	  <None Remove="Application\Resources\Icons32\scd_32.png" />
+	  <None Remove="Application\Resources\Icons32\ScopeBoxManager32.png" />
+	  <None Remove="Application\Resources\Icons32\SelectionManager32.png" />
+	  <None Remove="Application\Resources\Icons32\Settings_32.png" />
+	  <None Remove="Application\Resources\Icons32\SheetDateAndRevision32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\AxisToRoom32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\AxisToRoom_Link32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\AxisToRoom_Local32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\Classif32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\DimOveride_OverrideDimension32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\DimOveride_OverrideDimensionSegment32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\DimOverride32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\ElementToRoom32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\ElementToRoom_Link32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\ElementToRoom_Local32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\FamilyParameters32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\KeyPlan32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\lib_32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\OverheadCommand32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\RayBounceCeiling32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\scd_32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\SheetDateAndRevision32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\Temp32.png" />
+	  <None Remove="Application\Resources\Icons32\SS\txt32.png" />
+	  <None Remove="Application\Resources\Icons32\Sub32.png" />
+	  <None Remove="Application\Resources\Icons32\SubmitIssue_32.png" />
+	  <None Remove="Application\Resources\Icons32\Temp32.png" />
+	  <None Remove="Application\Resources\Icons32\TextHub32.png" />
+	  <None Remove="Application\Resources\Icons32\TRA_32.png" />
+	  <None Remove="Application\Resources\Icons32\txt32.png" />
+	  <None Remove="Application\Resources\Icons32\txt632.png" />
+	  <None Remove="Application\Resources\Icons32\use32.png" />
+	  <None Remove="Application\Resources\Icons32\Zoom32.png" />
+	  <None Remove="Application\Resources\Icons32\ZoomE32.png" />
+	  <None Remove="Application\Resources\Icons32\ZoomL32.png" />
+	  <None Remove="Application\Resources\Icons32\ZoomLo32.png" />
+	  <None Remove="Application\Resources\Icons32\ZoomtoRoom32.png" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<Folder Include="Models" />
-		<Folder Include="Bridge\" />
 		<Folder Include="NewFolder\" />
 		<Folder Include="ViewModels\" />
 	</ItemGroup>
 
+
+
+
 	<ItemGroup>
-		<Compile Update="Ribbon\RibbonExtensions.cs">
+	  <Resource Include="Application\Resources\Icons16\ArAnno_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\areas_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ause16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\AxisToRoom16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\AxistoRoom_Link16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\AxistoRoom_Local16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\brws_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ChangeMonitor16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ChangeMonitorClear16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ChangeMonitorLive16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ChangeMonitorLivep16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ChangeMonitorS16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ChangeMonitorStop16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\Classify16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\Cleanup_Cleanup16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\CLSRoom16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\DimOveride_OverrideDimension16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\DimOveride_OverrideDimensionSegment16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\DimOverride16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ElementToRoom16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ElementToRoom_link16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ElementToRoom_local16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\evilr16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ExpExc16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ExpIExc16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\FamilyParameters16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\Fi16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\FIN16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\General_Test16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ImpExc16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\Issues_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\KeyPlan16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\lib_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\LineS16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\LineStyles16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ManageIssues_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\men16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\Menu_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\OverheadCommand16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\OverheadCommand_OverheadCommand166.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\RayBounceCeiling16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\RoomClassification16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\SaveFamilies16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\SB16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\scd_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ScopeBoxManager16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\SelectionManager16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\Settings_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\SheetDateAndRevision16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\Sub16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\SubmitIssue_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\Temp16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\TextHub16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\TRA_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\txt16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\txt616.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\use16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\Zoom16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ZoomE16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ZoomL16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ZoomLo16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ZoomtoRoom16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ArAnno_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\areas_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ause32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\AxisToRoom32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\AxisToRoom_Link32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\AxisToRoom_Local32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\AxisToRoo_Link32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\AxisToRoo_Local32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\brws_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ChangeMonitor32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ChangeMonitorClear32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ChangeMonitorLive32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ChangeMonitorS32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ChangeMonitorStop32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\Classify32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\Cleanup_Cleanup16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\Cleanup_Cleanup32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\CLSRoom32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\DimOveride_OverrideDimension32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\DimOveride_OverrideDimensionSegment32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\DimOverride32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ElementToRoom32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ElementToRoom_link32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ElementToRoom_local32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\evilr32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ExpExc32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ExpIExc32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\FamilyParameters32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\Fi32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\FIN32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\General_Test32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ImpExc32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\Issues_32.png" />
+	  <Resource Include="Application\Resources\Icons32\KeyPlan32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\lib_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\LineS32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\LineStyles32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ManageIssues_32.png" />
+	  <Resource Include="Application\Resources\Icons32\Menu_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\OverheadCommand32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\RayBounceCeiling32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\RoomClassification32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\SaveFamilies32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\SB32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\scd_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ScopeBoxManager32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\SelectionManager32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\Settings_32.png" />
+	  <Resource Include="Application\Resources\Icons32\SheetDateAndRevision32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\SS\AxisToRoom32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\AxisToRoom_Link32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\AxisToRoom_Local32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\Classif32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\DimOveride_OverrideDimension32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\DimOveride_OverrideDimensionSegment32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\DimOverride32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\ElementToRoom32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\ElementToRoom_Link32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\ElementToRoom_Local32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\FamilyParameters32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\KeyPlan32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\lib_32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\OverheadCommand32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\RayBounceCeiling32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\scd_32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\SheetDateAndRevision32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\Temp32.png" />
+	  <Resource Include="Application\Resources\Icons32\SS\txt32.png" />
+	  <Resource Include="Application\Resources\Icons32\Sub32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\SubmitIssue_32.png" />
+	  <Resource Include="Application\Resources\Icons32\Temp32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\TextHub32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\TRA_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\txt32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\txt632.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\use32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\Zoom32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ZoomE32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ZoomL32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ZoomLo32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ZoomtoRoom32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	</ItemGroup>
+
+	<ItemGroup>
+		<Compile Update="Application\Ribbon\RibbonExtensions.cs">
 			<Generator>MSBuild:Compile</Generator>
 		</Compile>
 	</ItemGroup>

@@ -1,4 +1,6 @@
-﻿using Autodesk.Revit.DB;
+﻿// FILE: BA_Tools/Core/Graphics/BaLinePatternDefinition.cs
+// No changes needed, included for completeness.
+using Autodesk.Revit.DB;
 using System.Collections.Generic;
 
 namespace BA.Core.Graphics

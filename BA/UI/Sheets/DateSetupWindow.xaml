@@ -3,10 +3,65 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Sheet Date/Revision Setup"
         Width="520" Height="260"
-            Background="#0F0F10" Foreground="#F2F2F2" FontFamily="Segoe UI"
-            ShowInTaskbar="False"
+        Background="#0B0C0F"
+        Foreground="#F2F2F2"
+        FontFamily="Segoe UI"
+        ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize">
+        ResizeMode="CanResize">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <Style x:Key="DarkTextBoxStyle" TargetType="TextBox">
+                <Setter Property="Background" Value="#161B22"/>
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Setter Property="BorderBrush" Value="#2C3440"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="6,4"/>
+                <Setter Property="CaretBrush" Value="#F2F2F2"/>
+            </Style>
+
+
+            <Style x:Key="DarkButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="#1A1A1D"/>
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Setter Property="BorderBrush" Value="#2C3440"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="12,7"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="6">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="#222226"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="#17171A"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="Bd" Property="Opacity" Value="0.45"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+        </ResourceDictionary>
+    </Window.Resources>
+
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -15,7 +70,6 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="160"/>
             <ColumnDefinition Width="*"/>
@@ -23,22 +77,45 @@
 
         <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                    Text="Configure which Sheet parameters will be updated."
+                   Foreground="#F2F2F2"
                    FontWeight="SemiBold" Margin="0,0,0,10"/>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="Date format:" VerticalAlignment="Center" Margin="0,0,8,8"/>
-        <ComboBox x:Name="FormatComboBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,8" Foreground="White"/>
+        <TextBlock Grid.Row="1" Grid.Column="0"
+                   Text="Date format:"
+                   Foreground="#A0A8B4"
+                   VerticalAlignment="Center" Margin="0,0,8,8"/>
+        <ComboBox x:Name="FormatComboBox"
+                  Grid.Row="1" Grid.Column="1"
+                  Style="{StaticResource BaDarkComboBox}"
+                  Margin="0,0,0,8"/>
 
-        <TextBlock Grid.Row="2" Grid.Column="0" Text="Date parameter name:" VerticalAlignment="Center" Margin="0,0,8,8"/>
-        <TextBox x:Name="DateParameterTextBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,8" Foreground="#FFFFFBFB"/>
+        <TextBlock Grid.Row="2" Grid.Column="0"
+                   Text="Date parameter name:"
+                   Foreground="#A0A8B4"
+                   VerticalAlignment="Center" Margin="0,0,8,8"/>
+        <TextBox x:Name="DateParameterTextBox"
+                 Grid.Row="2" Grid.Column="1"
+                 Style="{StaticResource BaTextBox}"
+                 Margin="0,0,0,8"/>
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Text="Revision parameter name:" VerticalAlignment="Center" Margin="0,0,8,8"/>
-        <TextBox x:Name="RevisionParameterTextBox" Grid.Row="3" Grid.Column="1" Margin="0,0,0,8" Foreground="White"/>
+        <TextBlock Grid.Row="3" Grid.Column="0"
+                   Text="Revision parameter name:"
+                   Foreground="#A0A8B4"
+                   VerticalAlignment="Center" Margin="0,0,8,8"/>
+        <TextBox x:Name="RevisionParameterTextBox"
+                 Grid.Row="3" Grid.Column="1"
+                 Style="{StaticResource BaTextBox}"
+                 Margin="0,33,0,0" Height="26" VerticalAlignment="Top"/>
 
         <StackPanel Grid.Row="4" Grid.ColumnSpan="2"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right" Margin="0,10,0,0">
-            <Button Content="OK" Width="90" Margin="0,0,8,0" Click="OkButton_Click"/>
-            <Button Content="Cancel" Width="90" IsCancel="True"/>
+            <Button Content="OK" Width="90" Margin="0,0,8,0"
+                    Style="{StaticResource DarkButtonStyle}"
+                    Click="OkButton_Click"/>
+            <Button Content="Cancel" Width="90"
+                    IsCancel="True"
+                    Style="{StaticResource DarkButtonStyle}"/>
         </StackPanel>
     </Grid>
 </Window>

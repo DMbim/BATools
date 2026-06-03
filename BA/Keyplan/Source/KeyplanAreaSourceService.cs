@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using View = Autodesk.Revit.DB.View;
 
 namespace BA.UI.KeyplanGrid
 {
@@ -11,11 +12,12 @@ namespace BA.UI.KeyplanGrid
     {
         private const double Tol = 1e-6;
 
-        public static CurveLoop GetLargestOuterLoopFromView(Document doc, View sourceView)
+        public static CurveLoop GetLargestOuterLoopFromView(Document doc, Autodesk.Revit.DB.View sourceView)
         {
             KeyplanSourceResolutionResult resolved = ResolveLargestOuterLoopFromView(doc, sourceView);
             return resolved?.OuterLoop;
         }
+
 
         public static KeyplanSourceReference CaptureSourceReferenceFromLargestArea(Document doc, View sourceView)
         {

@@ -4,11 +4,13 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Linq;
+using CommunityToolkit.Mvvm.Input;
+using RC = CommunityToolkit.Mvvm.Input.RelayCommand;
 using System.Windows.Input;
 
 namespace BA
 {
-    public class SyncViewModel
+    public class SyncViewModel : System.ComponentModel.INotifyPropertyChanged
     {
         private readonly Document _doc;
         private readonly Dictionary<string, List<ScheduleMappingRow>> _store;
@@ -38,10 +40,29 @@ namespace BA
             }
         }
 
+        private readonly SyncExternalEventHandler _handler;
+        private readonly Autodesk.Revit.UI.ExternalEvent _exEvent;
+        private readonly System.Windows.Threading.Dispatcher _dispatcher;
+
+        public string StatusText
+        {
+            get => _statusText;
+            set { _statusText = value; OnPropertyChanged(nameof(StatusText)); }
+        }
+        private string _statusText = "";
+
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        private void OnPropertyChanged(string name)
+            => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+
         public SyncViewModel(ExternalCommandData data)
         {
             _doc = data.Application.ActiveUIDocument.Document;
             _store = ScheduleSyncStore.Load();
+            _dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
+
+            _handler = new SyncExternalEventHandler();
+            _exEvent = Autodesk.Revit.UI.ExternalEvent.Create(_handler);
 
             Schedules = new ObservableCollection<ViewSchedule>(
                 new FilteredElementCollector(_doc)
@@ -55,9 +76,9 @@ namespace BA
 
             Mappings.CollectionChanged += OnMappingsChanged;
 
-            AddCommand = new RelayCommand(_ => Mappings.Add(new ScheduleMappingRow()));
-            RemoveCommand = new RelayCommand(_ => { if (SelectedRow != null) Mappings.Remove(SelectedRow); });
-            SyncCommand = new RelayCommand(_ => RunSync());
+            AddCommand = new RC(() => Mappings.Add(new ScheduleMappingRow()));
+            RemoveCommand = new RC(() => { if (SelectedRow != null) Mappings.Remove(SelectedRow); });
+            SyncCommand = new RC(() => RunSync());
         }
 
         private void LoadColumnsForSchedule()
@@ -132,9 +153,22 @@ namespace BA
 
         private void RunSync()
         {
-            if (_selectedSchedule == null) return;
+            if (_selectedSchedule == null)
+            {
+                StatusText = "No schedule selected.";
+                return;
+            }
+
             SaveCurrent();
-            ScheduleSyncEngine.Execute(_doc, _selectedSchedule, Mappings.ToList());
+            StatusText = "Syncing...";
+
+            var req = new SyncRequest(
+                _selectedSchedule,
+                Mappings.ToList(),
+                result => _dispatcher.Invoke(() => StatusText = result));
+
+            _handler.SetRequest(req);
+            _exEvent.Raise();
         }
 
     }

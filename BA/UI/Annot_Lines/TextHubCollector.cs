@@ -51,6 +51,7 @@ namespace BA.UI.TextHub
             var list = new FilteredElementCollector(doc)
                 .OfClass(typeof(DimensionType))
                 .Cast<DimensionType>()
+                .Where(t => t is not SpotDimensionType) // <- CHANGED: exclude subclass, collected separately
                 .ToList();
 
             foreach (var t in list)

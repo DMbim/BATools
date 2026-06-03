@@ -9,7 +9,10 @@
         FontFamily="Segoe UI">
 
     <Window.Resources>
-        <!-- Primary action button (Run) -->
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
         <Style x:Key="PrimaryButtonStyle" TargetType="{x:Type Button}">
             <Setter Property="Background" Value="#2D6CDF"/>
             <Setter Property="Foreground" Value="#FFFFFF"/>
@@ -122,19 +125,14 @@
         </Style>
 
         <!-- ComboBox inside DataGridComboBoxColumn -->
-        <Style x:Key="DarkComboBoxStyle" TargetType="{x:Type ComboBox}">
-            <Setter Property="Background" Value="#141416"/>
-            <Setter Property="Foreground" Value="#F2F2F2"/>
-            <Setter Property="BorderBrush" Value="#2A2A2D"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="4,2"/>
-        </Style>
+
 
         <Style x:Key="DarkComboBoxItemStyle" TargetType="{x:Type ComboBoxItem}">
             <Setter Property="Background" Value="#141416"/>
             <Setter Property="Foreground" Value="#F2F2F2"/>
         </Style>
 
+        </ResourceDictionary>
     </Window.Resources>
 
     <DockPanel Margin="12">
@@ -151,15 +149,16 @@
 
             <Button Content="Remove Selected" Width="140" Margin="0,0,16,0" Click="BtnRemove_Click"
         Style="{StaticResource SecondaryButtonStyle}"/>
-            
-            <CheckBox x:Name="ChkSelectedOnly" Content="Selected rooms only" VerticalAlignment="Center" IsChecked="True" Foreground="#FFFFF8F8"/>
-          
-                     <TextBlock Text="   (If unchecked: all rooms in model)" VerticalAlignment="Center" Opacity="0.8"/>
+
+            <CheckBox x:Name="ChkSelectedOnly" Content="Selected rooms only" VerticalAlignment="Center" IsChecked="True" Foreground="#F2F2F2"/>
+
+            <TextBlock Text="   (If unchecked: all rooms in model)" VerticalAlignment="Center" Opacity="0.8"/>
 
                 <Border BorderBrush="#2A2A2D" BorderThickness="1" CornerRadius="6" Padding="10">
                     <StackPanel Orientation="Horizontal">
-                        <Button Content="Run Transfer" Width="140" Height="32" Click="BtnRun_Click"/>
-                        <TextBlock x:Name="TxtStatus" Margin="12,0,0,0" VerticalAlignment="Center" Opacity="0.85"/>
+                    <Button Content="Run Transfer" Width="140" Height="32" Click="BtnRun_Click"
+                                Style="{StaticResource PrimaryButtonStyle}"/>
+                    <TextBlock x:Name="TxtStatus" Margin="12,0,0,0" VerticalAlignment="Center" Opacity="0.85"/>
                     </StackPanel>
                 </Border>
         </StackPanel>
@@ -170,22 +169,26 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-
                 <TextBlock Grid.Row="0"
                            Text="Mappings (Source: Floor/Ceiling parameter → Target: Room parameter)"
-                           FontWeight="SemiBold" Margin="2,0,0,8"/>
+                           FontWeight="SemiBold" Margin="2,0,0,8"
+                           Foreground="#F2F2F2"/>
 
-                <DataGrid Grid.Row="1"
+<DataGrid Grid.Row="1"
                           x:Name="GridMappings"
                           AutoGenerateColumns="False"
                           CanUserAddRows="False"
                           HeadersVisibility="Column"
                           Background="#141416"
-                          BorderBrush="#FFF0F0F5"
+                          BorderBrush="#2A2A2D"
                           RowBackground="#141416"
                           AlternatingRowBackground="#16161A"
                           GridLinesVisibility="Horizontal"
-                          SelectionMode="Extended" Foreground="#FF0E0D0D">
+                          SelectionMode="Extended"
+                          Foreground="#F2F2F2"
+                          ColumnHeaderStyle="{StaticResource DarkDataGridHeaderStyle}"
+                          CellStyle="{StaticResource DarkDataGridCellStyle}">
+
 
                     <DataGrid.Columns>
                         <DataGridComboBoxColumn Header="Source Category"

@@ -1,0 +1,153 @@
+﻿<Window x:Class="BA.IssueReporter.Views.ManageIssuesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Manage Plugin Issues"
+        Height="700"
+        Width="1150"
+        WindowStartupLocation="CenterScreen"
+        Background="#0B0C0F"
+        Foreground="#F2F2F2"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="210"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,10">
+            <TextBlock Text="Manage Plugin Issues"
+                       FontSize="22" FontWeight="SemiBold"
+                       Foreground="#F2F2F2"/>
+            <TextBlock Text="Select an issue, set status, and add manager comments."
+                       Foreground="{StaticResource Brush.MutedTextDarkShell}"/>
+        </StackPanel>
+
+        <!-- Issues grid -->
+        <DataGrid x:Name="IssuesDataGrid"
+                  Grid.Row="1"
+                  Style="{StaticResource BaDataGrid}"
+                  ColumnHeaderStyle="{StaticResource BaDataGridColumnHeader}"
+                  RowStyle="{StaticResource BaDataGridRow}"
+                  CellStyle="{StaticResource BaDataGridCell}"
+                  Background="#11151C"
+                  Foreground="#F2F2F2"
+                  RowBackground="#11151C"
+                  AlternatingRowBackground="#16161A"
+                  GridLinesVisibility="Horizontal"
+                  HorizontalGridLinesBrush="#2C3440"
+                  BorderBrush="#2C3440"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  SelectionMode="Single"
+                  SelectionChanged="IssuesDataGrid_SelectionChanged">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="No." Binding="{Binding DisplayNumber}" Width="95"/>
+                <DataGridTextColumn Header="Submitted" Binding="{Binding SubmittedAt}" Width="145"/>
+                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="115"/>
+                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="105"/>
+                <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="175"/>
+                <DataGridTextColumn Header="User" Binding="{Binding User}" Width="130"/>
+                <DataGridTextColumn Header="Project" Binding="{Binding ProjectName}" Width="180"/>
+                <DataGridTextColumn Header="Issue" Binding="{Binding Issue}" Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Detail panel -->
+        <Grid Grid.Row="2" Margin="0,12,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left: status + info -->
+            <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                <TextBlock Text="Status:"
+                           Foreground="{StaticResource Brush.MutedTextDarkShell}"
+                           Margin="0,0,0,4"/>
+                <ComboBox x:Name="StatusComboBox"
+                          Height="30" Margin="0,0,0,12"
+                          Style="{StaticResource BaDarkComboBox}"/>
+                <TextBlock Text="Selected Issue:"
+                           FontWeight="SemiBold"
+                           Foreground="#F2F2F2"/>
+                <TextBlock x:Name="SelectedIssueInfoTextBlock"
+                           Text="No issue selected"
+                           TextWrapping="Wrap"
+                           Foreground="{StaticResource Brush.MutedTextDarkShell}"
+                           Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <!-- Right: issue detail + comment -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="Issue + Suggestion:"
+                           Foreground="{StaticResource Brush.MutedTextDarkShell}"
+                           Margin="0,0,0,4"/>
+                <TextBox x:Name="IssueDetailsTextBox"
+                         Grid.Row="1"
+                         Style="{StaticResource BaDarkTextBox}"
+                         Height="Auto"
+                         IsReadOnly="True"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"
+                         VerticalContentAlignment="Top"
+                         Padding="6,6"
+                         Margin="0,0,0,8"/>
+                <TextBlock Grid.Row="2"
+                           Text="Manager Comment:"
+                           Foreground="{StaticResource Brush.MutedTextDarkShell}"
+                           Margin="0,0,0,4"/>
+                <TextBox x:Name="ManagerCommentTextBox"
+                         Grid.Row="3"
+                         Style="{StaticResource BaDarkTextBox}"
+                         Height="Auto"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"
+                         VerticalContentAlignment="Top"
+                         Padding="6,6"/>
+            </Grid>
+        </Grid>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Refresh"
+            Width="90" Margin="0,0,8,0"
+            Style="{StaticResource BaSecondaryButton}"
+            Click="RefreshButton_Click"/>
+
+            <Button Content="Save Update"
+            Width="120" Margin="0,0,8,0"
+            Style="{StaticResource BaPrimaryButton}"
+            Click="SaveUpdateButton_Click"/>
+
+            <Button Content="Export CSV"
+            Width="100"
+            Margin="0,0,8,0"
+            Style="{StaticResource BaSecondaryButton}"
+            Click="ExportCsvButton_Click"/>
+
+            <Button Content="Close"
+            Width="90"
+            Style="{StaticResource BaSecondaryButton}"
+            Click="CloseButton_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

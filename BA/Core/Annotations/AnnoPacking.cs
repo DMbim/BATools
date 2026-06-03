@@ -51,7 +51,7 @@ namespace BA.BIM.Core.Annotations
     {
         public static PackingReport DeoverlapGreedySpiral(
            Document doc,
-           View view,
+           Autodesk.Revit.DB.View view,
            ViewPlane2D plane,
            IList<AnnoPackingItem> items,
            PackingConfig cfg)

@@ -3,6 +3,7 @@ using BA.Core.Views.ScopeBoxes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using View = Autodesk.Revit.DB.View;
 
 namespace BA.Core.Views.ScopeBoxes
 {

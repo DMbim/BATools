@@ -1,0 +1,275 @@
+﻿<Window x:Class="BA.Families.Views.SaveFamiliesView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:conv="clr-namespace:BA.Families.Converters"
+        mc:Ignorable="d"
+        Title="BATools — Save Families to Disk"
+        Width="820" Height="640"
+        MinWidth="660" MinHeight="460"
+        ResizeMode="CanResize"
+        Background="#0B0C0F"
+        Foreground="#F2F2F2"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <conv:FamilySaveStatusToBrushConverter x:Key="StatusToBrush"/>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ROW 0: Filter + bulk-select -->
+        <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0" Margin="0,0,8,0">
+                <TextBox x:Name="FilterBox"
+                         Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource BaDarkTextBox}"
+                         VerticalContentAlignment="Center"
+                         Panel.ZIndex="1"/>
+                <TextBlock Text="Filter by name or category…"
+                           Foreground="{StaticResource Brush.MutedTextDarkShell}"
+                           VerticalAlignment="Center"
+                           Margin="6,0"
+                           IsHitTestVisible="False"
+                           Panel.ZIndex="0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding FilterText}" Value="">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+
+            <Button Grid.Column="1"
+                    Content="Select All"
+                    Command="{Binding SelectAllCommand}"
+                    Style="{StaticResource BaSecondaryButton}"
+                    Width="82" Margin="0,0,4,0"/>
+
+            <Button Grid.Column="2"
+                    Content="Select None"
+                    Command="{Binding SelectNoneCommand}"
+                    Style="{StaticResource BaSecondaryButton}"
+                    Width="82"/>
+        </Grid>
+
+        <!-- ROW 1: Family DataGrid -->
+        <DataGrid Grid.Row="1"
+                  ItemsSource="{Binding DisplayedFamilies}"
+                  Style="{StaticResource BaDataGrid}"
+                  ColumnHeaderStyle="{StaticResource BaDataGridColumnHeader}"
+                  RowStyle="{StaticResource BaDataGridRow}"
+                  CellStyle="{StaticResource BaDataGridCell}"
+                  Background="#11151C"
+                  Foreground="#F2F2F2"
+                  RowBackground="#11151C"
+                  AlternatingRowBackground="#16161A"
+                  GridLinesVisibility="Horizontal"
+                  HorizontalGridLinesBrush="#2C3440"
+                  BorderBrush="#2C3440"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  IsReadOnly="False"
+                  SelectionMode="Extended"
+                  HeadersVisibility="Column"
+                  BorderThickness="1"
+                  Margin="0,0,0,10">
+
+            <DataGrid.Columns>
+
+                <DataGridCheckBoxColumn Header="✓"
+                                        Binding="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
+                                        Width="36"/>
+
+                <DataGridTextColumn Header="Family Name"
+                                    Binding="{Binding Name}"
+                                    Width="*"
+                                    IsReadOnly="True"/>
+
+                <DataGridTextColumn Header="Category"
+                                    Binding="{Binding CategoryName}"
+                                    Width="180"
+                                    IsReadOnly="True"/>
+
+                <DataGridTextColumn Header="Thumbnail view"
+                                    Binding="{Binding ThumbnailViewName,
+                                              UpdateSourceTrigger=PropertyChanged}"
+                                    Width="130"
+                                    IsReadOnly="False"
+                                    />
+
+                <DataGridTemplateColumn Header="Status" Width="80" IsReadOnly="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Status}"
+                                       Foreground="{Binding Status,
+                                           Converter={StaticResource StatusToBrush}}"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center"
+                                       Margin="4,0"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTextColumn Header="Path / Message"
+                                    Binding="{Binding StatusMessage}"
+                                    Width="230"
+                                    IsReadOnly="True"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- ROW 2: Options panel -->
+        <Border Grid.Row="2"
+                Style="{StaticResource BaDarkPanelBorder}"
+                Margin="0,0,0,8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0"
+                           Text="Output Folder:"
+                           Foreground="{StaticResource Brush.MutedTextDarkShell}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,6"/>
+
+                <TextBox Grid.Row="0" Grid.Column="1"
+                         Text="{Binding OutputFolder, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource BaDarkTextBox}"
+                         VerticalContentAlignment="Center"
+                         Margin="0,0,6,6"/>
+
+                <Button Grid.Row="0" Grid.Column="2"
+                        Content="Browse…"
+                        Command="{Binding BrowseOutputFolderCommand}"
+                        Style="{StaticResource BaSecondaryButton}"
+                        Width="70" Margin="0,0,0,6"/>
+                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+                            Orientation="Horizontal">
+
+                    <TextBlock Text="If file exists:"
+                               Foreground="{StaticResource Brush.MutedTextDarkShell}"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"/>
+
+                    <ComboBox ItemsSource="{Binding OverwriteModes}"
+                              SelectedItem="{Binding SelectedOverwriteMode}"
+                              Style="{StaticResource BaDarkComboBox}"
+                              Width="110"
+                              Margin="0,0,24,0"/>
+
+                    <CheckBox Content="Organise into category subfolders"
+                              IsChecked="{Binding OrganizeByCategory}"
+                              Style="{StaticResource BaDarkPanelCheckBox}"
+                              VerticalAlignment="Center"
+                              Margin="0,0,24,0"/>
+
+                    <TextBlock Text="Thumbnail view:"
+                               Foreground="{StaticResource Brush.MutedTextDarkShell}"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"/>
+
+                    <TextBox Text="{Binding ThumbnailViewName, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource BaDarkTextBox}"
+                             Width="120"
+                             VerticalContentAlignment="Center"
+                             Margin="0,0,16,0"
+                             ToolTip="View name inside the family document used for the thumbnail. Default: {3D}"/>
+
+                    <CheckBox Content="Compact file"
+                              IsChecked="{Binding CompactFile}"
+                              Style="{StaticResource BaDarkPanelCheckBox}"
+                              VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ROW 3: Progress / summary -->
+        <Grid Grid.Row="3" Margin="0,0,0,8" Height="20">
+            <ProgressBar Minimum="0"
+                         Maximum="{Binding TotalSelectedCount}"
+                         Value="{Binding ProcessedCount}">
+                <ProgressBar.Style>
+                    <Style TargetType="ProgressBar">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSaving}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ProgressBar.Style>
+            </ProgressBar>
+
+            <TextBlock Text="{Binding StatusSummary}"
+                       Foreground="{StaticResource Brush.MutedTextDarkShell}"
+                       VerticalAlignment="Center">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSaving}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </Grid>
+
+        <!-- ROW 4: Action bar -->
+        <Grid Grid.Row="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0"
+                       VerticalAlignment="Center"
+                       Foreground="{StaticResource Brush.MutedTextDarkShell}">
+                <Run Text="{Binding DisplayedFamilies.Count, Mode=OneWay}"/>
+                <Run Text=" shown  ·  "/>
+                <Run Text="{Binding SelectedCount, Mode=OneWay}"/>
+                <Run Text=" selected"/>
+            </TextBlock>
+
+            <Button Grid.Column="2"
+                    Content="💾  Save Families"
+                    Command="{Binding SaveCommand}"
+                    Style="{StaticResource BaPrimaryButton}"
+                    Width="145" Height="32"/>
+        </Grid>
+    </Grid>
+</Window>

@@ -5,7 +5,7 @@ namespace BA.BIM.Core.Annotations
 {
     public static class AnnoLocation
     {
-        public static bool TryGetRepresentativePoint(View view, Element e, out XYZ p)
+        public static bool TryGetRepresentativePoint(Autodesk.Revit.DB.View view, Element e, out XYZ p)
         {
             p = null;
 

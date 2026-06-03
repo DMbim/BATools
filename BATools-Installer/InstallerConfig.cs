@@ -5,7 +5,7 @@ namespace BATools_Installer
     internal static class InstallerConfig
     {
         public const string RepoOwner = "DMbim";
-        public const string RepoName = "BATools"; // or your releases repo
+        public const string RepoName = "BATools";
 
         // For private repos
         public const string GitHubTokenEnvVar = "BA_GITHUB_TOKEN";
@@ -24,5 +24,13 @@ namespace BATools_Installer
 
         // Installer copied next to BA.dll
         public const string InstalledInstallerExeName = "BATools-Installer.exe";
+
+        // Issue Reporter settings deployment
+        public const string IssueReporterSharedSettingsPath =
+            @"S:\CAD\Autodesk Revit\BA_Resources\BA_Issues\settings.json";
+
+        public const string IssueReporterLocalCompanyFolderName = "BA";
+        public const string IssueReporterLocalFolderName = "IssueReporter";
+        public const string IssueReporterSettingsFileName = "settings.json";
     }
 }

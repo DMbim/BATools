@@ -34,8 +34,8 @@ namespace BA.Commands.Rooms
 
             if (col != null)
             {
-                col.EditingElementStyle = (Style)Resources["DarkComboBoxStyle"];
-                col.ElementStyle = (Style)Resources["DarkComboBoxStyle"];
+                col.EditingElementStyle = (Style)Resources["BaDarkComboBox"];
+                col.ElementStyle = (Style)Resources["BaDarkComboBox"];
             }
 
             // Load on open (best effort)

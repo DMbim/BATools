@@ -47,7 +47,7 @@ namespace BA.App.Overhead
                     OverheadSettingsStore.Save(doc, s);
 
                     // Suppress updater during deletes
-                    OverheadProxyUpdater.Suppress = true;
+                    OverheadProxyUpdater.IsSuppressed = true;
                     try
                     {
                         ProxyStateStore.RemoveAllOverheadProxiesAllPlansBrute(doc);
@@ -56,7 +56,7 @@ namespace BA.App.Overhead
                     }
                     finally
                     {
-                        OverheadProxyUpdater.Suppress = false;
+                        OverheadProxyUpdater.IsSuppressed = false;
                     }
 
                     t.Commit();

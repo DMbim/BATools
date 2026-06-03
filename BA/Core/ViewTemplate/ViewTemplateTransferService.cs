@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using View = Autodesk.Revit.DB.View;
 
 namespace BA.Core.ViewTemplates
 {
@@ -12,8 +13,8 @@ namespace BA.Core.ViewTemplates
             if (doc == null) throw new ArgumentNullException(nameof(doc));
 
             return new FilteredElementCollector(doc)
-                .OfClass(typeof(View))
-                .Cast<View>()
+                .OfClass(typeof(Autodesk.Revit.DB.View))
+                .Cast<  Autodesk.Revit.DB.View>()
                 .Where(v => v != null && v.IsTemplate)
                 .OrderBy(v => v.ViewType.ToString())
                 .ThenBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
@@ -27,7 +28,7 @@ namespace BA.Core.ViewTemplates
             if (sourceTemplateId == null || sourceTemplateId == ElementId.InvalidElementId)
                 throw new ArgumentException("Invalid source template id.", nameof(sourceTemplateId));
 
-            View source = doc.GetElement(sourceTemplateId) as View;
+                Autodesk.Revit.DB.View source = doc.GetElement(sourceTemplateId) as View;
             if (source == null || !source.IsTemplate)
                 throw new InvalidOperationException("Source element is not a valid view template.");
 
@@ -57,7 +58,7 @@ namespace BA.Core.ViewTemplates
             if (targetTemplateIds == null) throw new ArgumentNullException(nameof(targetTemplateIds));
             if (selectedParameterIds == null) throw new ArgumentNullException(nameof(selectedParameterIds));
 
-            View sourceTemplate = doc.GetElement(sourceTemplateId) as View;
+                Autodesk.Revit.DB.View sourceTemplate = doc.GetElement(sourceTemplateId) as Autodesk.Revit.DB.View;
             if (sourceTemplate == null || !sourceTemplate.IsTemplate)
                 throw new InvalidOperationException("Source element is not a valid view template.");
 
@@ -202,7 +203,7 @@ namespace BA.Core.ViewTemplates
 
         private static void RestoreSourceTemplateConfiguration(
             Document doc,
-            View sourceTemplate,
+            Autodesk.Revit.DB.View sourceTemplate,
             IList<ElementId> originalNonControlled)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));

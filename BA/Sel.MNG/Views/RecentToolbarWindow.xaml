@@ -1,0 +1,187 @@
+﻿<Window
+    x:Class="BATools.SelectionManager.Views.RecentToolbarWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="clr-namespace:BATools.SelectionManager.ViewModels"
+    xmlns:conv="clr-namespace:BATools.SelectionManager.Converters"
+    WindowStyle="None"
+    ResizeMode="NoResize"
+    AllowsTransparency="False"
+    ShowInTaskbar="False"
+    ShowActivated="False"
+    Topmost="True"
+    SizeToContent="Height"
+    Width="200"
+    FontFamily="Segoe UI"
+    FontSize="12">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+            <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility"/>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Border Background="{StaticResource Brush.WindowBg}"
+            BorderBrush="{StaticResource Brush.DarkPanelBorder}"
+            BorderThickness="1">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="12" Opacity="0.6"
+                              ShadowDepth="3" Color="Black"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="28"/>
+                <!-- Header  -->
+                <RowDefinition Height="1"/>
+                <!-- Divider -->
+                <RowDefinition Height="*"/>
+                <!-- Items   -->
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0"
+                    Background="{StaticResource Brush.ControlBgDark}"
+                    Padding="10,0">
+                <Grid>
+                    <TextBlock Text="Recent"
+                               Foreground="{StaticResource Brush.MutedTextDarkShell}"
+                               FontSize="10" FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                    <Button Content="✕"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Stretch"
+                            Width="28"
+                            Command="{Binding DismissCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background"      Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Foreground"
+                                        Value="{StaticResource Brush.MutedTextDarkShell}"/>
+                                <Setter Property="FontSize"        Value="9"/>
+                                <Setter Property="Cursor"          Value="Hand"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="Bd" Background="Transparent">
+                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                  VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background"
+                                                            Value="{StaticResource Brush.Warning}"/>
+                                                    <Setter Property="Foreground"
+                                                            Value="{StaticResource Brush.WindowFg}"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="1"
+                    Background="{StaticResource Brush.DarkPanelBorder}"/>
+
+            <!-- Empty state -->
+            <Border Grid.Row="2"
+                    Padding="12,16"
+                    Visibility="{Binding IsEmpty,
+                        Converter={StaticResource BoolToVisibility}}">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="No recent functions yet."
+                               Foreground="{StaticResource Brush.MutedTextDarkShell}"
+                               FontSize="10"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="Use the toolbar to execute functions."
+                               Foreground="{StaticResource Brush.DarkPanelBorder}"
+                               FontSize="9"
+                               HorizontalAlignment="Center"
+                               Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Recent items -->
+            <ItemsControl Grid.Row="2"
+                          ItemsSource="{Binding Buttons}"
+                          Visibility="{Binding IsEmpty,
+                              Converter={StaticResource InverseBoolToVisibility}}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:QuickActionButtonViewModel}">
+                        <Button Command="{Binding ExecuteCommand}"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Padding="10,7"
+                                Cursor="Hand">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background"      Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="Bd"
+                                                        Background="Transparent"
+                                                        Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter
+                                                        HorizontalAlignment="Left"
+                                                        VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Bd" Property="Background"
+                                                                Value="{StaticResource Brush.HoverDark}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="Bd" Property="Background"
+                                                                Value="{StaticResource Brush.ControlBgDark}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter Property="Opacity" Value="0.4"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Button.Style>
+
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <!-- Icon placeholder -->
+                                <Border Width="18" Height="18"
+                                        Background="{StaticResource Brush.DarkPanelBg}"
+                                        BorderBrush="{StaticResource Brush.DarkPanelBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="3"
+                                        Margin="0,0,8,0">
+                                    <TextBlock Text="{Binding IconChar}"
+                                               FontSize="8" FontWeight="Bold"
+                                               Foreground="{StaticResource Brush.MutedTextDarkShell}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                </Border>
+                                <!-- Label -->
+                                <TextBlock Text="{Binding Label}"
+                                           FontSize="11"
+                                           Foreground="{StaticResource Brush.WindowFg}"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           MaxWidth="140"/>
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
+    </Border>
+</Window>

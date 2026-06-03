@@ -1,0 +1,212 @@
+﻿<Window
+    x:Class="BATools.SelectionManager.Views.AddFunctionDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    WindowStyle="None"
+    ResizeMode="NoResize"
+    AllowsTransparency="False"
+    Width="320" Height="420"
+    WindowStartupLocation="CenterOwner"
+    ShowInTaskbar="False"
+    FontFamily="Segoe UI"
+    FontSize="12">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <Style x:Key="FuncListItem" TargetType="ListBoxItem">
+                <Setter Property="Padding"                    Value="10,6"/>
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                <Setter Property="Background"                 Value="Transparent"/>
+                <Setter Property="Foreground"
+                        Value="{StaticResource Brush.WindowFg}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Cursor"          Value="Hand"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background"
+                                Value="{StaticResource Brush.HoverDark}"/>
+                    </Trigger>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background"
+                                Value="{StaticResource Brush.DarkPanelBg}"/>
+                        <Setter Property="Foreground"
+                                Value="{StaticResource Brush.WindowFg}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Border Background="{StaticResource Brush.WindowBg}"
+            BorderBrush="{StaticResource Brush.DarkPanelBorder}"
+            BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="34"/>
+                <!-- Title bar  -->
+                <RowDefinition Height="1"/>
+                <!-- Divider    -->
+                <RowDefinition Height="Auto"/>
+                <!-- Search     -->
+                <RowDefinition Height="1"/>
+                <!-- Divider    -->
+                <RowDefinition Height="*"/>
+                <!-- List       -->
+                <RowDefinition Height="1"/>
+                <!-- Divider    -->
+                <RowDefinition Height="Auto"/>
+                <!-- Buttons    -->
+            </Grid.RowDefinitions>
+
+            <!-- ── Title bar ────────────────────────────────────── -->
+            <Border Grid.Row="0"
+                    Background="{StaticResource Brush.ControlBgDark}"
+                    MouseLeftButtonDown="TitleBar_MouseDown">
+                <Grid>
+                    <TextBlock Text="Add Function"
+                               Foreground="{StaticResource Brush.WindowFg}"
+                               FontSize="12" FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               Margin="12,0,0,0"/>
+                    <Button Content="✕"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Stretch"
+                            Width="34"
+                            IsCancel="True"
+                            Click="Cancel_Click">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background"      Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Foreground"
+                                        Value="{StaticResource Brush.MutedTextDarkShell}"/>
+                                <Setter Property="FontSize"        Value="10"/>
+                                <Setter Property="Cursor"          Value="Hand"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="Bd" Background="Transparent" Width="34">
+                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                  VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background"
+                                                            Value="{StaticResource Brush.Warning}"/>
+                                                    <Setter Property="Foreground"
+                                                            Value="{StaticResource Brush.WindowFg}"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="1"
+                    Background="{StaticResource Brush.DarkPanelBorder}"/>
+
+            <!-- ── Search box ────────────────────────────────────── -->
+            <Border Grid.Row="2"
+                    Background="{StaticResource Brush.ControlBgDark}"
+                    Padding="8,7">
+                <TextBox x:Name="TxtSearch"
+                         Height="24"
+                         TextChanged="TxtSearch_TextChanged"
+                         KeyDown="TxtSearch_KeyDown">
+                    <TextBox.Style>
+                        <Style TargetType="TextBox" BasedOn="{StaticResource BaDarkTextBox}">
+                            <Style.Triggers>
+                                <Trigger Property="Text" Value="">
+                                    <Setter Property="Background">
+                                        <Setter.Value>
+                                            <VisualBrush AlignmentX="Left" AlignmentY="Center"
+                                                         Stretch="None">
+                                                <VisualBrush.Visual>
+                                                    <TextBlock
+                                                        Text="Search functions..."
+                                                        Foreground="{StaticResource Brush.DarkPanelBorder}"
+                                                        Margin="8,0" FontSize="11"/>
+                                                </VisualBrush.Visual>
+                                            </VisualBrush>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBox.Style>
+                </TextBox>
+            </Border>
+
+            <Border Grid.Row="3"
+                    Background="{StaticResource Brush.DarkPanelBorder}"/>
+
+            <!-- ── Function list ──────────────────────────────────── -->
+            <ListBox Grid.Row="4"
+                     x:Name="ActionsList"
+                     Background="{StaticResource Brush.WindowBg}"
+                     BorderThickness="0"
+                     ItemContainerStyle="{StaticResource FuncListItem}"
+                     MouseDoubleClick="ActionsList_MouseDoubleClick"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="{Binding DisplayName}"
+                                       Foreground="{StaticResource Brush.WindowFg}"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"/>
+                            <!-- Category badge -->
+                            <Border Grid.Column="1"
+                                    Background="{StaticResource Brush.DarkPanelBg}"
+                                    BorderBrush="{StaticResource Brush.DarkPanelBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="3"
+                                    Padding="5,1"
+                                    Margin="8,0,0,0"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Category}"
+                                           FontSize="9"
+                                           Foreground="{StaticResource Brush.MutedTextDarkShell}"/>
+                            </Border>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <Border Grid.Row="5"
+                    Background="{StaticResource Brush.DarkPanelBorder}"/>
+
+            <!-- ── Buttons ────────────────────────────────────────── -->
+            <Border Grid.Row="6"
+                    Background="{StaticResource Brush.ControlBgDark}"
+                    Padding="12,10">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Cancel"
+                            Width="80"
+                            IsCancel="True"
+                            Style="{StaticResource BaSecondaryButton}"
+                            Margin="0,0,8,0"
+                            Click="Cancel_Click"/>
+                    <Button Content="Add"
+                            Width="80"
+                            IsDefault="True"
+                            Style="{StaticResource BaPrimaryButton}"
+                            Click="Ok_Click"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

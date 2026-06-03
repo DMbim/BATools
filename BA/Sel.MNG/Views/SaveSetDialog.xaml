@@ -1,0 +1,58 @@
+﻿<Window
+    x:Class="BATools.SelectionManager.Views.SaveSetDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Save Selection Set"
+    Width="360" Height="148"
+    WindowStartupLocation="CenterOwner"
+    ResizeMode="NoResize"
+    WindowStyle="ToolWindow"
+    ShowInTaskbar="False"
+    FontFamily="Segoe UI"
+    FontSize="12">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Background="{StaticResource Brush.WindowBg}" Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="10"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="14"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Text="Set Name:"
+                   Style="{StaticResource BaLabelText}"
+                   FontSize="11"/>
+
+        <TextBox Grid.Row="2"
+                 x:Name="TxtSetName"
+                 Style="{StaticResource BaDarkTextBox}"
+                 KeyDown="TxtSetName_KeyDown"
+                 Text="{Binding SetName, UpdateSourceTrigger=PropertyChanged}"/>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Content="Cancel"
+                    Width="80"
+                    IsCancel="True"
+                    Style="{StaticResource BaSecondaryButton}"
+                    Margin="0,0,8,0"
+                    Click="Cancel_Click"/>
+            <Button Content="Save"
+                    Width="80"
+                    x:Name="BtnSave"
+                    IsDefault="True"
+                    Style="{StaticResource BaPrimaryButton}"
+                    Click="Save_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

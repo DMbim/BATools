@@ -101,11 +101,52 @@ namespace BATools_Installer
                 IsBusy = true;
                 await InstallerRunner.RunAsync(args, Log).ConfigureAwait(true);
             }
+            catch (InvalidOperationException ex)
+                when (ex.Message.Contains("Revit is still running"))
+            {
+                // Offer force-kill option
+                var result = MessageBox.Show(
+                    "Revit did not close automatically.\n\n" +
+                    "Click YES to force-close Revit and continue the update.\n" +
+                    "Any unsaved work in Revit will be lost.\n\n" +
+                    "Click NO to cancel — close Revit manually and try again.",
+                    "Revit Still Running",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    Log("Force-closing Revit...");
+                    BA.Installer.RevitProcessGuard.ForceKillAll(Log);
+
+                    // Brief pause to let OS release file locks
+                    await Task.Delay(2000).ConfigureAwait(true);
+
+                    // Retry the operation
+                    Log("Retrying after force-close...");
+                    try
+                    {
+                        await InstallerRunner.RunAsync(args, Log).ConfigureAwait(true);
+                    }
+                    catch (Exception retryEx)
+                    {
+                        Log("ERROR: " + retryEx.Message);
+                        Log(retryEx.ToString());
+                        MessageBox.Show(retryEx.Message, "Installer Error",
+                            MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+                else
+                {
+                    Log("Update cancelled. Close Revit manually and try again.");
+                }
+            }
             catch (Exception ex)
             {
                 Log("ERROR: " + ex.Message);
                 Log(ex.ToString());
-                MessageBox.Show(ex.Message, "Installer Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(ex.Message, "Installer Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {

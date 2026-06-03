@@ -36,7 +36,10 @@ namespace BA.UI
             "PG_TEXT",
             "PG_IDENTITY_DATA",
             "PG_GEOMETRY",
-            "PG_MATERIALS"
+            "PG_MATERIALS",
+            "PG_GENERAL",
+            "PG_CONSTRAINTS",
+            "PG_OTHER"
         };
 
         public AddSharedParamsDialog(UIApplication uiapp, Document famDoc)
@@ -185,6 +188,9 @@ namespace BA.UI
 
             switch (key.Trim().ToUpperInvariant())
             {
+                case "PG_GENERAL": return GroupTypeId.General;
+                case "PG_LENGTH": return GroupTypeId.Length;
+                case "PG_CONSTRAINTS": return GroupTypeId.Constraints;
                 case "PG_DATA": return GroupTypeId.Data;
                 case "PG_TEXT": return GroupTypeId.Text;
                 case "PG_IDENTITY_DATA": return GroupTypeId.IdentityData;

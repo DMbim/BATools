@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using View = Autodesk.Revit.DB.View;
 
 namespace BA.Core.Content.Services
 {
@@ -102,7 +103,7 @@ namespace BA.Core.Content.Services
                     return result;
                 }
 
-                View exportView = FindBestExportView(familyDoc);
+                Autodesk.Revit.DB.View exportView = FindBestExportView(familyDoc);
 
                 ExportViewToImage(
                     doc: familyDoc,
@@ -148,11 +149,11 @@ namespace BA.Core.Content.Services
             return Path.Combine(dir, $"{baseName}.{extensionWithoutDot}");
         }
 
-        private static View FindBestExportView(Document doc)
+        private static Autodesk.Revit.DB.View FindBestExportView(Autodesk.Revit.DB.Document doc)
         {
             var allViews = new FilteredElementCollector(doc)
-                .OfClass(typeof(View))
-                .Cast<View>()
+                .OfClass(typeof(Autodesk.Revit.DB.View))
+                .Cast<Autodesk.Revit.DB.View>()
                 .Where(IsUsableExportView)
                 .ToList();
 
@@ -187,7 +188,7 @@ namespace BA.Core.Content.Services
             return allViews.First();
         }
 
-        private static bool IsUsableExportView(View view)
+        private static bool IsUsableExportView(Autodesk.Revit.DB.View view)
         {
             if (view == null)
                 return false;
@@ -230,7 +231,7 @@ namespace BA.Core.Content.Services
 
         private static void ExportViewToImage(
             Document doc,
-            View view,
+                Autodesk.Revit.DB.View view,
             string outputImagePath,
             ImageFileType fileType)
         {

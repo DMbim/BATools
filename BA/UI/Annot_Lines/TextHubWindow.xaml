@@ -10,21 +10,21 @@
         ResizeMode="CanResize">
 
     <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
 
-        <CollectionViewSource x:Key="CvsParameters" Source="{Binding Parameters}">
-            <!-- GroupDescriptions are set in code-behind/VM (recommended) -->
-        </CollectionViewSource>
+            <CollectionViewSource x:Key="CvsParameters" Source="{Binding Parameters}">
+                <!-- GroupDescriptions are set in code-behind/VM (recommended) -->
+            </CollectionViewSource>
 
-        <!-- Group header look -->
-        <Style x:Key="ParamGroupHeaderText" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#F2F2F2"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="12"/>
-        </Style>
-
-        <!-- =========================
-             Dark shell palette
-             ========================= -->
+            <!-- Group header look -->
+            <Style x:Key="ParamGroupHeaderText" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="FontSize" Value="12"/>
+            </Style>
         <SolidColorBrush x:Key="ShellBg" Color="#0A0A0A"/>
         <SolidColorBrush x:Key="PanelBg" Color="#111214"/>
         <SolidColorBrush x:Key="PanelBg2" Color="#14151A"/>
@@ -191,6 +191,7 @@
             <Setter Property="Margin" Value="0"/>
         </Style>
 
+        </ResourceDictionary>
     </Window.Resources>
 
     <DockPanel Margin="12" Background="{StaticResource ShellBg}">

@@ -13,7 +13,11 @@ using System.Linq;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
+using Brush = System.Windows.Media.Brush;
 using Color = System.Windows.Media.Color;
+using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
+using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
+using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 
 namespace BA.UI.Views
 {
@@ -361,7 +365,7 @@ namespace BA.UI.Views
 
         private void ShowHelp()
         {
-            MessageBox.Show(
+            System.Windows.MessageBox.Show(
                 "Workflow:\n" +
                 "1) View Template → Load Filters\n" +
                 "2) Palette → edit swatches → Auto-Assign (optional)\n" +

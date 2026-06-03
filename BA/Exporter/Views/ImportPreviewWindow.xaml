@@ -1,0 +1,446 @@
+<Window x:Class="BA_Tools.ScheduleExporter.Views.ImportPreviewWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:converters="clr-namespace:BA_Tools.ScheduleExporter.Helpers"
+        Title="BA Schedule Import — Preview"
+        Width="650" Height="560"
+        MinWidth="580" MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        FontFamily="Arial"
+        FontSize="12">
+
+    <Window.Resources>
+        <converters:InverseBooleanConverter x:Key="InverseBool"/>
+
+        <BooleanToVisibilityConverter x:Key="BoolVis"/>
+
+        <!-- Collapse when false -->
+        <Style x:Key="VisWhenTrue" TargetType="FrameworkElement">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding}" Value="True">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Primary button -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#1F497D"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontFamily" Value="Arial"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="18,5"/>
+            <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#A0A0A0"/>
+                                <Setter Property="Foreground" Value="#D0D0D0"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#17365D"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#0F2840"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Secondary button -->
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#E8E8E8"/>
+            <Setter Property="Foreground" Value="#333333"/>
+            <Setter Property="FontFamily" Value="Arial"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="18,5"/>
+            <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#BBBBBB"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#D0D0D0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Section header -->
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Arial Narrow"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#555555"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+
+        <!-- Stat label (caption) -->
+        <Style x:Key="StatCaption" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Arial Narrow"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#777777"/>
+        </Style>
+
+        <!-- Stat value -->
+        <Style x:Key="StatValue" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Arial"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#1F497D"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+        </Style>
+
+        <!-- Warning row: normal -->
+        <Style x:Key="WarningRow" TargetType="Border">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="#DDDDDD"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="6,5"/>
+        </Style>
+
+        <!-- Warning row: conflict (red tint) -->
+        <Style x:Key="ConflictRow" TargetType="Border"
+               BasedOn="{StaticResource WarningRow}">
+            <Setter Property="Background" Value="#FFF0F0"/>
+            <Setter Property="BorderBrush" Value="#FFBBBB"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="36"/>   <!-- Title bar -->
+            <RowDefinition Height="*"/>    <!-- Scrollable content -->
+            <RowDefinition Height="Auto"/> <!-- Footer -->
+        </Grid.RowDefinitions>
+
+        <!-- Header band -->
+        <Border Grid.Row="0" Background="#1F497D">
+            <TextBlock Text="Import Preview"
+                       Foreground="White"
+                       FontFamily="Arial Narrow"
+                       FontSize="14"
+                       VerticalAlignment="Center"
+                       Margin="14,0"/>
+        </Border>
+
+        <!-- Scrollable main content -->
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Padding="18,14,18,14">
+            <StackPanel>
+
+                <!-- ── Summary stats ────────────────────────────────────── -->
+                <TextBlock Text="CHANGE SUMMARY" Style="{StaticResource SectionHeader}"/>
+                <Border Background="#F7F7F7"
+                        BorderBrush="#E0E0E0"
+                        BorderThickness="1"
+                        Padding="12,10"
+                        Margin="0,0,0,16">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Total"      Style="{StaticResource StatCaption}" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="Changed"    Style="{StaticResource StatCaption}" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Unchanged"  Style="{StaticResource StatCaption}" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Row="0" Grid.Column="3" Text="Skipped"    Style="{StaticResource StatCaption}" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Row="0" Grid.Column="4" Text="Deleted"    Style="{StaticResource StatCaption}" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Row="0" Grid.Column="5" Text="Invalid"    Style="{StaticResource StatCaption}" HorizontalAlignment="Center"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0"
+                                   Text="{Binding TotalRows}"
+                                   Style="{StaticResource StatValue}"
+                                   HorizontalAlignment="Center" FontSize="16"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1"
+                                   Text="{Binding ChangedRowCount}"
+                                   Style="{StaticResource StatValue}"
+                                   HorizontalAlignment="Center" FontSize="16"
+                                   Foreground="#1F7D1F"/>
+                        <TextBlock Grid.Row="1" Grid.Column="2"
+                                   Text="{Binding UnchangedRowCount}"
+                                   Style="{StaticResource StatValue}"
+                                   HorizontalAlignment="Center" FontSize="16"
+                                   Foreground="#777777"/>
+                        <TextBlock Grid.Row="1" Grid.Column="3"
+                                   Text="{Binding SkippedCount}"
+                                   Style="{StaticResource StatValue}"
+                                   HorizontalAlignment="Center" FontSize="16"
+                                   Foreground="#888888"/>
+                        <TextBlock Grid.Row="1" Grid.Column="4"
+                                   Text="{Binding DeletedCount}"
+                                   Style="{StaticResource StatValue}"
+                                   HorizontalAlignment="Center" FontSize="16"
+                                   Foreground="#CC6600"/>
+                        <TextBlock Grid.Row="1" Grid.Column="5"
+                                   Text="{Binding InvalidCount}"
+                                   Style="{StaticResource StatValue}"
+                                   HorizontalAlignment="Center" FontSize="16"
+                                   Foreground="#CC0000"/>
+                    </Grid>
+                </Border>
+
+                <!-- No changes notice -->
+                <Border Visibility="{Binding HasNoChanges,
+                                     Converter={StaticResource BoolVis}}"
+                        Background="#FFF8E0"
+                        BorderBrush="#E0C040"
+                        BorderThickness="1"
+                        Padding="10,8"
+                        Margin="0,0,0,12">
+                    <TextBlock Text="No changes were detected. The Excel file matches the current document values."
+                               FontStyle="Italic"
+                               Foreground="#806000"
+                               TextWrapping="Wrap"/>
+                </Border>
+
+                <!-- ── Type parameter warnings ──────────────────────────── -->
+                <StackPanel Visibility="{Binding HasTypeParameterWarnings,
+                                         Converter={StaticResource BoolVis}}">
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock Text="TYPE PARAMETER CHANGES" Style="{StaticResource SectionHeader}" Margin="0"/>
+                        <TextBlock Margin="8,0,0,5"
+                                   FontFamily="Arial Narrow"
+                                   FontSize="11"
+                                   Foreground="#CC6600"
+                                   VerticalAlignment="Bottom"
+                                   Visibility="{Binding HasConflicts, Converter={StaticResource BoolVis}}">
+                            &#x26A0; Contains conflicts — last-write-wins will apply
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Explanation banner -->
+                    <Border Background="#EEF4FB"
+                            BorderBrush="#BDD7EE"
+                            BorderThickness="1"
+                            Padding="10,8"
+                            Margin="0,0,0,8">
+                        <TextBlock TextWrapping="Wrap"
+                                   FontSize="11"
+                                   Foreground="#1F497D">
+                            Type parameter changes affect ALL instances of the element type in the model.
+                            Review each change carefully before confirming.
+                        </TextBlock>
+                    </Border>
+
+                    <!-- Warning list -->
+                    <ItemsControl ItemsSource="{Binding TypeParameterWarnings}"
+                                  Margin="0,0,0,16">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,0,0,2">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="BorderBrush" Value="#DDDDDD"/>
+                                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                            <Setter Property="Padding" Value="6,6"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasConflict}" Value="True">
+                                                    <Setter Property="Background" Value="#FFF0F0"/>
+                                                    <Setter Property="BorderBrush" Value="#FFBBBB"/>
+                                                    <Setter Property="BorderThickness" Value="2,0,0,1"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Row 0: Type name + parameter name -->
+                                        <StackPanel Grid.Row="0" Grid.Column="0"
+                                                    Orientation="Horizontal">
+                                            <TextBlock Text="{Binding ElementTypeName}"
+                                                       FontWeight="Bold"
+                                                       Foreground="#1F497D"/>
+                                            <TextBlock Text=" — " Foreground="#888888"/>
+                                            <TextBlock Text="{Binding ParameterName}"
+                                                       Foreground="#333333"/>
+                                        </StackPanel>
+
+                                        <!-- Expand toggle button -->
+                                        <ToggleButton Grid.Row="0" Grid.Column="1"
+                                                      IsChecked="{Binding IsExpanded}"
+                                                      Background="Transparent"
+                                                      BorderThickness="0"
+                                                      Cursor="Hand"
+                                                      FontSize="10"
+                                                      Foreground="#777777"
+                                                      Padding="4,0">
+                                            <ToggleButton.Style>
+                                                <Style TargetType="ToggleButton">
+                                                    <Setter Property="Content" Value="&#x25BC;"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="ToggleButton">
+                                                                <Border Background="Transparent" Padding="{TemplateBinding Padding}">
+                                                                    <ContentPresenter/>
+                                                                </Border>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsChecked" Value="True">
+                                                            <Setter Property="Content" Value="&#x25B2;"/>
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ToggleButton.Style>
+                                        </ToggleButton>
+
+                                        <!-- Row 1: Value change label -->
+                                        <TextBlock Grid.Row="1" Grid.Column="0"
+                                                   Text="{Binding ValueChangeLabel}"
+                                                   FontFamily="Arial Narrow"
+                                                   FontSize="11"
+                                                   Foreground="#444444"
+                                                   Margin="0,2,0,0"/>
+
+                                        <!-- Row 1: Instance count -->
+                                        <TextBlock Grid.Row="1" Grid.Column="1"
+                                                   Text="{Binding InstanceLabel}"
+                                                   FontFamily="Arial Narrow"
+                                                   FontSize="11"
+                                                   Foreground="#888888"/>
+
+                                        <!-- Row 2: Conflict detail (expandable) -->
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                                   Text="{Binding ConflictSummary}"
+                                                   Foreground="#CC0000"
+                                                   FontSize="11"
+                                                   FontStyle="Italic"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,4,0,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- ── Deleted elements ─────────────────────────────────── -->
+                <StackPanel Visibility="{Binding HasDeletedElements,
+                                         Converter={StaticResource BoolVis}}"
+                            Margin="0,0,0,14">
+                    <TextBlock Text="ELEMENTS NOT FOUND IN DOCUMENT"
+                               Style="{StaticResource SectionHeader}"/>
+                    <Border Background="#FFF8F0"
+                            BorderBrush="#F0C080"
+                            BorderThickness="1"
+                            Padding="10,6"
+                            Margin="0,0,0,6">
+                        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#804000">
+                            The following element IDs from the Excel file could not be found in the current
+                            document. These rows will be skipped.
+                        </TextBlock>
+                    </Border>
+                    <ItemsControl ItemsSource="{Binding DeletedElementIds}"
+                                  MaxHeight="80">
+                        <ItemsControl.Template>
+                            <ControlTemplate TargetType="ItemsControl">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsPresenter/>
+                                </ScrollViewer>
+                            </ControlTemplate>
+                        </ItemsControl.Template>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding StringFormat='ElementId: {0}'}"
+                                           FontFamily="Consolas"
+                                           FontSize="11"
+                                           Foreground="#804000"
+                                           Margin="2,1"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <Border Grid.Row="2"
+                Background="#F0F0F0"
+                BorderBrush="#DDDDDD"
+                BorderThickness="0,1,0,0">
+            <Grid Margin="14,8">
+                <TextBlock Text="No changes to write — nothing to confirm."
+                           FontStyle="Italic"
+                           Foreground="#888888"
+                           VerticalAlignment="Center"
+                           Visibility="{Binding HasNoChanges,
+                                        Converter={StaticResource BoolVis}}"/>
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Right">
+                    <Button Content="Confirm Import"
+                            Command="{Binding ConfirmCommand}"
+                            Style="{StaticResource PrimaryButton}"
+                            IsDefault="True"
+                            Margin="0,0,8,0"/>
+                    <Button Content="Cancel"
+                            Command="{Binding CancelCommand}"
+                            Style="{StaticResource SecondaryButton}"
+                            IsCancel="True"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

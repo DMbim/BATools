@@ -8,6 +8,10 @@ using System.IO;
 using System.Linq;
 using VTM = BA.Core.Standards;
 using System.Windows;
+using View = Autodesk.Revit.DB.View;
+using TaskDialog = Autodesk.Revit.UI.TaskDialog;
+using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
+using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 
 namespace BA.UI.Management
 {

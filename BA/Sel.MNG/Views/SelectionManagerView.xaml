@@ -1,0 +1,209 @@
+﻿<UserControl
+    x:Class="BATools.SelectionManager.Views.SelectionManagerView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="clr-namespace:BATools.SelectionManager.ViewModels"
+    xmlns:conv="clr-namespace:BATools.SelectionManager.Converters"
+    MinWidth="200">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <BooleanToVisibilityConverter          x:Key="BoolToVisibility"/>
+            <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility"/>
+
+            <!-- Small dark action button for the set rows -->
+            <Style x:Key="SmDarkBtn" TargetType="Button">
+                <Setter Property="Background"      Value="Transparent"/>
+                <Setter Property="Foreground"      Value="{StaticResource Brush.MutedTextDarkShell}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Width"           Value="24"/>
+                <Setter Property="Height"          Value="24"/>
+                <Setter Property="Padding"         Value="0"/>
+                <Setter Property="Cursor"          Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd" Background="Transparent" CornerRadius="3">
+                                <ContentPresenter HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background"
+                                            Value="{StaticResource Brush.HoverDark}"/>
+                                    <Setter Property="Foreground"
+                                            Value="{StaticResource Brush.WindowFg}"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.25"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid Background="{StaticResource Brush.WindowBg}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- Header / search + save -->
+            <RowDefinition Height="*"/>
+            <!-- Set list -->
+            <RowDefinition Height="Auto"/>
+            <!-- Status bar -->
+        </Grid.RowDefinitions>
+
+        <!-- ── Header ─────────────────────────────────────────────── -->
+        <Border Grid.Row="0"
+                Background="{StaticResource Brush.ControlBgDark}"
+                BorderBrush="{StaticResource Brush.DarkPanelBorder}"
+                BorderThickness="0,0,0,1"
+                Padding="8,7">
+            <DockPanel LastChildFill="True">
+                <Button DockPanel.Dock="Right"
+                        Content="+ Save"
+                        Style="{StaticResource BaSecondaryButton}"
+                        Height="{StaticResource Size.SmallButtonHeight}"
+                        Padding="8,2"
+                        Margin="6,0,0,0"
+                        Command="{Binding SaveCurrentSelectionCommand}"
+                        ToolTip="Save current Revit selection as a named set"/>
+                <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                         Height="{StaticResource Size.SmallButtonHeight}">
+                    <TextBox.Style>
+                        <Style TargetType="TextBox" BasedOn="{StaticResource BaDarkTextBox}">
+                            <Style.Triggers>
+                                <Trigger Property="Text" Value="">
+                                    <Setter Property="Background">
+                                        <Setter.Value>
+                                            <VisualBrush AlignmentX="Left" AlignmentY="Center"
+                                                         Stretch="None">
+                                                <VisualBrush.Visual>
+                                                    <TextBlock Text="Search sets..."
+                                                               Foreground="{StaticResource Brush.DarkPanelBorder}"
+                                                               Margin="8,0" FontSize="11"/>
+                                                </VisualBrush.Visual>
+                                            </VisualBrush>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBox.Style>
+                </TextBox>
+            </DockPanel>
+        </Border>
+
+        <!-- ── Set list ───────────────────────────────────────────── -->
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Background="{StaticResource Brush.WindowBg}">
+            <ItemsControl ItemsSource="{Binding FilteredSets}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:SetRowViewModel}">
+                        <Border Padding="0"
+                                BorderThickness="0,0,0,1"
+                                BorderBrush="{StaticResource Brush.DarkPanelBorder}"
+                                Background="Transparent">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="18"/>
+                                    <!-- Health dot  -->
+                                    <ColumnDefinition Width="*"/>
+                                    <!-- Name/count  -->
+                                    <ColumnDefinition Width="Auto"/>
+                                    <!-- Actions     -->
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Health dot -->
+                                <Ellipse Grid.Column="0"
+                                         Width="5" Height="5"
+                                         Fill="{Binding HealthBrush}"
+                                         VerticalAlignment="Center"
+                                         HorizontalAlignment="Center"
+                                         ToolTip="{Binding HealthTooltip}"/>
+
+                                <!-- Name + element count -->
+                                <StackPanel Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            Margin="2,6,0,6">
+                                    <!-- Normal display -->
+                                    <TextBlock Text="{Binding Name}"
+                                               FontSize="11"
+                                               Foreground="{StaticResource Brush.WindowFg}"
+                                               TextTrimming="CharacterEllipsis"
+                                               Visibility="{Binding IsRenaming,
+                                                   Converter={StaticResource InverseBoolToVisibility}}"/>
+                                    <!-- Rename editor -->
+                                    <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                             FontSize="11"
+                                             Style="{StaticResource BaDarkTextBox}"
+                                             Height="22" Padding="4,1"
+                                             Visibility="{Binding IsRenaming,
+                                                 Converter={StaticResource BoolToVisibility}}"
+                                             LostFocus="RenameBox_LostFocus"
+                                             KeyDown="RenameBox_KeyDown"
+                                             Tag="{Binding}"/>
+                                    <TextBlock Text="{Binding ElementCount,
+                                                   StringFormat='{}{0} element(s)'}"
+                                               FontSize="9"
+                                               Foreground="{StaticResource Brush.MutedTextDarkShell}"/>
+                                </StackPanel>
+
+                                <!-- Row actions -->
+                                <StackPanel Grid.Column="2"
+                                            Orientation="Horizontal"
+                                            VerticalAlignment="Center"
+                                            Margin="0,0,6,0">
+                                    <Button Content="↩"
+                                            Style="{StaticResource SmDarkBtn}"
+                                            Foreground="{StaticResource Brush.WindowFg}"
+                                            FontSize="13"
+                                            Command="{Binding RecallCommand}"
+                                            ToolTip="Recall selection"
+                                            Margin="1,0"/>
+                                    <Button Content="✎"
+                                            Style="{StaticResource SmDarkBtn}"
+                                            FontSize="11"
+                                            Command="{Binding BeginRenameCommand}"
+                                            ToolTip="Rename"
+                                            Margin="1,0"/>
+                                    <Button Content="+"
+                                            Style="{StaticResource SmDarkBtn}"
+                                            FontSize="13"
+                                            Command="{Binding AddToSetCommand}"
+                                            ToolTip="Add current selection to set"
+                                            Margin="1,0"/>
+                                    <Button Content="✕"
+                                            Style="{StaticResource SmDarkBtn}"
+                                            FontSize="10"
+                                            Command="{Binding DeleteCommand}"
+                                            ToolTip="Delete set"
+                                            Margin="1,0"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- ── Status bar ──────────────────────────────────────────── -->
+        <Border Grid.Row="2"
+                Background="{StaticResource Brush.ControlBgDark}"
+                BorderBrush="{StaticResource Brush.DarkPanelBorder}"
+                BorderThickness="0,1,0,0"
+                Padding="10,5">
+            <TextBlock Text="{Binding StatusMessage}"
+                       FontSize="9"
+                       Foreground="{StaticResource Brush.MutedTextDarkShell}"/>
+        </Border>
+    </Grid>
+</UserControl>

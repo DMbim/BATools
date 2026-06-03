@@ -16,11 +16,13 @@ namespace BA.Core
         {
             if (string.IsNullOrWhiteSpace(name)) return string.Empty;
 
-            // Lowercase
-            name = name.Trim().ToLowerInvariant();
+            name = name.Trim();
 
-            // Split camelCase → space
-            name = Regex.Replace(name, "([a-z])([A-Z])", "$1 $2");
+            // CamelCase split MUST run before ToLowerInvariant — regex matches uppercase letters
+            name = Regex.Replace(name, "([a-z])([A-Z])", "$1 $2"); // <- MOVED UP
+
+            // Now lowercase everything
+            name = name.ToLowerInvariant();
 
             // Replace delimiters with space
             name = name.Replace("_", " ").Replace("-", " ");
@@ -31,7 +33,7 @@ namespace BA.Core
             // Collapse spaces
             name = Regex.Replace(name, @"\s+", " ").Trim();
 
-            // Drop standard prefixes (BA_)
+            // Drop standard prefixes after normalization
             foreach (var p in Prefixes)
             {
                 var pl = p.ToLowerInvariant();
@@ -44,7 +46,6 @@ namespace BA.Core
 
             return name;
         }
-
         public static string[] Tokens(string name)
         {
             var n = Normalize(name);

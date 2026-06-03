@@ -49,8 +49,7 @@ namespace BA.Core.Overhead
             result.SettingsSaved = true;
 
             // 2) Suppress updater during cleanup
-            OverheadProxyUpdater.Suppress = true;
-            try
+            OverheadProxyUpdater.IsSuppressed = true; try
             {
                 // 3) Delete proxies
                 result.ProxiesDeleted = ProxyStateStore.RemoveAllOverheadProxiesAllPlansBrute(doc);
@@ -68,7 +67,7 @@ namespace BA.Core.Overhead
             }
             finally
             {
-                OverheadProxyUpdater.Suppress = false;
+                OverheadProxyUpdater.IsSuppressed = false;
             }
 
             return result;

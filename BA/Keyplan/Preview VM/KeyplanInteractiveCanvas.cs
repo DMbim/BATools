@@ -10,6 +10,9 @@ using Color = System.Windows.Media.Color;
 using Line = System.Windows.Shapes.Line;
 using Ellipse = System.Windows.Shapes.Ellipse;
 using Polygon = System.Windows.Shapes.Polygon;
+using Brushes = System.Windows.Media.Brushes;
+using Brush = System.Windows.Media.Brush;
+using Cursors = System.Windows.Input.Cursors;
 
 namespace BA.UI.KeyplanGrid
 {
@@ -56,7 +59,7 @@ namespace BA.UI.KeyplanGrid
 
         public KeyplanInteractiveCanvas()
         {
-            Background = Brushes.White;
+            Background = System.Windows.Media.Brushes.White;
 
             MouseLeftButtonDown += Canvas_MouseLeftButtonDown;
             MouseLeftButtonUp += Canvas_MouseLeftButtonUp;
@@ -378,7 +381,7 @@ namespace BA.UI.KeyplanGrid
             }
         }
 
-        private void Canvas_MouseMove(object sender, MouseEventArgs e)
+        private void Canvas_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
         {
             if (_dragAxis == null ||
                 _data?.Transform == null ||

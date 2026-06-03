@@ -4,7 +4,7 @@ namespace BA.Core.Rooms
 {
     public static class ElementLocationUtils
     {
-        public static XYZ? GetBestPoint(Element e, View? viewForBBox = null)
+        public static XYZ? GetBestPoint(Element e, Autodesk.Revit.DB.View? viewForBBox = null)
         {
             if (e == null) return null;
 

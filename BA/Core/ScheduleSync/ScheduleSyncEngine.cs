@@ -1,87 +1,174 @@
 using Autodesk.Revit.DB;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace BA
 {
     public static class ScheduleSyncEngine
     {
-        public static void Execute(Document doc, ViewSchedule schedule, List<ScheduleMappingRow> mappings)
+        /// <summary>
+        /// Called from IExternalEventHandler.Execute — Revit API thread only.
+        /// Reads SourceColumn parameter value from each element and writes it
+        /// to DestinationParameter on the same element.
+        /// </summary>
+        public static string Execute(
+            Document doc,
+            ViewSchedule schedule,
+            List<ScheduleMappingRow> mappings)
         {
-            if (schedule == null || mappings == null || mappings.Count == 0) return;
+            if (doc == null) throw new ArgumentNullException(nameof(doc));
+            if (schedule == null) throw new ArgumentNullException(nameof(schedule));
+            if (mappings == null || mappings.Count == 0)
+                return "No mappings configured.";
 
-            using (Transaction t = new Transaction(doc, "BA Schedule Sync"))
+            // Strip incomplete mappings up front so we can report them.
+            var validMappings = mappings
+                .Where(m => !string.IsNullOrWhiteSpace(m.SourceColumn)
+                         && !string.IsNullOrWhiteSpace(m.DestinationParameter))
+                .ToList();
+
+            if (validMappings.Count == 0)
+                return "All mappings are incomplete (missing source or destination).";
+
+            // Collect elements that appear in this schedule.
+            // The schedule's category drives the collector.
+            ElementId categoryId = schedule.Definition.CategoryId;
+
+            List<Element> elements;
+            try
             {
-                t.Start();
+                elements = new FilteredElementCollector(doc, schedule.Id)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+            }
+            catch
+            {
+                // Fallback: collect by category if schedule-scoped collector fails
+                // (e.g. multi-category schedules).
+                elements = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementCategoryFilter(categoryId))
+                    .ToList();
+            }
 
-                var tableData = schedule.GetTableData();
-                var body = tableData.GetSectionData(SectionType.Body);
-                int rows = body.NumberOfRows;
+            if (elements.Count == 0)
+                return "No elements found in schedule.";
 
-                int idCol = GetColumnIndex(schedule, "Element ID");
-                if (idCol < 0) { t.RollBack(); return; }
+            int ok = 0;
+            int skipped = 0;
+            var errors = new List<string>();
 
-                foreach (var mapping in mappings)
+            using (var tx = new Transaction(doc, "BA Schedule Sync"))
+            {
+                tx.Start();
+
+                foreach (var el in elements)
                 {
-                    if (string.IsNullOrEmpty(mapping.SourceColumn)
-                        || string.IsNullOrEmpty(mapping.DestinationParameter))
-                        continue;
-
-                    int sourceCol = GetColumnIndex(schedule, mapping.SourceColumn);
-                    if (sourceCol < 0) continue;
-
-                    for (int r = 0; r < rows; r++)
+                    foreach (var mapping in validMappings)
                     {
                         try
                         {
-                            string idText = schedule.GetCellText(SectionType.Body, r, idCol);
-                            if (!int.TryParse(idText, out int idInt)) continue;
-
-                            Element el = doc.GetElement(new ElementId(idInt));
-                            if (el == null) continue;
-
-                            string value = schedule.GetCellText(SectionType.Body, r, sourceCol);
+                            Parameter src = el.LookupParameter(mapping.SourceColumn);
+                            if (src == null) { skipped++; continue; }
 
                             Parameter dest = el.LookupParameter(mapping.DestinationParameter);
-                            if (dest == null || dest.IsReadOnly) continue;
+                            if (dest == null || dest.IsReadOnly) { skipped++; continue; }
 
-                            SetValue(dest, value);
+                            bool written = CopyParameter(src, dest);
+                            if (written) ok++;
+                            else skipped++;
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            errors.Add($"El {el.Id}: {ex.Message}");
+                        }
                     }
                 }
 
-                t.Commit();
+                tx.Commit();
             }
+
+            var msg = $"Sync complete. Written: {ok}, Skipped: {skipped}";
+            if (errors.Count > 0)
+                msg += $" | Errors: {errors.Count} (first: {errors[0]})";
+
+            return msg;
         }
 
-        private static int GetColumnIndex(ViewSchedule schedule, string name)
+        /// <summary>
+        /// Copies a parameter value from src to dest.
+        /// Handles StorageType mismatch between string and numeric gracefully.
+        /// Returns true if the write succeeded.
+        /// </summary>
+        private static bool CopyParameter(Parameter src, Parameter dest)
         {
-            var def = schedule.Definition;
-            for (int i = 0; i < def.GetFieldCount(); i++)
+            // Same storage type — direct copy.
+            if (src.StorageType == dest.StorageType)
             {
-                if (def.GetField(i).GetName() == name)
-                    return i;
-            }
-            return -1;
-        }
+                switch (src.StorageType)
+                {
+                    case StorageType.String:
+                        dest.Set(src.AsString() ?? "");
+                        return true;
 
-        private static void SetValue(Parameter p, string val)
-        {
-            switch (p.StorageType)
-            {
-                case StorageType.String:
-                    p.Set(val);
-                    break;
-                case StorageType.Double:
-                    if (double.TryParse(val, out double d))
-                        p.Set(d);
-                    break;
-                case StorageType.Integer:
-                    if (int.TryParse(val, out int i))
-                        p.Set(i);
-                    break;
+                    case StorageType.Double:
+                        dest.Set(src.AsDouble());
+                        return true;
+
+                    case StorageType.Integer:
+                        dest.Set(src.AsInteger());
+                        return true;
+
+                    case StorageType.ElementId:
+                        dest.Set(src.AsElementId());
+                        return true;
+
+                    default:
+                        return false;
+                }
             }
+
+            // Cross-type: source is string, dest is numeric — try parse.
+            if (src.StorageType == StorageType.String)
+            {
+                var raw = src.AsString() ?? "";
+
+                if (dest.StorageType == StorageType.Double
+                    && double.TryParse(raw, System.Globalization.NumberStyles.Any,
+                                       System.Globalization.CultureInfo.InvariantCulture, out double d))
+                {
+                    dest.Set(d);
+                    return true;
+                }
+
+                if (dest.StorageType == StorageType.Integer
+                    && int.TryParse(raw, out int i))
+                {
+                    dest.Set(i);
+                    return true;
+                }
+
+                return false;
+            }
+
+            // Cross-type: numeric source to string dest.
+            if (dest.StorageType == StorageType.String)
+            {
+                switch (src.StorageType)
+                {
+                    case StorageType.Double:
+                        dest.Set(src.AsDouble().ToString(
+                            System.Globalization.CultureInfo.InvariantCulture));
+                        return true;
+
+                    case StorageType.Integer:
+                        dest.Set(src.AsInteger().ToString());
+                        return true;
+                }
+            }
+
+            return false;
         }
     }
 }

@@ -3,6 +3,7 @@ using Autodesk.Revit.DB;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Color = Autodesk.Revit.DB.Color;
 
 namespace BA.Core.Standards
 {
@@ -11,7 +12,7 @@ namespace BA.Core.Standards
         // =========================
         // CAPTURE
         // =========================
-        public static ViewTemplateStandardFile Capture(Document doc, View template)
+        public static ViewTemplateStandardFile Capture(Document doc, Autodesk.Revit.DB.View template)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
             if (template == null) throw new ArgumentNullException(nameof(template));
@@ -107,7 +108,7 @@ namespace BA.Core.Standards
         // =========================
         // APPLY (full standard)
         // =========================
-        public static ApplyResult Apply(Document doc, View template, ViewTemplateStandardFile standard)
+        public static ApplyResult Apply(Document doc, Autodesk.Revit.DB.View template, ViewTemplateStandardFile standard)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
             if (template == null) throw new ArgumentNullException(nameof(template));
@@ -240,7 +241,7 @@ namespace BA.Core.Standards
         // =========================
         // COMPARE (for UI)
         // =========================
-        public static List<TemplateDiffRow> Compare(Document doc, View template, ViewTemplateStandardFile standard)
+        public static List<TemplateDiffRow> Compare(Document doc, Autodesk.Revit.DB.View template, ViewTemplateStandardFile standard)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
             if (template == null) throw new ArgumentNullException(nameof(template));
@@ -430,7 +431,7 @@ namespace BA.Core.Standards
             public List<string> MissingTargets { get; } = new();
         }
 
-        public static FixResult ApplyFixes(Document doc, View template, ViewTemplateStandardFile standard, IList<TemplateDiffRow> selectedRows)
+        public static FixResult ApplyFixes(Document doc, Autodesk.Revit.DB.View template, ViewTemplateStandardFile standard, IList<TemplateDiffRow> selectedRows)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
             if (template == null) throw new ArgumentNullException(nameof(template));
@@ -616,7 +617,7 @@ namespace BA.Core.Standards
         // HELPERS
         // =========================
 
-        private static Dictionary<string, ElementId> GetCurrentFiltersByName(Document doc, View template)
+        private static Dictionary<string, ElementId> GetCurrentFiltersByName(Document doc, Autodesk.Revit.DB.View template)
         {
             var dict = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
 
@@ -631,7 +632,7 @@ namespace BA.Core.Standards
             return dict;
         }
 
-        private static List<ViewParamSnapshot> CaptureAllParameters(View v)
+        private static List<ViewParamSnapshot> CaptureAllParameters(Autodesk.Revit.DB.View v)
         {
             var list = new List<ViewParamSnapshot>();
 
@@ -918,5 +919,8 @@ namespace BA.Core.Standards
             if (v > int.MaxValue) throw new OverflowException($"ElementId value too large for int: {v}");
             return new ElementId((int)v);
         }
+
+        /* Service error: Unknown */
+
     }
 }

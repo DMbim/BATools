@@ -1,0 +1,54 @@
+﻿<Window x:Class="BATools.Zoom.Views.SimpleInputWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="BA"
+        Width="460"
+        Height="180"
+        MinWidth="360"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="8"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="16"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   x:Name="TxtPrompt"
+                   Style="{StaticResource BaPanelText}"
+                   TextWrapping="Wrap"/>
+
+        <TextBox Grid.Row="2"
+                 x:Name="TxtInput"
+                 Style="{StaticResource BaTextBox}"/>
+
+        <StackPanel Grid.Row="4"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Width="100"
+                    Margin="0,0,8,0"
+                    Style="{StaticResource BaPrimaryButton}"
+                    Content="OK"
+                    IsDefault="True"
+                    Click="BtnOk_Click"/>
+            <Button Width="100"
+                    Style="{StaticResource BaSecondaryButton}"
+                    Content="Cancel"
+                    IsCancel="True"
+                    Click="BtnCancel_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

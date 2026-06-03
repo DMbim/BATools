@@ -1,6 +1,7 @@
 ﻿using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
+using View = Autodesk.Revit.DB.View;
 
 namespace BA.Core.Rooms
 {

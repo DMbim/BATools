@@ -9,7 +9,7 @@ using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 using Autodesk.Revit.DB;
 using System.IO;
 using Autodesk.Revit.ApplicationServices;
-
+using Application = Autodesk.Revit.ApplicationServices.Application;
 namespace BA.Core
 { 
     public static class SharedParamUtils

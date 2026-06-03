@@ -19,7 +19,8 @@
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml" />
+                <!-- FIX: Use correct pack URI for referencing resource dictionary in the same solution/assembly -->
+                <ResourceDictionary Source="pack://application:,,,/BA;component/UI/Resources/AppResources.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <Style x:Key="TopShellBorder" TargetType="{x:Type Border}">

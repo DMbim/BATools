@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB.Visual;
+using Color = Autodesk.Revit.DB.Color;
+using View = Autodesk.Revit.DB.View;
 
 namespace BA.Core.ViewFilters
 {
@@ -133,7 +135,7 @@ namespace BA.Core.ViewFilters
             catch { return fallback; }
         }
 
-        private static (byte? r, byte? g, byte? b) TryGetOgsColor(Func<Color> getter)
+        private static (byte? r, byte? g, byte? b) TryGetOgsColor(Func<Autodesk.Revit.DB.Color> getter)
         {
             try
             {

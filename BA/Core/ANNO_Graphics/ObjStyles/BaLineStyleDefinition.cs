@@ -1,4 +1,6 @@
-﻿using Autodesk.Revit.DB;
+﻿// FILE: BA_Tools/Core/Graphics/BaLineStyleDefinition.cs
+// No changes needed beyond what you already had, included for completeness.
+using Autodesk.Revit.DB;
 
 namespace BA.Core.Graphics
 {

@@ -1,0 +1,406 @@
+<Window x:Class="BA.Subcategories.Views.SubcategoryManagerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="clr-namespace:BA.Subcategories.Models;assembly=BA_Tools"
+        Title="BA — Subcategory Manager"
+        Width="1200" Height="720"
+        MinWidth="900" MinHeight="560"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize"
+        Background="#0B0C0F"
+        Foreground="#F2F2F2"
+        FontFamily="Segoe UI"
+        ShowInTaskbar="False">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Scoped DataGrid styles -->
+            <Style x:Key="SmDataGridStyle" TargetType="DataGrid">
+                <Setter Property="Background" Value="#11151C"/>
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Setter Property="RowBackground" Value="#11151C"/>
+                <Setter Property="AlternatingRowBackground" Value="#16161A"/>
+                <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+                <Setter Property="HorizontalGridLinesBrush" Value="#2C3440"/>
+                <Setter Property="BorderBrush" Value="#2C3440"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="RowHeaderWidth" Value="0"/>
+                <Setter Property="HeadersVisibility" Value="Column"/>
+                <Setter Property="RowHeight" Value="28"/>
+                <Setter Property="AlternationCount" Value="2"/>
+                <Setter Property="AutoGenerateColumns" Value="False"/>
+                <Setter Property="CanUserAddRows" Value="False"/>
+                <Setter Property="SelectionMode" Value="Single"/>
+                <Setter Property="EnableRowVirtualization" Value="True"/>
+                <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+            </Style>
+
+            <Style x:Key="SmHeaderStyle" TargetType="DataGridColumnHeader">
+                <Setter Property="Background" Value="#16161A"/>
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Setter Property="BorderBrush" Value="#2C3440"/>
+                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                <Setter Property="Padding" Value="8,4"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+            </Style>
+
+            <Style x:Key="SmRowStyle" TargetType="DataGridRow">
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="#2A5A9E"/>
+                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                    </Trigger>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="#1E2A3A"/>
+                    </Trigger>
+                    <!-- Highlight pending-delete rows -->
+                    <DataTrigger Binding="{Binding PendingDelete}" Value="True">
+                        <Setter Property="Background" Value="#3A1A1A"/>
+                        <Setter Property="Foreground" Value="#FF6B6B"/>
+                    </DataTrigger>
+                    <!-- Highlight new (unsaved) rows -->
+                    <DataTrigger Binding="{Binding IsNew}" Value="True">
+                        <Setter Property="Foreground" Value="#7EC8A0"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="SmCellStyle" TargetType="DataGridCell">
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Padding" Value="6,2"/>
+                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="SectionLabel" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Margin" Value="0,0,0,6"/>
+            </Style>
+
+            <Style x:Key="MutedLabel" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="#A0A8B4"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="Margin" Value="0,0,6,0"/>
+            </Style>
+
+            <!-- Delete button (red tint) -->
+            <Style x:Key="DeleteButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="#3A1A1A"/>
+                <Setter Property="Foreground" Value="#FF6B6B"/>
+                <Setter Property="BorderBrush" Value="#5A2A2A"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="8,4"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="4">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="#4A2020"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ══ MAIN CONTENT ════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ── LEFT: Subcategory Manager ──────────────────────────────── -->
+            <Border Grid.Column="0" Style="{StaticResource BaDarkPanelBorder}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal"
+                                Margin="0,0,0,8">
+                        <TextBlock Text="Subcategories"
+                                   Style="{StaticResource SectionLabel}"
+                                   Margin="0,0,12,0"
+                                   VerticalAlignment="Center"/>
+                        <Button Content="Ensure BA Core"
+                                Command="{Binding EnsureCoreSubcategoriesCommand}"
+                                Style="{StaticResource BaSecondaryButton}"
+                                ToolTip="Add all standard BA_ subcategories for this family category"/>
+                    </StackPanel>
+
+                    <!-- Subcategory DataGrid -->
+                    <DataGrid Grid.Row="1"
+                              ItemsSource="{Binding Subcategories}"
+                              SelectedItem="{Binding SelectedSubcategory}"
+                              Style="{StaticResource SmDataGridStyle}"
+                              ColumnHeaderStyle="{StaticResource SmHeaderStyle}"
+                              RowStyle="{StaticResource SmRowStyle}"
+                              CellStyle="{StaticResource SmCellStyle}"
+                              IsReadOnly="False">
+                        <DataGrid.Columns>
+
+                            <!-- Name — editable inline -->
+                            <DataGridTextColumn Header="Name"
+                                                Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                                Width="*"/>
+
+                            <!-- Color swatch — opens picker via code-behind -->
+                            <DataGridTemplateColumn Header="Color" Width="60">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Width="32" Height="18"
+                                                CornerRadius="3"
+                                                Margin="4,2"
+                                                Background="{Binding LineColorBrush}"
+                                                BorderBrush="#4A4A50"
+                                                BorderThickness="1"
+                                                Cursor="Hand"
+                                                MouseLeftButtonDown="ColorSwatch_MouseLeftButtonDown"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Line weight -->
+                            <DataGridTextColumn Header="LW"
+                                                Binding="{Binding LineWeight, UpdateSourceTrigger=PropertyChanged}"
+                                                Width="44"/>
+
+                            <!-- Delete toggle -->
+                            <DataGridTemplateColumn Header="Del" Width="44">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="✕"
+                                                Style="{StaticResource DeleteButtonStyle}"
+                                                Width="28" Height="20"
+                                                Margin="2"
+                                                Click="BtnDeleteSubcategory_Click"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- Legend -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,6,0,4">
+                        <Border Width="12" Height="12" Background="#7EC8A0"
+                                CornerRadius="2" Margin="0,0,4,0"/>
+                        <TextBlock Text="New  " Style="{StaticResource MutedLabel}" Margin="0,0,12,0"/>
+                        <Border Width="12" Height="12" Background="#FF6B6B"
+                                CornerRadius="2" Margin="0,0,4,0"/>
+                        <TextBlock Text="Pending delete" Style="{StaticResource MutedLabel}"/>
+                    </StackPanel>
+
+                    <!-- Add new subcategory row -->
+                    <Border Grid.Row="3"
+                            BorderBrush="#2C3440" BorderThickness="1"
+                            CornerRadius="4" Padding="8" Margin="0,4,0,4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding NewSubcategoryName, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource BaDarkTextBox}"
+                                     Margin="0,0,6,0"
+                                     ToolTip="New subcategory name (will be prefixed with BA_ by convention)"/>
+                            <Button Grid.Column="1"
+                                    Content="Add"
+                                    Command="{Binding AddSubcategoryCommand}"
+                                    Style="{StaticResource BaSecondaryButton}"
+                                    Width="60"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Assignment controls -->
+                    <Border Grid.Row="4"
+                            BorderBrush="#2C3440" BorderThickness="1"
+                            CornerRadius="4" Padding="8">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="Assign to geometry"
+                                       Style="{StaticResource SectionLabel}"/>
+
+                            <Grid Grid.Row="1" Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Target subcategory:"
+                                           Style="{StaticResource MutedLabel}"/>
+                                <ComboBox Grid.Column="1"
+                                          ItemsSource="{Binding Subcategories}"
+                                          SelectedItem="{Binding TargetSubcategoryRow}"
+                                          DisplayMemberPath="Name"
+                                          Style="{StaticResource BaDarkComboBox}"/>
+                            </Grid>
+
+                            <Grid Grid.Row="2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Scope:"
+                                           Style="{StaticResource MutedLabel}"/>
+                                <ComboBox Grid.Column="1"
+                                          ItemsSource="{Binding ApplyScopes}"
+                                          SelectedItem="{Binding SelectedScope}"
+                                          Style="{StaticResource BaDarkComboBox}"
+                                          Margin="0,0,8,0"/>
+                                <Button Grid.Column="2"
+                                        Content="Assign"
+                                        Command="{Binding AssignSubcategoryCommand}"
+                                        Style="{StaticResource BaSecondaryButton}"
+                                        Width="70"
+                                        ToolTip="Stage assignment — executed when Apply is clicked"/>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Splitter -->
+            <GridSplitter Grid.Column="1"
+                          Width="4"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Stretch"
+                          Background="#2C3440"/>
+
+            <!-- ── RIGHT: Geometry list ────────────────────────────────────── -->
+            <Border Grid.Column="2" Style="{StaticResource BaDarkPanelBorder}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Family Geometry"
+                               Style="{StaticResource SectionLabel}"/>
+
+                    <DataGrid Grid.Row="1"
+                              ItemsSource="{Binding GeometryItems}"
+                              SelectedItem="{Binding SelectedGeometryRow}"
+                              Style="{StaticResource SmDataGridStyle}"
+                              ColumnHeaderStyle="{StaticResource SmHeaderStyle}"
+                              RowStyle="{StaticResource SmRowStyle}"
+                              CellStyle="{StaticResource SmCellStyle}"
+                              IsReadOnly="False"
+                              SelectionMode="Extended">
+                        <DataGrid.Columns>
+                            <DataGridCheckBoxColumn Header="✓"
+                                                    Binding="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
+                                                    Width="34"/>
+                            <DataGridTextColumn Header="Element"
+                                                Binding="{Binding DisplayName}"
+                                                IsReadOnly="True" Width="*"/>
+                            <DataGridTextColumn Header="Category"
+                                                Binding="{Binding CategoryName}"
+                                                IsReadOnly="True" Width="130"/>
+                            <DataGridTextColumn Header="Current Subcategory"
+                                                Binding="{Binding SubcategoryName}"
+                                                IsReadOnly="True" Width="180"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- Select all / none helpers -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,6,0,0">
+                        <Button Content="Select All"
+                                Style="{StaticResource BaSecondaryButton}"
+                                Margin="0,0,6,0"
+                                Click="BtnSelectAll_Click"/>
+                        <Button Content="Select None"
+                                Style="{StaticResource BaSecondaryButton}"
+                                Click="BtnSelectNone_Click"/>
+                        <TextBlock Margin="12,0,0,0"
+                                   Foreground="#A0A8B4"
+                                   VerticalAlignment="Center">
+                            <Run Text="{Binding GeometryItems.Count, Mode=OneWay}"/>
+                            <Run Text=" elements"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ══ STATUS BAR ════════════════════════════════════════════════════ -->
+        <TextBlock Grid.Row="1"
+                   Text="{Binding StatusText}"
+                   Foreground="#A0A8B4"
+                   Margin="0,8,0,6"/>
+
+        <!-- ══ ACTION BAR ════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0"
+                       Text="Apply executes all staged changes in a single Revit transaction."
+                       Foreground="#5A6070"
+                       VerticalAlignment="Center"
+                       FontSize="11"/>
+
+            <Button Grid.Column="1"
+                    Content="Cancel"
+                    Command="{Binding CancelCommand}"
+                    Style="{StaticResource BaSecondaryButton}"
+                    Width="90" Margin="0,0,8,0"/>
+
+            <Button Grid.Column="2"
+                    Content="Apply"
+                    Command="{Binding ApplyCommand}"
+                    Style="{StaticResource BaPrimaryButton}"
+                    Width="110"/>
+        </Grid>
+    </Grid>
+</Window>

@@ -13,7 +13,10 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
+using Button = System.Windows.Controls.Button;
+using CheckBox = System.Windows.Controls.CheckBox;
 using ComboBox = System.Windows.Controls.ComboBox;
+using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using MessageBox = System.Windows.MessageBox;
 using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
@@ -218,6 +221,7 @@ namespace BA.UI
 
                 SharedParamUtils.LoadSharedParameterFile(app, string.IsNullOrWhiteSpace(spOverride) ? null : spOverride);
                 var lookup = SharedParamUtils.BuildExternalDefinitionLookup();
+
                 foreach (var row in Parameters)
                 {
                     string matched;
@@ -226,6 +230,7 @@ namespace BA.UI
                     if (ext != null && !row.IsBuiltIn && !row.IsShared)
                     {
                         row.MatchedShared = matched;
+                        row.TargetName = matched;   // <- ADD THIS: without it EffectiveAction stays "Keep"
 
                         var sTokens = NameMatcher.Tokens(matched);
                         var fTokens = NameMatcher.Tokens(row.Name);
@@ -234,6 +239,7 @@ namespace BA.UI
                     else
                     {
                         row.MatchedShared = "";
+                        row.TargetName = "";        // <- ADD THIS: clear stale target on re-scan
                         row.MatchScore = 0;
                     }
                 }
@@ -245,7 +251,6 @@ namespace BA.UI
                 MessageBox.Show("Preview failed: " + ex.Message);
             }
         }
-
         private void BtnAddShared_Click(object sender, RoutedEventArgs e)
         {
             if (_doc == null || !_doc.IsFamilyDocument)

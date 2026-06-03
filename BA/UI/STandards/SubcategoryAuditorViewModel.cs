@@ -10,6 +10,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows.Data;
+using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 
 namespace BA.UI.Standards
 {

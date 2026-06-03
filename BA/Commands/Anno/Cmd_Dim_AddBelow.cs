@@ -153,7 +153,8 @@ namespace BA.Commands
         {
             var prompt = new InputTextDialog(
                 $"Dimension(s) may have up to {maxSegmentCount} segments.\n" +
-                "Enter segment indices (e.g. '0, 1, 2') or range '0..5..1'.\n" +
+                "Enter segment indices (e.g. '0, 1, 2'),.\n" +
+                $"or range '0..{maxSegmentCount - 1}..1' (start..end..step).\n" +
                 "Leave empty to apply to ALL segments.",
                 "Select Segments");
             bool? res = prompt.ShowDialog();

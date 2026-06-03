@@ -83,7 +83,7 @@ namespace BA.Core.Overhead
             };
         }
 
-        private static bool IsCutRequiredCategory(Category cat)
+        internal static bool IsCutRequiredCategory(Category cat)
         {
             if (cat == null) return false;
             return cat.Id == new ElementId(BuiltInCategory.OST_Walls)
