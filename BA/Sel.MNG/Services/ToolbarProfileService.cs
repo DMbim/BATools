@@ -17,10 +17,23 @@ namespace BATools.SelectionManager.Services
 
         private static string FilePath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "BATools", "ToolbarProfiles", "Default.json");
+            "BA", "ToolbarProfiles", "Default.json");
+
+        private static void MigrateIfNeeded()
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string oldPath = Path.Combine(appData, "BATools", "ToolbarProfiles", "Default.json");
+            string newPath = FilePath;
+            if (File.Exists(oldPath) && !File.Exists(newPath))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(newPath)!);
+                File.Move(oldPath, newPath);
+            }
+        }
 
         public static ToolbarProfile Load()
         {
+            MigrateIfNeeded();
             string path = FilePath; // local variable resolves type name ambiguity
             if (!System.IO.File.Exists(path)) return ToolbarProfile.CreateDefault();
             try

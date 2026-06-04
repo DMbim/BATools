@@ -17,9 +17,9 @@ namespace BATools.SelectionManager.Services
         };
 
         private static string StoragePath => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "BATools",
-            "recent_actions.json");
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "BA",
+                    "recent_actions.json");
 
         private static List<string> _recents = new();
         private static bool _loaded;
@@ -57,10 +57,23 @@ namespace BATools.SelectionManager.Services
             _loaded = false;
         }
 
+        private static void MigrateIfNeeded()
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string oldPath = Path.Combine(appData, "BATools", "recent_actions.json");
+            string newPath = StoragePath;
+            if (File.Exists(oldPath) && !File.Exists(newPath))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(newPath)!);
+                File.Move(oldPath, newPath);
+            }
+        }
+
         private static void EnsureLoaded()
         {
             if (_loaded) return;
             _loaded = true;
+            MigrateIfNeeded();
 
             string path = StoragePath;
             if (!File.Exists(path)) return;

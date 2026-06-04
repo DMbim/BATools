@@ -18,10 +18,10 @@ namespace BATools.SelectionManager.Services
 
         private static string FilePath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "BATools", "hotkey_settings.json");
-
+            "BA", "hotkey_settings.json");
         public static HotkeySettings Load()
         {
+            MigrateIfNeeded();
             if (!File.Exists(FilePath)) return new HotkeySettings();
             try
             {
@@ -50,7 +50,17 @@ namespace BATools.SelectionManager.Services
                 Debug.WriteLine($"[HotkeySettingsService] Save failed: {ex.Message}");
             }
         }
-
+        private static void MigrateIfNeeded()
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string oldPath = Path.Combine(appData, "BATools", "hotkey_settings.json");
+            string newPath = FilePath;
+            if (File.Exists(oldPath) && !File.Exists(newPath))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(newPath)!);
+                File.Move(oldPath, newPath);
+            }
+        }
         // VK code constants
         private const uint VK_SHIFT = 0x10; private const uint VK_LSHIFT = 0xA0; private const uint VK_RSHIFT = 0xA1;
         private const uint VK_CONTROL = 0x11; private const uint VK_LCTRL = 0xA2; private const uint VK_RCTRL = 0xA3;

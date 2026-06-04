@@ -27,10 +27,15 @@ namespace BATools_Installer
 
         // Issue Reporter settings deployment
         public const string IssueReporterSharedSettingsPath =
-            @"S:\CAD\Autodesk Revit\BA_Resources\BA_Issues\settings.json";
-
+                    @"S:\CAD\Autodesk Revit\BA_Resources\BA_Issues\settings.json";
         public const string IssueReporterLocalCompanyFolderName = "BA";
         public const string IssueReporterLocalFolderName = "IssueReporter";
         public const string IssueReporterSettingsFileName = "settings.json";
+
+        // Content Browser settings distribution
+        public const string ContentBrowserSharedSettingsPath =
+            @"S:\CAD\Autodesk Revit\BA_Resources\ContentBrowser\content-browser.settings.json";
+        public const string ContentBrowserLocalFolderName = "ContentBrowser";
+        public const string ContentBrowserSettingsFileName = "content-browser.settings.json";
     }
 }

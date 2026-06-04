@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.Attributes;
@@ -35,6 +36,11 @@ namespace BA.Ribbon
                 text = internalName;
             }
 
+            var existing = panel.GetItems()
+                .OfType<PushButton>()
+                .FirstOrDefault(b => b.Name == internalName);
+            if (existing != null) return existing;
+
             var data = new PushButtonData(internalName, text, assemblyPath, className);
             var button = panel.AddItem(data) as PushButton;
             if (button == null) return null;
@@ -66,16 +72,19 @@ namespace BA.Ribbon
         /// Adds a pulldown button to the given panel, wired to TCommand as default action.
         /// </summary>
         public static PulldownButton AddPulldownButton<TCommand>(
-            this RibbonPanel panel,
-            string internalName,
-            string text,
-            string longDescription,
-            string smallImagePath = null,
-            string largeImagePath = null)
-            where TCommand : IExternalCommand
+                    this RibbonPanel panel,
+                    string internalName,
+                    string text,
+                    string longDescription,
+                    string smallImagePath = null,
+                    string largeImagePath = null)
+                    where TCommand : IExternalCommand
         {
-            // For pulldown, Revit doesn't require the command in the data,
-            // we wire TCommand as the default action via the manifest (or we just use it for naming consistency).
+            var existing = panel.GetItems()
+                .OfType<PulldownButton>()
+                .FirstOrDefault(b => b.Name == internalName);
+            if (existing != null) return existing;
+
             var data = new PulldownButtonData(internalName, text);
 
             var pulldown = panel.AddItem(data) as PulldownButton;

@@ -17,10 +17,11 @@ namespace BATools.SelectionManager.Services
 
         private static string FilePath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "BATools", "fav_families.json");
+            "BA", "fav_families.json");
 
         public static FavoriteFamiliesProfile Load()
         {
+            MigrateIfNeeded();
             if (!File.Exists(FilePath)) return new FavoriteFamiliesProfile();
             try
             {
@@ -32,6 +33,18 @@ namespace BATools.SelectionManager.Services
             {
                 Debug.WriteLine($"[FavoriteFamiliesService] Load failed: {ex.Message}");
                 return new FavoriteFamiliesProfile();
+            }
+        }
+
+        private static void MigrateIfNeeded()
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string oldPath = Path.Combine(appData, "BATools", "fav_families.json");
+            string newPath = FilePath;
+            if (File.Exists(oldPath) && !File.Exists(newPath))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(newPath)!);
+                File.Move(oldPath, newPath);
             }
         }
 
@@ -48,5 +61,6 @@ namespace BATools.SelectionManager.Services
                 Debug.WriteLine($"[FavoriteFamiliesService] Save failed: {ex.Message}");
             }
         }
+ 
     }
 }

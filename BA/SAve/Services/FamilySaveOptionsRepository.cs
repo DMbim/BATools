@@ -14,7 +14,7 @@ namespace BA.Families.Services
     {
         private static readonly string SettingsDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "BATools");
+            "BA");
 
         private static readonly string SettingsFile = Path.Combine(
             SettingsDir, "SaveFamiliesOptions.json");
@@ -25,8 +25,21 @@ namespace BA.Families.Services
             Converters = { new JsonStringEnumConverter() }
         };
 
+        private static void MigrateIfNeeded()
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string oldPath = Path.Combine(appData, "BATools", "SaveFamiliesOptions.json");
+            string newPath = SettingsFile;
+            if (File.Exists(oldPath) && !File.Exists(newPath))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(newPath)!);
+                File.Move(oldPath, newPath);
+            }
+        }
+
         public SaveFamiliesOptions Load()
         {
+            MigrateIfNeeded();
             try
             {
                 if (!File.Exists(SettingsFile))

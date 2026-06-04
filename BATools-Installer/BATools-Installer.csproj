@@ -6,6 +6,8 @@
 		<UseWPF>true</UseWPF>
 
 		<RootNamespace>BATools_Installer</RootNamespace>
+
+		<Configurations>Debug;Release;Release R26</Configurations>
 	</PropertyGroup>
 
 </Project>

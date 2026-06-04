@@ -102,6 +102,7 @@ namespace BATools_Installer
             );
 
             IssueReporterSettingsInstaller.InstallOrUpdate(log);
+            ContentBrowserSettingsInstaller.InstallOrUpdate(log);
 
             log("Done.");
         }

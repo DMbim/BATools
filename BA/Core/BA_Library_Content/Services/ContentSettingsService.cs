@@ -23,7 +23,10 @@ namespace BA.Core.Content.Services
                 string json = File.ReadAllText(_settingsPath);
                 var loaded = JsonSerializer.Deserialize<ContentBrowserSettings>(json);
                 if (loaded != null)
+                {
+                    ApplyMissingDefaults(loaded);
                     return loaded;
+                }
             }
 
             var settings = CreateDefault();
@@ -42,6 +45,15 @@ namespace BA.Core.Content.Services
 
             string json = JsonSerializer.Serialize(settings, options);
             File.WriteAllText(_settingsPath, json);
+        }
+
+        private static void ApplyMissingDefaults(ContentBrowserSettings settings)
+        {
+            if (string.IsNullOrWhiteSpace(settings.CacheFolderPath))
+            {
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                settings.CacheFolderPath = Path.Combine(appData, "BA", "ContentBrowser", "Cache");
+            }
         }
 
         private static ContentBrowserSettings CreateDefault()

@@ -15,9 +15,9 @@ namespace BATools_Installer
 
             if (!File.Exists(sourcePath))
             {
-                throw new FileNotFoundException(
-                    "Issue Reporter shared settings.json was not found.",
-                    sourcePath);
+                log($"WARN: Issue Reporter shared settings not found at: {sourcePath}");
+                log("WARN: Skipping Issue Reporter settings distribution — S: drive may be unavailable.");
+                return;
             }
 
             string sourceJson = File.ReadAllText(sourcePath);

@@ -23,17 +23,34 @@ namespace BATools.SelectionManager.Services
         private string _activeFingerprint = string.Empty;
 
         private string StorageDirectory =>
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "BATools", "SelectionSets");
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                        "BA", "SelectionSets");
 
         private string FilePath(string fingerprint) =>
             Path.Combine(StorageDirectory, $"{fingerprint}.json");
 
         private SetRepository() { }
 
+        private void MigrateIfNeeded(string fingerprint)
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string oldDir = Path.Combine(appData, "BATools", "SelectionSets");
+            string newDir = StorageDirectory;
+            if (!Directory.Exists(oldDir)) return;
+            Directory.CreateDirectory(newDir);
+            foreach (string oldFile in Directory.GetFiles(oldDir, "*.json"))
+            {
+                string fileName = Path.GetFileName(oldFile);
+                string newFile = Path.Combine(newDir, fileName);
+                if (!File.Exists(newFile))
+                    File.Move(oldFile, newFile);
+            }
+        }
+
         public void LoadForDocument(string fingerprint)
         {
             _activeFingerprint = fingerprint;
+            MigrateIfNeeded(fingerprint);
 
             if (_store.ContainsKey(fingerprint))
                 return;

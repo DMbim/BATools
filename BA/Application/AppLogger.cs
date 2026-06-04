@@ -8,7 +8,7 @@ namespace BA.BAApplication
     {
         private static readonly string LogDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "BATools", "Logs");
+            "BA", "Logs");
 
         public static void LogInfo(string message)
         {
