@@ -171,7 +171,7 @@ namespace BA.UI
             if (!string.Equals(type, "(All)", StringComparison.OrdinalIgnoreCase))
             {
                 if (Enum.TryParse<ChangeKind>(type, out var ck))
-                    filtered = filtered.Where(r => r.ChangeType == ck);
+                    filtered = filtered.Where(r => r.ChangeTypes != null && r.ChangeTypes.Contains(ck));
                 else
                     filtered = Enumerable.Empty<ChangeRecord>();
             }
@@ -205,7 +205,7 @@ namespace BA.UI
                 rows = filtered
                     .GroupBy(r => new
                     {
-                        r.ChangeType,
+                        ChangeType = r.ChangeTypes.FirstOrDefault(),
                         r.Category,
                         r.ViewId,
                         r.ViewName,
@@ -224,7 +224,7 @@ namespace BA.UI
                         // group by minute bucket
                         Bucket = new DateTime(r.When.Year, r.When.Month, r.When.Day,
                                               r.When.Hour, r.When.Minute, 0),
-                        r.ChangeType,
+                        ChangeType = r.ChangeTypes.FirstOrDefault(),
                         r.Category,
                         r.ViewId,
                         r.ViewName,
@@ -282,7 +282,7 @@ namespace BA.UI
             {
                 IsGroup = false,
                 When = r.When.ToString("yyyy-MM-dd HH:mm:ss"),
-                ChangeType = r.ChangeType.ToString(),
+                ChangeType = r.ChangeTypeDisplay ?? r.ChangeTypes.FirstOrDefault().ToString(),
                 ElementId = r.ElementId?.ToString(),
                 Category = r.Category,
                 ViewName = r.ViewName,
@@ -326,7 +326,7 @@ namespace BA.UI
             {
                 IsGroup = true,
                 When = whenText,
-                ChangeType = first.ChangeType.ToString(),
+                ChangeType = first.ChangeTypeDisplay ?? first.ChangeTypes.FirstOrDefault().ToString(),
                 ElementId = elementText,
                 Category = first.Category,
                 ViewName = first.ViewName,

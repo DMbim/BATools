@@ -4,6 +4,7 @@ using System.Linq;
 using Autodesk.Revit.UI;
 using BA.Core.Classification;
 using BA.Classification;
+using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 
 namespace BA.UI.Classification
 {

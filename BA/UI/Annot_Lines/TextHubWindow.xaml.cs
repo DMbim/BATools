@@ -14,29 +14,27 @@ namespace BA.UI.TextHub
         private static TextHubWindow? _instance;
 
         private readonly UIApplication _uiApp;
-        private readonly TextHubExternalInvoker _revit;
+        private readonly TextHubExternalInvoker _invoker;
 
         private List<TextStyleRow> _allRows = new();
         private string _statusText = "";
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        public string StatusText
-        {
-            get => _statusText;
-            set
-            {
-                if (_statusText == value) return;
-                _statusText = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(StatusText)));
-            }
-        }
-
-        public static void ShowOrFocus(UIApplication uiApp)
+        public static TextHubWindow GetOrCreate(UIApplication uiApp, TextHubExternalInvoker invoker)
         {
             if (_instance == null || !_instance.IsLoaded)
             {
-                _instance = new TextHubWindow(uiApp);
+                _instance = new TextHubWindow(uiApp, invoker);
+            }
+            return _instance;
+        }
+
+        public static void ShowOrFocus(UIApplication uiApp, TextHubExternalInvoker invoker)
+        {
+            if (_instance == null || !_instance.IsLoaded)
+            {
+                _instance = new TextHubWindow(uiApp, invoker);
 
                 var revitHandle = uiApp.MainWindowHandle;
                 new System.Windows.Interop.WindowInteropHelper(_instance).Owner = revitHandle;
@@ -53,11 +51,25 @@ namespace BA.UI.TextHub
             }
         }
 
-        private TextHubWindow(UIApplication uiApp)
+        public string StatusText
         {
+            get => _statusText;
+            set
+            {
+                if (_statusText == value) return;
+                _statusText = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(StatusText)));
+            }
+        }
+
+        private TextHubWindow(UIApplication uiApp, TextHubExternalInvoker invoker)
+        {
+            _uiApp = uiApp ?? throw new ArgumentNullException(nameof(uiApp));       // <- KEPT ONCE
+            _invoker = invoker ?? throw new ArgumentNullException(nameof(invoker)); // <- KEPT ONCE, no re-wrap
+
             InitializeComponent();
             DataContext = this;
-            // Hard UI sanity defaults (prevents huge rows + improves perf)
+
             GridTypes.RowHeight = 30;
             GridTypes.EnableRowVirtualization = true;
             GridTypes.EnableColumnVirtualization = true;
@@ -65,19 +77,9 @@ namespace BA.UI.TextHub
             VirtualizingPanel.SetVirtualizationMode(GridTypes, VirtualizationMode.Recycling);
             ScrollViewer.SetCanContentScroll(GridTypes, true);
 
-            _uiApp = uiApp ?? throw new ArgumentNullException(nameof(uiApp));
-            _revit = new TextHubExternalInvoker(_uiApp);
-
-            Loaded += (_, __) => Reload();
-            Closing += (_, __) => { /* keep instance logic simple */ };
-            _uiApp = uiApp ?? throw new ArgumentNullException(nameof(uiApp));
-            _revit = new TextHubExternalInvoker(_uiApp);
-
-            Loaded += (_, __) => Reload();
-            Closing += (_, __) => { /* keep instance logic simple */ };
+            Loaded += (_, __) => Reload();   // <- REGISTERED ONCE
+            Closing += (_, __) => { };       // <- REGISTERED ONCE
         }
-
-
 
         private void Reload()
         {
@@ -88,7 +90,6 @@ namespace BA.UI.TextHub
                 {
                     StatusText = "No active document.";
                     GridTypes.ItemsSource = null;
-
                     return;
                 }
 
@@ -130,7 +131,6 @@ namespace BA.UI.TextHub
             var list = q.ToList();
             GridTypes.ItemsSource = list;
 
-            // DEBUG: count truly empty-looking rows
             int emptyish = list.Count(r =>
                 string.IsNullOrWhiteSpace(r.Kind) &&
                 string.IsNullOrWhiteSpace(r.FamilyName) &&
@@ -139,12 +139,6 @@ namespace BA.UI.TextHub
                 (r.TextSizeMm == null));
 
             StatusText = $"Loaded {_allRows.Count} types. Shown: {list.Count}. Editable: {_allRows.Count(x => x.IsEditable)}. EmptyRows: {emptyish}";
-        }
-
-        private static bool ContainsInvariant(string? haystack, string needleLower)
-        {
-            if (string.IsNullOrEmpty(haystack)) return false;
-            return haystack.IndexOf(needleLower, StringComparison.InvariantCultureIgnoreCase) >= 0;
         }
 
         private void BtnReload_Click(object sender, RoutedEventArgs e) => Reload();
@@ -160,12 +154,11 @@ namespace BA.UI.TextHub
                     return;
                 }
 
-                _revit.ApplyTextStyleEdits(rows, result =>
+                _invoker.ApplyTextStyleEdits(rows, result =>
                 {
                     Dispatcher.Invoke(() =>
                     {
                         StatusText = result;
-                        // after apply, refresh values from doc for accuracy
                         Reload();
                     });
                 });
@@ -180,7 +173,7 @@ namespace BA.UI.TextHub
 
         private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
 
-        private void TxtSearch_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e) => ApplyFiltersToGrid();
+        private void TxtSearch_TextChanged(object sender, TextChangedEventArgs e) => ApplyFiltersToGrid();
 
         private void ChkShowOnlyEditable_Changed(object sender, RoutedEventArgs e) => ApplyFiltersToGrid();
     }

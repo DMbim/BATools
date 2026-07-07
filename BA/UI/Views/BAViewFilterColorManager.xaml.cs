@@ -9,28 +9,27 @@ namespace BA.UI.Views
     public partial class BAViewFilterColorManager : Window
     {
         private static BAViewFilterColorManager _instance;
-
+        public static BAViewFilterColorManager Instance;
         public BAViewFilterColorManagerVm Vm { get; }
 
-        public static BAViewFilterColorManager GetOrCreate(UIApplication uiApp, RevitExternalInvoker revit)
+        public static BAViewFilterColorManager GetOrCreate(UIApplication uiApp, RevitExternalInvoker _invoker)
         {
             if (_instance == null || !_instance.IsLoaded)
-                _instance = new BAViewFilterColorManager(uiApp, revit);
-
+                _instance = new BAViewFilterColorManager(uiApp, _invoker);
             return _instance;
         }
 
-        private BAViewFilterColorManager(UIApplication uiApp, RevitExternalInvoker revit)
+        private BAViewFilterColorManager(UIApplication uiApp, RevitExternalInvoker _invoker)
         {
             InitializeComponent();
-
             RevitWindowHelper.SetOwnerToRevit(this, uiApp);
-
-            Vm = new BAViewFilterColorManagerVm(uiApp, revit, this);
+            Vm = new BAViewFilterColorManagerVm(uiApp, _invoker, this);
             DataContext = Vm;
-
-            ContentRendered += (_, __) => Vm.EnsureTemplatesLoaded();
-
+            ContentRendered += (_, __) =>
+            {
+                Vm.EnsureTemplatesLoaded();
+                Vm.EnsureParameterCategoriesLoaded(); // <- NEW
+            };
             Closed += (_, __) =>
             {
                 Vm.Dispose();

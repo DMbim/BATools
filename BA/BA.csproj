@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows</TargetFramework>
@@ -74,6 +74,7 @@
 	  <None Remove="Application\Resources\Icons16\AxisToRoom16.png" />
 	  <None Remove="Application\Resources\Icons16\AxistoRoom_Link16.png" />
 	  <None Remove="Application\Resources\Icons16\AxistoRoom_Local16.png" />
+	  <None Remove="Application\Resources\Icons16\BIM16.png" />
 	  <None Remove="Application\Resources\Icons16\brws_16.png" />
 	  <None Remove="Application\Resources\Icons16\ChangeMonitor16.png" />
 	  <None Remove="Application\Resources\Icons16\ChangeMonitorClear16.png" />
@@ -84,7 +85,13 @@
 	  <None Remove="Application\Resources\Icons16\Classif16.png" />
 	  <None Remove="Application\Resources\Icons16\Classify16.png" />
 	  <None Remove="Application\Resources\Icons16\Cleanup_Cleanup16.png" />
+	  <None Remove="Application\Resources\Icons16\ClearOverrides16.png" />
+	  <None Remove="Application\Resources\Icons16\ClearOverrides_16.png" />
 	  <None Remove="Application\Resources\Icons16\CLSRoom16.png" />
+	  <None Remove="Application\Resources\Icons16\ColourPalette16.png" />
+	  <None Remove="Application\Resources\Icons16\Copy16.png" />
+	  <None Remove="Application\Resources\Icons16\CopyP16.png" />
+	  <None Remove="Application\Resources\Icons16\CopyPar16.png" />
 	  <None Remove="Application\Resources\Icons16\DimOveride_OverrideDimension16.png" />
 	  <None Remove="Application\Resources\Icons16\DimOveride_OverrideDimensionSegment16.png" />
 	  <None Remove="Application\Resources\Icons16\DimOverride16.png" />
@@ -106,19 +113,23 @@
 	  <None Remove="Application\Resources\Icons16\LineS16.png" />
 	  <None Remove="Application\Resources\Icons16\LineStyles16.png" />
 	  <None Remove="Application\Resources\Icons16\ManageIssues_16.png" />
+	  <None Remove="Application\Resources\Icons16\Markup16.png" />
 	  <None Remove="Application\Resources\Icons16\men16.png" />
 	  <None Remove="Application\Resources\Icons16\Menu_16.png" />
 	  <None Remove="Application\Resources\Icons16\OverheadCommand16.png" />
 	  <None Remove="Application\Resources\Icons16\OverheadCommand_OverheadCommand166.png" />
 	  <None Remove="Application\Resources\Icons16\RayBounceCeiling16.png" />
+	  <None Remove="Application\Resources\Icons16\RevPar16.png" />
 	  <None Remove="Application\Resources\Icons16\RoomClassification16.png" />
 	  <None Remove="Application\Resources\Icons16\SaveFamilies16.png" />
 	  <None Remove="Application\Resources\Icons16\SB16.png" />
 	  <None Remove="Application\Resources\Icons16\scd_16.png" />
 	  <None Remove="Application\Resources\Icons16\ScopeBoxManager16.png" />
 	  <None Remove="Application\Resources\Icons16\SelectionManager16.png" />
+	  <None Remove="Application\Resources\Icons16\SettingsP16.png" />
 	  <None Remove="Application\Resources\Icons16\Settings_16.png" />
 	  <None Remove="Application\Resources\Icons16\SheetDateAndRevision16.png" />
+	  <None Remove="Application\Resources\Icons16\Standards16.png" />
 	  <None Remove="Application\Resources\Icons16\Sub16.png" />
 	  <None Remove="Application\Resources\Icons16\SubmitIssue_16.png" />
 	  <None Remove="Application\Resources\Icons16\Temp16.png" />
@@ -126,6 +137,8 @@
 	  <None Remove="Application\Resources\Icons16\TRA_16.png" />
 	  <None Remove="Application\Resources\Icons16\txt16.png" />
 	  <None Remove="Application\Resources\Icons16\txt616.png" />
+	  <None Remove="Application\Resources\Icons16\UnhideAllElements16.png" />
+	  <None Remove="Application\Resources\Icons16\UnhideAllElements_16.png" />
 	  <None Remove="Application\Resources\Icons16\use16.png" />
 	  <None Remove="Application\Resources\Icons16\Zoom16.png" />
 	  <None Remove="Application\Resources\Icons16\ZoomE16.png" />
@@ -143,6 +156,7 @@
 	  <None Remove="Application\Resources\Icons32\AxisToRoom_Local32.png" />
 	  <None Remove="Application\Resources\Icons32\AxisToRoo_Link32.png" />
 	  <None Remove="Application\Resources\Icons32\AxisToRoo_Local32.png" />
+	  <None Remove="Application\Resources\Icons32\BIM32.png" />
 	  <None Remove="Application\Resources\Icons32\brws_32.png" />
 	  <None Remove="Application\Resources\Icons32\ChangeMonitor32.png" />
 	  <None Remove="Application\Resources\Icons32\ChangeMonitorClear32.png" />
@@ -153,7 +167,12 @@
 	  <None Remove="Application\Resources\Icons32\Classify32.png" />
 	  <None Remove="Application\Resources\Icons32\Cleanup_Cleanup16.png" />
 	  <None Remove="Application\Resources\Icons32\Cleanup_Cleanup32.png" />
+	  <None Remove="Application\Resources\Icons32\ClearOverrides32.png" />
+	  <None Remove="Application\Resources\Icons32\ClearOverrides_32.png" />
 	  <None Remove="Application\Resources\Icons32\CLSRoom32.png" />
+	  <None Remove="Application\Resources\Icons32\ColourPalette32.png" />
+	  <None Remove="Application\Resources\Icons32\Copy32.png" />
+	  <None Remove="Application\Resources\Icons32\CopyPar32.png" />
 	  <None Remove="Application\Resources\Icons32\DimOveride_OverrideDimension32.png" />
 	  <None Remove="Application\Resources\Icons32\DimOveride_OverrideDimensionSegment32.png" />
 	  <None Remove="Application\Resources\Icons32\DimOverride32.png" />
@@ -175,15 +194,18 @@
 	  <None Remove="Application\Resources\Icons32\LineS32.png" />
 	  <None Remove="Application\Resources\Icons32\LineStyles32.png" />
 	  <None Remove="Application\Resources\Icons32\ManageIssues_32.png" />
+	  <None Remove="Application\Resources\Icons32\Markup32.png" />
 	  <None Remove="Application\Resources\Icons32\Menu_32.png" />
 	  <None Remove="Application\Resources\Icons32\OverheadCommand32.png" />
 	  <None Remove="Application\Resources\Icons32\RayBounceCeiling32.png" />
+	  <None Remove="Application\Resources\Icons32\RevPar32.png" />
 	  <None Remove="Application\Resources\Icons32\RoomClassification32.png" />
 	  <None Remove="Application\Resources\Icons32\SaveFamilies32.png" />
 	  <None Remove="Application\Resources\Icons32\SB32.png" />
 	  <None Remove="Application\Resources\Icons32\scd_32.png" />
 	  <None Remove="Application\Resources\Icons32\ScopeBoxManager32.png" />
 	  <None Remove="Application\Resources\Icons32\SelectionManager32.png" />
+	  <None Remove="Application\Resources\Icons32\SettingsP32.png" />
 	  <None Remove="Application\Resources\Icons32\Settings_32.png" />
 	  <None Remove="Application\Resources\Icons32\SheetDateAndRevision32.png" />
 	  <None Remove="Application\Resources\Icons32\SS\AxisToRoom32.png" />
@@ -205,6 +227,7 @@
 	  <None Remove="Application\Resources\Icons32\SS\SheetDateAndRevision32.png" />
 	  <None Remove="Application\Resources\Icons32\SS\Temp32.png" />
 	  <None Remove="Application\Resources\Icons32\SS\txt32.png" />
+	  <None Remove="Application\Resources\Icons32\Standards32.png" />
 	  <None Remove="Application\Resources\Icons32\Sub32.png" />
 	  <None Remove="Application\Resources\Icons32\SubmitIssue_32.png" />
 	  <None Remove="Application\Resources\Icons32\Temp32.png" />
@@ -212,22 +235,61 @@
 	  <None Remove="Application\Resources\Icons32\TRA_32.png" />
 	  <None Remove="Application\Resources\Icons32\txt32.png" />
 	  <None Remove="Application\Resources\Icons32\txt632.png" />
+	  <None Remove="Application\Resources\Icons32\UnhideAllElements32.png" />
+	  <None Remove="Application\Resources\Icons32\UnhideAllElements_32.png" />
 	  <None Remove="Application\Resources\Icons32\use32.png" />
 	  <None Remove="Application\Resources\Icons32\Zoom32.png" />
 	  <None Remove="Application\Resources\Icons32\ZoomE32.png" />
 	  <None Remove="Application\Resources\Icons32\ZoomL32.png" />
 	  <None Remove="Application\Resources\Icons32\ZoomLo32.png" />
 	  <None Remove="Application\Resources\Icons32\ZoomtoRoom32.png" />
+	  <None Remove="Assets\Families\Anno_Tag_SuspCeilingl.rfa" />
+	  <None Remove="Assets\Families\BA_Axis.rfa" />
+	  <None Remove="Assets\Families\BA_TAG_Markup.rfa" />
+	  <None Remove="Assets\Families\BA_DetItem_Markup_RCP.rfa" />
 	</ItemGroup>
 
 	<ItemGroup>
+		<Content Include="Assets\Families\Anno_Tag_SuspCeilingl.rfa">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="Assets\Families\BA_Axis.rfa">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="Assets\Families\BA_DetItem_Markup_RCP.rfa">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="Assets\Families\BA_TAG_Markup.rfa">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="Assets\Images\cad_warning.jpg">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+	<PropertyGroup>
+		<UseWindowsForms>true</UseWindowsForms>
+	</PropertyGroup>
+	<ItemGroup>
+		<Using Remove="System.Windows.Forms" />
+		<Using Remove="System.Drawing" />
+	</ItemGroup>
+	
+	
+	<ItemGroup>
+	  <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.10" />
+	</ItemGroup>
+	
+	<ItemGroup>
+		<EmbeddedResource Include="QA\FamilyVersioning\Schema\CatalogSchema.sql" />
+	</ItemGroup>
+	
+	<ItemGroup>
+		<Folder Include="Commands\Classification\" />
+		<Folder Include="Core\BIM\Overhead\" />
 		<Folder Include="Models" />
 		<Folder Include="NewFolder\" />
 		<Folder Include="ViewModels\" />
 	</ItemGroup>
-
-
-
 
 	<ItemGroup>
 	  <Resource Include="Application\Resources\Icons16\ArAnno_16.png">
@@ -246,6 +308,12 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\AxistoRoom_Local16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\BIM16 - Copy.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\BIM16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\brws_16.png">
@@ -275,7 +343,25 @@
 	  <Resource Include="Application\Resources\Icons16\Cleanup_Cleanup16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ClearOverrides16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ClearOverrides_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\CLSRoom16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ColourPalette16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\Copy16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\CopyP16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\CopyPar16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\DimOveride_OverrideDimension16.png">
@@ -338,6 +424,9 @@
 	  <Resource Include="Application\Resources\Icons16\ManageIssues_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\Markup16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\men16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -351,6 +440,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\RayBounceCeiling16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\RevPar16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\RoomClassification16.png">
@@ -371,10 +463,16 @@
 	  <Resource Include="Application\Resources\Icons16\SelectionManager16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\SettingsP16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\Settings_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\SheetDateAndRevision16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\Standards16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\Sub16.png">
@@ -396,6 +494,12 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\txt616.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\UnhideAllElements16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\UnhideAllElements_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\use16.png">
@@ -440,6 +544,9 @@
 	  <Resource Include="Application\Resources\Icons32\AxisToRoo_Local32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\BIM32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\brws_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -467,7 +574,22 @@
 	  <Resource Include="Application\Resources\Icons32\Cleanup_Cleanup32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ClearOverrides32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ClearOverrides_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\CLSRoom32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ColourPalette32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\Copy32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\CopyPar32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\DimOveride_OverrideDimension32.png">
@@ -525,7 +647,12 @@
 	  <Resource Include="Application\Resources\Icons32\LineStyles32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
-	  <Resource Include="Application\Resources\Icons32\ManageIssues_32.png" />
+	  <Resource Include="Application\Resources\Icons32\ManageIssues_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\Markup32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\Menu_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -533,6 +660,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\RayBounceCeiling32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\RevPar32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\RoomClassification32.png">
@@ -551,6 +681,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\SelectionManager32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\SettingsP32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\Settings_32.png" />
@@ -576,6 +709,9 @@
 	  <Resource Include="Application\Resources\Icons32\SS\SheetDateAndRevision32.png" />
 	  <Resource Include="Application\Resources\Icons32\SS\Temp32.png" />
 	  <Resource Include="Application\Resources\Icons32\SS\txt32.png" />
+	  <Resource Include="Application\Resources\Icons32\Standards32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\Sub32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -593,6 +729,12 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\txt632.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\UnhideAllElements32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\UnhideAllElements_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\use32.png">

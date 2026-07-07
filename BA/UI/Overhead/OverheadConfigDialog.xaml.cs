@@ -16,10 +16,18 @@ namespace BA.UI.Overhead
     {
         private readonly List<(BuiltInCategory bic, string name)> _allCats;
 
+        // Captured at construction time. Ok_Click must carry this forward explicitly,
+        // since OverheadSettings.Enabled defaults to true on a bare object initializer,
+        // and Ok_Click is not the action responsible for changing this flag, only
+        // TurnOff_Click and TurnOn_Click are. Without this, every OK click silently reset
+        // Enabled to true regardless of the actual current state, a confirmed bug in the
+        // previous version of this file.
+        private readonly bool _initialEnabled;
+
         public OverheadSettings? ResultSettings { get; private set; }
 
-        // ✅ new flags for the command to act on
         public bool DisableRequested { get; private set; }
+        public bool EnableRequested { get; private set; }
         public bool SaveRequested { get; private set; }
 
         public OverheadConfigDialog(Autodesk.Revit.UI.UIApplication uiapp, OverheadSettings current, Document doc)
@@ -28,6 +36,8 @@ namespace BA.UI.Overhead
 
             var cur = current ?? OverheadSettings.Default();
             cur.Normalize();
+
+            _initialEnabled = cur.Enabled;
 
             _allCats = DefaultCategories();
             PopulateCategories(_allCats, cur.SelectedCategories);
@@ -40,6 +50,13 @@ namespace BA.UI.Overhead
 
             TinyThresholdBox.Text = (cur.TinyThresholdMm >= 0 ? cur.TinyThresholdMm : 50.0)
                 .ToString("F0", CultureInfo.InvariantCulture);
+
+            // Turning off something already off, or turning on something already on, is a
+            // no op in the services these buttons trigger. Disabling the inapplicable
+            // button rather than leaving both always clickable avoids presenting a control
+            // that silently does nothing when pressed.
+            TurnOffButton.IsEnabled = _initialEnabled;
+            TurnOnButton.IsEnabled = !_initialEnabled;
 
             SearchBox.TextChanged += SearchBox_TextChanged;
         }
@@ -54,7 +71,8 @@ namespace BA.UI.Overhead
                 SelectedCategories = GetSelectedFromUI(),
                 UseNextLevelAsTop = UseNextLevelRadio.IsChecked == true,
                 FallbackCutMm = cutMm > 0 ? cutMm : 1200.0,
-                TinyThresholdMm = tinyMm >= 0 ? tinyMm : 0.0
+                TinyThresholdMm = tinyMm >= 0 ? tinyMm : 0.0,
+                Enabled = _initialEnabled
             };
 
             ResultSettings.Normalize();
@@ -64,10 +82,19 @@ namespace BA.UI.Overhead
             Close();
         }
 
-        // ✅ This button now only requests disable; NO Revit API calls here
+        // This button only requests disable, no Revit API calls here, the command handles
+        // the actual transaction.
         private void TurnOff_Click(object sender, RoutedEventArgs e)
         {
             DisableRequested = true;
+            DialogResult = true;
+            Close();
+        }
+
+        // Symmetric to TurnOff_Click, only requests enable, no Revit API calls here.
+        private void TurnOn_Click(object sender, RoutedEventArgs e)
+        {
+            EnableRequested = true;
             DialogResult = true;
             Close();
         }

@@ -1,5 +1,8 @@
-﻿using System.Windows;
+﻿using BA.Resources;
+using System.IO;
+using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 
 namespace BA.UI.Views.Warnings
 {
@@ -18,6 +21,18 @@ namespace BA.UI.Views.Warnings
         public ImportCadWarningWindow()
         {
             InitializeComponent();
+            // In ImportCadWarningWindow constructor, after InitializeComponent():
+            string installRoot = BaResourcePaths.GetInstallRoot();
+            string photoPath = Path.Combine(installRoot, "Assets", "Images", "cad_warning.jpg");
+            if (File.Exists(photoPath))
+            {
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.UriSource = new Uri(photoPath, UriKind.Absolute);
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.EndInit();
+                WarningPhoto.Source = bmp;
+            }
         }
 
         private void UseLinkCad_Click(object sender, RoutedEventArgs e)

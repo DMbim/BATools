@@ -23,8 +23,14 @@ namespace BA.BAApplication
         public const string CopyP32 = "/BA;component/Application/Resources/Icons32/CopyP32.png";
         public const string Copy16 = "/BA;component/Application/Resources/Icons16/Copy16.png";
         public const string Copy32 = "/BA;component/Application/Resources/Icons32/Copy32.png";
+        public const string Standards16 = "/BA;component/Application/Resources/Icons16/Standards16.png";
+        public const string Standards32 = "/BA;component/Application/Resources/Icons32/Standards32.png";
+        public const string ColourPalette16 = "/BA;component/Application/Resources/Icons16/ColourPalette16.png";
+        public const string ColourPalette32 = "/BA;component/Application/Resources/Icons32/ColourPalette32.png";
+        //BIM
 
-
+        public const string BIM16 = "/BA;component/Application/Resources/Icons16/BIM16.png";
+        public const string BIM32 = "/BA;component/Application/Resources/Icons32/BIM32.png";
 
 
         // ── Views ────────────────────────────────────────────────────────────────
@@ -40,6 +46,9 @@ namespace BA.BAApplication
         public const string Sbox32 = "/BA;component/Application/Resources/Icons32/SB32.png";
         public const string SubCat16 = "/BA;component/Application/Resources/Icons16/Sub16.png";
         public const string SubCat32 = "/BA;component/Application/Resources/Icons32/Sub32.png";
+        public const string Markup16 = "/BA;component/Application/Resources/Icons16/Markup16.png";
+        public const string Markup32 = "/BA;component/Application/Resources/Icons32/Markup32.png"; 
+
 
         // ── Rooms ────────────────────────────────────────────────────────────────
         public const string ElementToRoom16 = "/BA;component/Application/Resources/Icons16/ElementToRoom16.png";
@@ -114,9 +123,14 @@ namespace BA.BAApplication
         public const string ManageIssues_32 = "/BA;component/Application/Resources/Icons32/ManageIssues_32.png";
         public const string Issues_16 = "/BA;component/Application/Resources/Icons16/Issues_16.png";
         public const string Issues_32 = "/BA;component/Application/Resources/Icons32/Issues_32.png";
-
-
-
+        public const string RevPar16 = "/BA;component/Application/Resources/Icons16/RevPar16.png";
+        public const string RevPar32 = "/BA;component/Application/Resources/Icons32/RevPar32.png";
+        public const string SettingsP16 = "/BA;component/Application/Resources/Icons16/SettingsP16.png";
+        public const string SettingsP32 = "/BA;component/Application/Resources/Icons32/SettingsP32.png";
+        public const string ClearOverrides16 = "/BA;component/Application/Resources/Icons16/ClearOverrides16.png";
+        public const string ClearOverrides32 = "/BA;component/Application/Resources/Icons32/ClearOverrides32.png";
+        public const string UnhideAllElements16 = "/BA;component/Application/Resources/Icons16/UnhideAllElements16.png";
+        public const string UnhideAllElements32 = "/BA;component/Application/Resources/Icons32/UnhideAllElements32.png";
 
         public const string SubCatSK16 = "/BA;component/Application/Resources/Icons16/SubCatSK16.png";
         public const string SubCatSK32 = "/BA;component/Application/Resources/Icons32/SubCatSK32.png";

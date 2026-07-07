@@ -63,10 +63,21 @@
                         </DockPanel>
                     </StackPanel>
                 </GroupBox>
-                <GroupBox Header="Turn off Overhead lines&#xD;&#xA;">
+                <GroupBox Header="Overhead Enable / Disable&#xD;&#xA;">
                     <StackPanel Margin="8">
                         <DockPanel>
-                            <Button Content="Apply to all views" Width="120" Margin="10,0,0,0" Background="Black" Foreground="White" BorderBrush="#FFFFDCDC" Click="TurnOff_Click"/>
+                            <Button x:Name="TurnOffButton"
+                                    Content="Turn off Overhead lines"
+                                    Width="150" Margin="0,0,0,6"
+                                    Background="Black" Foreground="White" BorderBrush="#FFFFDCDC"
+                                    Click="TurnOff_Click"/>
+                        </DockPanel>
+                        <DockPanel>
+                            <Button x:Name="TurnOnButton"
+                                    Content="Turn on Overhead lines"
+                                    Width="150"
+                                    Background="Black" Foreground="White" BorderBrush="#FFFFDCDC"
+                                    Click="TurnOn_Click"/>
                         </DockPanel>
                     </StackPanel>
                 </GroupBox>

@@ -1,0 +1,112 @@
+﻿<!-- BA/Markup/Views/MarkupWindow.xaml -->
+<Window
+    x:Class="BA.Markup.Views.MarkupWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:viewmodels="clr-namespace:BA.Markup.ViewModels" d:DataContext="{d:DesignInstance Type=viewmodels:MarkupViewModel}"
+    mc:Ignorable="d"
+    Title="BA Markup"
+    Width="420"
+    SizeToContent="Height"
+    ResizeMode="NoResize"
+    WindowStartupLocation="CenterOwner"
+    Style="{StaticResource {x:Type Window}}">
+
+    <Window.Resources>
+        <!-- <- CHANGED: explicit ResourceDictionary wrapper required for MergedDictionaries
+             to resolve at design time. Without it the XAML designer cannot walk the merge
+             chain and reports all keys as unresolved. Runtime was working by accident because
+             the parser is more lenient there. -->
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <StackPanel Margin="16">
+
+        <!-- MODE -->
+        <TextBlock Text="Markup Mode" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+            <RadioButton Content="Internal Comment"
+                         IsChecked="{Binding IsInternalMode}"
+                         Margin="0,0,16,0"/>
+            <RadioButton Content="Official Revision"
+                         IsChecked="{Binding IsOfficialMode}"/>
+        </StackPanel>
+
+        <!-- BA_TYPE -->
+        <TextBlock Text="Type (BA_Type)" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <ComboBox ItemsSource="{Binding TypeOptions}"
+                  SelectedItem="{Binding SelectedTypeOption}"
+                  Margin="0,0,0,12"
+                  Style="{StaticResource BaDarkComboBox}"/>
+
+        <!-- BA_COMMENTS — action dropdown -->
+        <TextBlock Text="Action (BA_Comments)" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <ComboBox ItemsSource="{Binding ActionOptions}"
+                  SelectedItem="{Binding SelectedActionOption}"
+                  Margin="0,0,0,6"
+                  Style="{StaticResource BaDarkComboBox}"/>
+
+        <!-- BA_COMMENTS — free text -->
+        <TextBlock Text="Additional comment" Margin="0,0,0,4"/>
+        <TextBox Text="{Binding CommentFreeText, UpdateSourceTrigger=PropertyChanged}"
+                 AcceptsReturn="False"
+                 MaxLength="500"
+                 Margin="0,0,0,12"
+                 Style="{StaticResource BaTextBox}"/>
+
+        <!-- AUTHOR -->
+        <TextBlock Text="Author (BA_Markup_Author)" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <TextBox Text="{Binding BaAuthor, UpdateSourceTrigger=PropertyChanged}"
+                 Margin="0,0,0,12"
+                 Style="{StaticResource BaTextBox}"/>
+
+        <!-- DATE -->
+        <TextBlock Text="Date (BA_Markup_Date)" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <TextBox Text="{Binding BaDate, UpdateSourceTrigger=PropertyChanged}"
+                 Margin="0,0,0,12"
+                 Style="{StaticResource BaTextBox}"/>
+
+        <!-- REVISION — only in Official mode -->
+        <StackPanel Visibility="{Binding IsOfficialMode, Converter={StaticResource BoolToVis}}"
+                    Margin="0,0,0,12">
+            <TextBlock Text="Revision" FontWeight="SemiBold" Margin="0,0,0,4"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <ComboBox Grid.Column="0"
+                          ItemsSource="{Binding Revisions}"
+                          SelectedItem="{Binding SelectedRevision}"
+                          DisplayMemberPath="DisplayName"
+                          Style="{StaticResource BaDarkComboBox}"
+                          Margin="0,0,6,0"/>
+                <Button Grid.Column="1"
+                        Content="Refresh"
+                        Command="{Binding RefreshRevisionsCommand}"
+                        Style="{StaticResource BaSecondaryButton}"
+                        Width="70"/>
+            </Grid>
+        </StackPanel>
+
+        <!-- BUTTONS -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button Content="Cancel"
+                    Command="{Binding CancelCommand}"
+                    Style="{StaticResource BaSecondaryButton}"
+                    Width="80"
+                    Margin="0,0,8,0"/>
+            <Button Content="Pick Area"
+                    Command="{Binding ConfirmCommand}"
+                    Style="{StaticResource BaPrimaryButton}"
+                    Width="90"/>
+        </StackPanel>
+
+    </StackPanel>
+</Window>

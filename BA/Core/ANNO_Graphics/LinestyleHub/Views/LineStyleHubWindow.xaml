@@ -1,0 +1,397 @@
+﻿<Window x:Class="BA.UI.LineStyleHub.LineStyleHubWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="BA · Line Style Manager"
+        Width="1200" Height="740"
+        WindowStartupLocation="CenterOwner"
+        Background="#0A0A0A"
+        Foreground="White"
+        FontFamily="Segoe UI"
+        ResizeMode="CanResize">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- ── Shell palette ── -->
+            <SolidColorBrush x:Key="ShellBg"       Color="#0A0A0A"/>
+            <SolidColorBrush x:Key="PanelBg"        Color="#111214"/>
+            <SolidColorBrush x:Key="PanelBg2"       Color="#14151A"/>
+            <SolidColorBrush x:Key="ShellBorder"    Color="#2A2A2C"/>
+            <SolidColorBrush x:Key="ShellTextDim"   Color="#B8B8B8"/>
+
+            <!-- ── Grid palette (light sheet) ── -->
+            <SolidColorBrush x:Key="GridBg"         Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="GridAltBg"      Color="#F4F5F7"/>
+            <SolidColorBrush x:Key="GridHeaderBg"   Color="#ECEEF2"/>
+            <SolidColorBrush x:Key="GridLine"       Color="#D5D7DD"/>
+            <SolidColorBrush x:Key="GridText"       Color="#111111"/>
+            <SolidColorBrush x:Key="GridTextDim"    Color="#555555"/>
+            <SolidColorBrush x:Key="SelBg"          Color="#2A5A9E"/>
+            <SolidColorBrush x:Key="SelFg"          Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="HoverBg"        Color="#E6F0FF"/>
+            <SolidColorBrush x:Key="DeleteRedBg"    Color="#FFECEC"/>
+
+            <!-- ── Top bar controls ── -->
+            <Style x:Key="TopTextBoxStyle" TargetType="TextBox">
+                <Setter Property="Background"    Value="#0F0F12"/>
+                <Setter Property="Foreground"    Value="White"/>
+                <Setter Property="BorderBrush"   Value="{StaticResource ShellBorder}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding"       Value="10,6"/>
+                <Setter Property="CaretBrush"    Value="White"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+            </Style>
+
+            <Style x:Key="TopButtonStyle" TargetType="Button">
+                <Setter Property="Background"   Value="#1A1A1D"/>
+                <Setter Property="Foreground"   Value="White"/>
+                <Setter Property="BorderBrush"  Value="{StaticResource ShellBorder}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding"      Value="14,7"/>
+                <Setter Property="Cursor"       Value="Hand"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="6">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#23232A"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter Property="Background" Value="#2B2B34"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.6"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="TopCheckBoxStyle" TargetType="CheckBox">
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+            </Style>
+
+            <!-- ── DataGrid ── -->
+            <Style x:Key="LightDataGridStyle" TargetType="DataGrid">
+                <Setter Property="Background"               Value="{StaticResource GridBg}"/>
+                <Setter Property="Foreground"               Value="{StaticResource GridText}"/>
+                <Setter Property="RowBackground"            Value="{StaticResource GridBg}"/>
+                <Setter Property="AlternatingRowBackground" Value="{StaticResource GridAltBg}"/>
+                <Setter Property="GridLinesVisibility"      Value="All"/>
+                <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource GridLine}"/>
+                <Setter Property="VerticalGridLinesBrush"   Value="{StaticResource GridLine}"/>
+                <Setter Property="BorderThickness"          Value="0"/>
+                <Setter Property="RowHeaderWidth"           Value="0"/>
+                <Setter Property="HeadersVisibility"        Value="Column"/>
+                <Setter Property="SelectionUnit"            Value="FullRow"/>
+                <Setter Property="SelectionMode"            Value="Extended"/>
+                <Setter Property="AlternationCount"         Value="2"/>
+                <Setter Property="RowHeight"                Value="30"/>
+                <Setter Property="EnableRowVirtualization"  Value="True"/>
+                <Setter Property="EnableColumnVirtualization" Value="True"/>
+                <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+                <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+                <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+            </Style>
+
+            <Style x:Key="LightColumnHeaderStyle" TargetType="DataGridColumnHeader">
+                <Setter Property="Background"               Value="{StaticResource GridHeaderBg}"/>
+                <Setter Property="Foreground"               Value="{StaticResource GridTextDim}"/>
+                <Setter Property="BorderBrush"              Value="{StaticResource GridLine}"/>
+                <Setter Property="BorderThickness"          Value="0,0,0,1"/>
+                <Setter Property="Padding"                  Value="10,6"/>
+                <Setter Property="FontWeight"               Value="SemiBold"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+
+            <!-- Replace the existing LightRowStyle entirely -->
+            <Style x:Key="LightRowStyle" TargetType="DataGridRow">
+                <Setter Property="Background"          Value="{StaticResource GridBg}"/>
+                <Setter Property="Foreground"          Value="{StaticResource GridText}"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsMarkedForDelete}" Value="True">
+                        <Setter Property="Background" Value="{StaticResource DeleteRedBg}"/>
+                    </DataTrigger>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{StaticResource HoverBg}"/>
+                    </Trigger>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="{StaticResource SelBg}"/>
+                        <Setter Property="Foreground" Value="{StaticResource SelFg}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="LightCellStyle" TargetType="DataGridCell">
+                <Setter Property="Foreground"        Value="{StaticResource GridText}"/>
+                <Setter Property="Background"        Value="Transparent"/>
+                <Setter Property="Padding"           Value="10,4"/>
+                <Setter Property="FocusVisualStyle"  Value="{x:Null}"/>
+                <Setter Property="BorderThickness"   Value="0"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Foreground"  Value="{StaticResource SelFg}"/>
+                        <Setter Property="Background"  Value="{StaticResource SelBg}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- Replace the existing GridTextBlockStyle entirely -->
+            <Style x:Key="GridTextBlockStyle" TargetType="TextBlock">
+                <Setter Property="Foreground"        Value="{StaticResource GridText}"/>
+                <Setter Property="TextWrapping"      Value="NoWrap"/>
+                <Setter Property="TextTrimming"      Value="CharacterEllipsis"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="Margin"            Value="8,0"/>
+            </Style>
+            <Style x:Key="GridEditTextBoxStyle" TargetType="TextBox">
+                <Setter Property="Foreground"     Value="{StaticResource GridText}"/>
+                <Setter Property="Background"     Value="#FFFFFF"/>
+                <Setter Property="BorderBrush"    Value="#9FB7DD"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding"        Value="6,3"/>
+                <Setter Property="CaretBrush"     Value="{StaticResource GridText}"/>
+            </Style>
+
+            <Style x:Key="GridCheckBoxStyle" TargetType="CheckBox">
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+                <Setter Property="VerticalAlignment"   Value="Center"/>
+                <Setter Property="Margin" Value="0"/>
+            </Style>
+
+
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <DockPanel Margin="12" Background="{StaticResource ShellBg}">
+
+        <!-- ===== Top bar ===== -->
+        <Border DockPanel.Dock="Top"
+                Background="{StaticResource PanelBg}"
+                BorderBrush="{StaticResource ShellBorder}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="10"
+                Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="280"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Text="Search:"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0"
+                           Foreground="{StaticResource ShellTextDim}"/>
+
+                <TextBox x:Name="TxtSearch"
+                         Grid.Column="1"
+                         Style="{StaticResource TopTextBoxStyle}"
+                         TextChanged="TxtSearch_TextChanged"/>
+
+                <CheckBox x:Name="ChkOnlyDirty"
+                          Grid.Column="2"
+                          Style="{StaticResource TopCheckBoxStyle}"
+                          Content="Only changed"
+                          VerticalAlignment="Center"
+                          Margin="12,0,12,0"
+                          Checked="ChkFilter_Changed"
+                          Unchecked="ChkFilter_Changed"/>
+
+                <Button Grid.Column="3"
+                        Style="{StaticResource TopButtonStyle}"
+                        Content="Reload"
+                        Width="100"
+                        Margin="0,0,8,0"
+                        Click="BtnReload_Click"/>
+
+                <Button Grid.Column="4"
+                        Style="{StaticResource TopButtonStyle}"
+                        Content="Apply changes"
+                        Width="140"
+                        Margin="0,0,8,0"
+                        Click="BtnApply_Click"/>
+
+                <Button Grid.Column="5"
+                        Style="{StaticResource TopButtonStyle}"
+                        Content="Reset"
+                        Width="90"
+                        Margin="0,0,8,0"
+                        Click="BtnReset_Click"
+                        ToolTip="Discard all unsaved changes"/>
+
+                <Button Grid.Column="6"
+                        Style="{StaticResource TopButtonStyle}"
+                        Content="Close"
+                        Width="90"
+                        Click="BtnClose_Click"/>
+            </Grid>
+        </Border>
+
+        <!-- ===== Grid area ===== -->
+        <Border Background="{StaticResource PanelBg2}"
+                BorderBrush="{StaticResource ShellBorder}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0"
+                        Background="{StaticResource GridBg}"
+                        BorderBrush="{StaticResource ShellBorder}"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="0">
+
+                    <DataGrid x:Name="GridStyles"
+                              Style="{StaticResource LightDataGridStyle}"
+                              ColumnHeaderStyle="{StaticResource LightColumnHeaderStyle}"
+                              RowStyle="{StaticResource LightRowStyle}"
+                              CellStyle="{StaticResource LightCellStyle}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              IsReadOnly="False">
+
+                        <DataGrid.Columns>
+
+                            <!-- Category (parent) -->
+                            <DataGridTextColumn Header="Category"
+                                                Binding="{Binding ParentCategoryName}"
+                                                IsReadOnly="True"
+                                                Width="150">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource GridTextBlockStyle}"/>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Style name — editable only if CanRename -->
+                            <DataGridTextColumn Header="Style name"
+                                                Binding="{Binding StyleName, UpdateSourceTrigger=PropertyChanged}"
+                                                IsReadOnly="{Binding IsNameReadOnly}"
+                                                Width="220">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource GridTextBlockStyle}"/>
+                                </DataGridTextColumn.ElementStyle>
+                                <DataGridTextColumn.EditingElementStyle>
+                                    <Style TargetType="TextBox" BasedOn="{StaticResource GridEditTextBoxStyle}"/>
+                                </DataGridTextColumn.EditingElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Color swatch + hex -->
+                            <DataGridTemplateColumn Header="Color" Width="160" IsReadOnly="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                            <Border Width="20" Height="16"
+                                                    CornerRadius="2"
+                                                    BorderBrush="#888" BorderThickness="1"
+                                                    Background="{Binding ColorBrush}"
+                                                    Cursor="Hand"
+                                                    MouseLeftButtonUp="ColorSwatch_Click"
+                                                    Tag="{Binding}"/>
+                                            <TextBlock Text="{Binding ColorHex}"
+                                                       Margin="6,0,0,0"
+                                                       VerticalAlignment="Center"
+                                                       Style="{StaticResource GridTextBlockStyle}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding ColorHex, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource GridEditTextBoxStyle}"
+                                                 ToolTip="Enter hex color e.g. #FF0000"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Line weight -->
+                            <DataGridTextColumn Header="Weight"
+                                                Binding="{Binding LineWeight, UpdateSourceTrigger=PropertyChanged}"
+                                                IsReadOnly="{Binding IsWeightReadOnly}"
+                                                Width="80">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource GridTextBlockStyle}"/>
+                                </DataGridTextColumn.ElementStyle>
+                                <DataGridTextColumn.EditingElementStyle>
+                                    <Style TargetType="TextBox" BasedOn="{StaticResource GridEditTextBoxStyle}"/>
+                                </DataGridTextColumn.EditingElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Line pattern dropdown -->
+                            <DataGridTemplateColumn Header="Pattern" Width="200" IsReadOnly="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding PatternName}"
+                                                   Style="{StaticResource GridTextBlockStyle}"
+                                                   Margin="8,0"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <!-- ItemsSource bound in code-behind via Tag on DataGrid -->
+                                        <ComboBox x:Name="CboPattern"
+                                                  ItemsSource="{Binding DataContext.PatternNames, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                  SelectedItem="{Binding PatternName, UpdateSourceTrigger=PropertyChanged}"
+                                                  IsEnabled="{Binding IsEditable}"
+                                                  Background="White"
+                                                  Foreground="{StaticResource GridText}"
+                                                  BorderBrush="#9FB7DD"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Editable flag -->
+                            <DataGridCheckBoxColumn Header="Editable"
+                                                    Binding="{Binding IsEditable}"
+                                                    IsReadOnly="True"
+                                                    Width="80"
+                                                    ElementStyle="{StaticResource GridCheckBoxStyle}"/>
+
+                            <!-- Delete flag -->
+                            <DataGridCheckBoxColumn Header="Delete"
+                                                    Binding="{Binding IsMarkedForDelete, UpdateSourceTrigger=PropertyChanged}"
+                                                    IsReadOnly="{Binding IsDeleteReadOnly}"
+                                                    Width="70"
+                                                    ElementStyle="{StaticResource GridCheckBoxStyle}"/>
+
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+
+                <TextBlock Grid.Row="1"
+                           x:Name="TxtStatus"
+                           Margin="6,10,6,2"
+                           Foreground="{StaticResource ShellTextDim}"
+                           Text="Ready."/>
+            </Grid>
+        </Border>
+    </DockPanel>
+</Window>

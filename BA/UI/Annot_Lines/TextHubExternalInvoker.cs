@@ -10,7 +10,7 @@ namespace BA.UI.TextHub.ExternalEvents
         private readonly ExternalEvent _exEvent;
         private readonly TextHubExternalHandler _handler;
 
-        public TextHubExternalInvoker(UIApplication uiApp)
+        public TextHubExternalInvoker(BA.UI.ExternalEvents.RevitExternalInvoker invoker, UIApplication uiApp)
         {
             _uiApp = uiApp ?? throw new ArgumentNullException(nameof(uiApp));
             _handler = new TextHubExternalHandler();

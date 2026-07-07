@@ -17,7 +17,7 @@ namespace BA.Core.Standards
         // NOTE: These can be negative (built-in) -> store long and reconstruct ElementId(int).
         public List<long> NonControlledTemplateParamIds { get; set; } = new();
 
-        // All view parameters
+        // All view parametersr
         public List<ViewParamSnapshot> Parameters { get; set; } = new();
 
         // Categories: key = CategoryId (can be negative!)

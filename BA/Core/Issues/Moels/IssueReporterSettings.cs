@@ -15,7 +15,7 @@ public class IssueReporterSettings
     public string TeamsWorkflowUrl { get; set; } = string.Empty;
 
     public string CsvExportFolderPath { get; set; } =
-        @"S:\CAD\Autodesk Revit\BA_Resources\BA_Issues\CSV";
+        @"S:\CAD\Autodesk Revit\_admin\BA_tools\BA_Issues\CSV";
 
     public List<string> ManagerUsers { get; set; } = new();
 }

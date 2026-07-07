@@ -32,6 +32,18 @@ namespace BA.Core
         private string _matchedShared = "";
         private double _matchScore;
 
+        // GUID of the shared parameter this row currently is, or is targeted to become.
+        // - For rows where IsShared == true, this is the GUID of the bound ExternalDefinition.
+        // - For rows where Preview match / favorites set TargetName to a shared definition,
+        //   this is the GUID of that matched ExternalDefinition (definition does not exist on
+        //   the FamilyParameter yet, only resolved against the SP file).
+        // Guid.Empty means "no shared definition resolved for this row".
+        private Guid _sharedGuid = Guid.Empty;
+
+        // Set true by the favorites panel when a favorited GUID could not be resolved
+        // against the currently loaded shared parameter file. Display-only.
+        private bool _isFavoriteStale;
+
         public string Name { get => _name; set { _name = value ?? ""; OnPropertyChanged(); RaiseDecisionChanged(); } }
         public string Spec { get => _spec; set { _spec = value ?? ""; OnPropertyChanged(); } }
         public bool IsShared { get => _isShared; set { _isShared = value; OnPropertyChanged(); } }
@@ -93,6 +105,37 @@ namespace BA.Core
                 _targetName = value ?? "";
                 OnPropertyChanged();
                 RaiseDecisionChanged();
+            }
+        }
+
+        /// <summary>
+        /// GUID of the shared parameter this row is bound to (IsShared == true) or is
+        /// targeted to become (TargetName resolves to a shared definition). Guid.Empty
+        /// if not applicable. Used as the stable key for favorites.
+        /// </summary>
+        public Guid SharedGuid
+        {
+            get => _sharedGuid;
+            set
+            {
+                if (_sharedGuid == value) return;
+                _sharedGuid = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// True if this row was populated from a favorite whose GUID could not be
+        /// resolved against the currently loaded shared parameter file.
+        /// </summary>
+        public bool IsFavoriteStale
+        {
+            get => _isFavoriteStale;
+            set
+            {
+                if (_isFavoriteStale == value) return;
+                _isFavoriteStale = value;
+                OnPropertyChanged();
             }
         }
 

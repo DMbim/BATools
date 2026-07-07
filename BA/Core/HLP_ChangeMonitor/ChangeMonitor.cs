@@ -23,9 +23,9 @@ namespace BA.Core
     public enum ChangeKind
     {
         Added,
-        Deleted,
+        Moved,
         Modified,
-        Moved
+        Deleted
     }
 
     public class ParamChange
@@ -37,8 +37,15 @@ namespace BA.Core
 
     public class ChangeRecord
     {
+        public Guid ActionId { get; set; }
         public DateTime When { get; set; }
-        public ChangeKind ChangeType { get; set; }
+
+        // Ordered, priority sorted list of change kinds that applied to this element
+        // within a single user action (Idling cycle).
+        public List<ChangeKind> ChangeTypes { get; } = new List<ChangeKind>();
+
+        public string ChangeTypeDisplay => string.Join(" + ", ChangeTypes);
+
         public ElementId ElementId { get; set; }
         public string Category { get; set; }
         public ElementId ViewId { get; set; } // may be null/invalid
@@ -62,17 +69,17 @@ namespace BA.Core
 
         public string GetSummaryText()
         {
-            int adds = Records.Count(r => r.ChangeType == ChangeKind.Added);
-            int dels = Records.Count(r => r.ChangeType == ChangeKind.Deleted);
-            int moved = Records.Count(r => r.ChangeType == ChangeKind.Moved);
-            int edited = Records.Count(r => r.ChangeType == ChangeKind.Modified);
+            int adds = Records.Count(r => r.ChangeTypes.Contains(ChangeKind.Added));
+            int dels = Records.Count(r => r.ChangeTypes.Contains(ChangeKind.Deleted));
+            int moved = Records.Count(r => r.ChangeTypes.Contains(ChangeKind.Moved));
+            int edited = Records.Count(r => r.ChangeTypes.Contains(ChangeKind.Modified));
 
             return
                 $"Added: {adds}\n" +
                 $"Deleted: {dels}\n" +
                 $"Moved: {moved}\n" +
                 $"Modified (parameters): {edited}\n" +
-                $"Total: {Records.Count}";
+                $"Total actions logged: {Records.Count}";
         }
     }
 
@@ -86,7 +93,7 @@ namespace BA.Core
         private static Document _doc;
 
         private static readonly Dictionary<ElementId, ElementSnapshot> _snapshots =
-            new Dictionary<ElementId, ElementSnapshot>();
+            new Dictionary<ElementId, ElementSnapshot>(new ElementIdEqualityComparer());
 
         private static readonly List<ChangeRecord> _records =
             new List<ChangeRecord>();
@@ -96,10 +103,33 @@ namespace BA.Core
         private static ElementId _currentViewId;
         private static string _currentViewName;
 
+        // Category names that are internal side effects of sketch mode and are never
+        // meaningful to a user reviewing a change log. Filtered at accumulation time.
+        private static readonly HashSet<string> _sketchNoiseCategories =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "<Sketch>",
+                "Automatic Sketch Dimensions",
+                "Work Plane Grid"
+            };
+
+        // Pending, unconsolidated changes for the action currently in progress.
+        // A "batch" spans from the first DocumentChanged after the previous flush
+        // up to the next Idling event, which is the real boundary of a user action.
+        private static readonly Dictionary<ElementId, PendingElementChange> _currentBatch =
+            new Dictionary<ElementId, PendingElementChange>(new ElementIdEqualityComparer());
+
+        private static Guid _batchActionId = Guid.Empty;
+        private static DateTime _batchStarted;
+        private static ElementId _batchViewId;
+        private static string _batchViewName;
+        private static string _batchUsername;
+        private static readonly HashSet<string> _batchTransactionNames = new HashSet<string>();
+
         public static bool IsRunning { get; private set; }
 
         /// <summary>
-        /// Raised when new records are appended (for live window).
+        /// Raised once per user action (on Idling), after consolidation and filtering.
         /// </summary>
         public static event Action<IReadOnlyList<ChangeRecord>> RecordsAppended;
 
@@ -114,6 +144,9 @@ namespace BA.Core
             {
                 _records.Clear();
                 _snapshots.Clear();
+                _currentBatch.Clear();
+                _batchActionId = Guid.Empty;
+                _batchTransactionNames.Clear();
             }
 
             SeedInitialSnapshots(_doc);
@@ -123,6 +156,7 @@ namespace BA.Core
             _currentViewName = av?.Name;
 
             _uiApp.ViewActivated += UiApp_ViewActivated;
+            _uiApp.Idling += UiApp_Idling;
             _doc.Application.DocumentChanged += Application_DocumentChanged;
 
             IsRunning = true;
@@ -132,8 +166,14 @@ namespace BA.Core
         {
             if (!IsRunning) return null;
 
+            // Flush whatever action is still pending so it is not lost.
+            FinalizeBatch();
+
             if (_uiApp != null)
+            {
                 _uiApp.ViewActivated -= UiApp_ViewActivated;
+                _uiApp.Idling -= UiApp_Idling;
+            }
 
             if (_doc?.Application != null)
                 _doc.Application.DocumentChanged -= Application_DocumentChanged;
@@ -168,54 +208,53 @@ namespace BA.Core
             }
         }
 
+        private static void UiApp_Idling(object sender, IdlingEventArgs e)
+        {
+            if (!IsRunning) return;
+            FinalizeBatch();
+        }
+
         private static void Application_DocumentChanged(object sender, DocumentChangedEventArgs e)
         {
             if (!IsRunning) return;
 
             var doc = e.GetDocument();
-            var appended = new List<ChangeRecord>();
 
-            // per-event context
-            string username = SafeUsername();
-            string txn = "";
-
-            try
+            lock (_lock)
             {
-                var names = e.GetTransactionNames();
-                if (names != null && names.Count > 0)
-                    txn = string.Join(" | ", names);
-            }
-            catch { /* ignore */ }
-
-            // Adds
-            foreach (var id in e.GetAddedElementIds())
-            {
-                var rec = TryRecordAdd(doc, id, username, txn);
-                if (rec != null) appended.Add(rec);
-            }
-
-            // Deletes
-            foreach (var id in e.GetDeletedElementIds())
-            {
-                var rec = TryRecordDelete(id, username, txn);
-                if (rec != null) appended.Add(rec);
-                _snapshots.Remove(id);
-            }
-
-            // Modifies / moves
-            foreach (var id in e.GetModifiedElementIds())
-            {
-                var recs = TryRecordModifyOrMove(doc, id, username, txn);
-                if (recs != null && recs.Count > 0) appended.AddRange(recs);
-            }
-
-            if (appended.Count > 0)
-            {
-                lock (_lock)
+                if (_currentBatch.Count == 0 && _batchActionId == Guid.Empty)
                 {
-                    _records.AddRange(appended);
+                    _batchActionId = Guid.NewGuid();
+                    _batchStarted = DateTime.Now;
+                    _batchViewId = _currentViewId;
+                    _batchViewName = _currentViewName;
+                    _batchUsername = SafeUsername();
+                    _batchTransactionNames.Clear();
                 }
-                RecordsAppended?.Invoke(appended.AsReadOnly());
+
+                try
+                {
+                    var names = e.GetTransactionNames();
+                    if (names != null)
+                    {
+                        foreach (var n in names)
+                            if (!string.IsNullOrWhiteSpace(n))
+                                _batchTransactionNames.Add(n);
+                    }
+                }
+                catch { /* ignore */ }
+
+                foreach (var id in e.GetAddedElementIds())
+                    AccumulateAdd(doc, id);
+
+                foreach (var id in e.GetDeletedElementIds())
+                {
+                    AccumulateDelete(id);
+                    _snapshots.Remove(id);
+                }
+
+                foreach (var id in e.GetModifiedElementIds())
+                    AccumulateModifyOrMove(doc, id);
             }
         }
 
@@ -228,7 +267,6 @@ namespace BA.Core
             }
             catch { /* ignore */ }
 
-            // Fallback to Windows username
             return Environment.UserName;
         }
 
@@ -253,136 +291,250 @@ namespace BA.Core
             catch { return null; }
         }
 
-        private static ChangeRecord TryRecordAdd(Document doc, ElementId id, string user, string txn)
+        private static bool IsSketchNoise(string categoryName)
+        {
+            return categoryName != null && _sketchNoiseCategories.Contains(categoryName);
+        }
+
+        private static void AccumulateAdd(Document doc, ElementId id)
         {
             try
             {
                 var el = doc.GetElement(id);
-                if (el == null || el.Category == null) return null;
+                if (el == null || el.Category == null) return;
 
-                var rec = new ChangeRecord
+                var categoryName = el.Category.Name;
+                if (IsSketchNoise(categoryName)) return;
+
+                if (!_currentBatch.TryGetValue(id, out var pending))
                 {
-                    When = DateTime.Now,
-                    ChangeType = ChangeKind.Added,
-                    ElementId = id,
-                    Category = el.Category?.Name,
-                    ViewId = _currentViewId,
-                    ViewName = _currentViewName,
-                    Username = user,
-                    TransactionNames = txn
-                };
+                    pending = new PendingElementChange
+                    {
+                        ElementId = id,
+                        Category = categoryName,
+                        FirstSeen = DateTime.Now
+                    };
+                    _currentBatch[id] = pending;
+                }
+
+                pending.WasAdded = true;
+                pending.Category = categoryName;
 
                 var snap = SafeSnapshot(doc, el);
                 if (snap != null)
                     _snapshots[id] = snap;
-
-                return rec;
             }
-            catch
-            {
-                return null;
-            }
+            catch { /* ignore */ }
         }
 
-        private static ChangeRecord TryRecordDelete(ElementId id, string user, string txn)
+        private static void AccumulateDelete(ElementId id)
         {
             try
             {
-                return new ChangeRecord
+                if (_currentBatch.TryGetValue(id, out var pending))
                 {
-                    When = DateTime.Now,
-                    ChangeType = ChangeKind.Deleted,
+                    // Element was added earlier in this same action and is now gone.
+                    // Net effect for the user is nothing, mark for drop at flush time.
+                    pending.WasDeleted = true;
+                    return;
+                }
+
+                _currentBatch[id] = new PendingElementChange
+                {
                     ElementId = id,
                     Category = "(deleted)",
-                    ViewId = _currentViewId,
-                    ViewName = _currentViewName,
-                    Username = user,
-                    TransactionNames = txn
+                    FirstSeen = DateTime.Now,
+                    WasDeleted = true
                 };
             }
-            catch
-            {
-                return null;
-            }
+            catch { /* ignore */ }
         }
 
-        private static List<ChangeRecord> TryRecordModifyOrMove(
-            Document doc,
-            ElementId id,
-            string user,
-            string txn)
+        private static void AccumulateModifyOrMove(Document doc, ElementId id)
         {
-            var outList = new List<ChangeRecord>();
-
             try
             {
                 var el = doc.GetElement(id);
-                if (el == null || el.Category == null) return outList;
+                if (el == null || el.Category == null) return;
+
+                var categoryName = el.Category.Name;
+                if (IsSketchNoise(categoryName)) return;
 
                 if (!_snapshots.TryGetValue(id, out var before))
                 {
                     var seeded = SafeSnapshot(doc, el);
                     if (seeded != null) _snapshots[id] = seeded;
 
-                    outList.Add(new ChangeRecord
+                    if (!_currentBatch.TryGetValue(id, out var freshPending))
                     {
-                        When = DateTime.Now,
-                        ChangeType = ChangeKind.Modified,
-                        ElementId = id,
-                        Category = el.Category?.Name,
-                        ViewId = _currentViewId,
-                        ViewName = _currentViewName,
-                        Username = user,
-                        TransactionNames = txn
-                    });
-                    return outList;
+                        freshPending = new PendingElementChange
+                        {
+                            ElementId = id,
+                            Category = categoryName,
+                            FirstSeen = DateTime.Now
+                        };
+                        _currentBatch[id] = freshPending;
+                    }
+
+                    freshPending.WasModified = true;
+                    freshPending.Category = categoryName;
+                    return;
                 }
 
                 bool moved = !before.LocationEquals(el);
                 var diffs = before.DiffParams(doc, el).ToList();
 
-                if (moved)
+                if (moved || diffs.Count > 0)
                 {
-                    outList.Add(new ChangeRecord
+                    if (!_currentBatch.TryGetValue(id, out var pending))
                     {
-                        When = DateTime.Now,
-                        ChangeType = ChangeKind.Moved,
-                        ElementId = id,
-                        Category = el.Category?.Name,
-                        ViewId = _currentViewId,
-                        ViewName = _currentViewName,
-                        Username = user,
-                        TransactionNames = txn
-                    });
-                }
+                        pending = new PendingElementChange
+                        {
+                            ElementId = id,
+                            Category = categoryName,
+                            FirstSeen = DateTime.Now
+                        };
+                        _currentBatch[id] = pending;
+                    }
 
-                if (diffs.Count > 0)
-                {
-                    var rec = new ChangeRecord
+                    pending.Category = categoryName;
+
+                    if (moved)
+                        pending.WasMoved = true;
+
+                    if (diffs.Count > 0)
                     {
-                        When = DateTime.Now,
-                        ChangeType = ChangeKind.Modified,
-                        ElementId = id,
-                        Category = el.Category?.Name,
-                        ViewId = _currentViewId,
-                        ViewName = _currentViewName,
-                        Username = user,
-                        TransactionNames = txn
-                    };
-                    rec.ParameterChanges.AddRange(diffs);
-                    outList.Add(rec);
+                        pending.WasModified = true;
+                        foreach (var d in diffs)
+                        {
+                            if (pending.ParamMerges.TryGetValue(d.ParamName, out var existing))
+                            {
+                                // keep earliest OldValue, advance NewValue
+                                existing.NewValue = d.NewValue;
+                            }
+                            else
+                            {
+                                pending.ParamMerges[d.ParamName] = new ParamChange
+                                {
+                                    ParamName = d.ParamName,
+                                    OldValue = d.OldValue,
+                                    NewValue = d.NewValue
+                                };
+                            }
+                        }
+                    }
                 }
 
                 var after = SafeSnapshot(doc, el);
                 if (after != null)
                     _snapshots[id] = after;
+            }
+            catch { /* ignore */ }
+        }
 
-                return outList;
-            }
-            catch
+        private static void FinalizeBatch()
+        {
+            List<ChangeRecord> toAppend;
+
+            lock (_lock)
             {
-                return outList;
+                if (_currentBatch.Count == 0)
+                {
+                    _batchActionId = Guid.Empty;
+                    return;
+                }
+
+                toAppend = _currentBatch.Values
+                    .OrderBy(p => p.FirstSeen)
+                    .Select(BuildChangeRecord)
+                    .Where(r => r != null)
+                    .ToList();
+
+                _currentBatch.Clear();
+                _batchActionId = Guid.Empty;
+                _batchTransactionNames.Clear();
             }
+
+            if (toAppend.Count == 0) return;
+
+            lock (_lock)
+            {
+                _records.AddRange(toAppend);
+            }
+
+            RecordsAppended?.Invoke(toAppend.AsReadOnly());
+        }
+
+        private static ChangeRecord BuildChangeRecord(PendingElementChange p)
+        {
+            // Added then deleted within the same action nets to zero, this is how
+            // sketch mode temp curves and similar internal artifacts get dropped
+            // without needing a category blacklist for them.
+            if (p.WasAdded && p.WasDeleted)
+                return null;
+
+            // Drop parameter entries that round tripped back to their original value
+            // within this action, they are not a real change from the user's view.
+            var finalParamChanges = p.ParamMerges.Values
+                .Where(pc => !StringEqualsLoose(pc.OldValue, pc.NewValue))
+                .ToList();
+
+            var kinds = new List<ChangeKind>();
+
+            if (p.WasDeleted)
+            {
+                kinds.Add(ChangeKind.Deleted);
+            }
+            else
+            {
+                if (p.WasAdded) kinds.Add(ChangeKind.Added);
+                if (p.WasMoved) kinds.Add(ChangeKind.Moved);
+                if (p.WasModified && finalParamChanges.Count > 0) kinds.Add(ChangeKind.Modified);
+            }
+
+            if (kinds.Count == 0)
+                return null;
+
+            var rec = new ChangeRecord
+            {
+                ActionId = _batchActionId,
+                When = _batchStarted,
+                ElementId = p.ElementId,
+                Category = p.Category,
+                ViewId = _batchViewId,
+                ViewName = _batchViewName,
+                Username = _batchUsername,
+                TransactionNames = _batchTransactionNames.Count > 0
+                    ? string.Join(" | ", _batchTransactionNames)
+                    : null
+            };
+
+            rec.ChangeTypes.AddRange(kinds);
+
+            if (!p.WasDeleted)
+                rec.ParameterChanges.AddRange(finalParamChanges);
+
+            return rec;
+        }
+
+        private static bool StringEqualsLoose(string a, string b)
+        {
+            if (a == null && b == null) return true;
+            if (a == null || b == null) return false;
+            return a.Trim().Equals(b.Trim(), StringComparison.Ordinal);
+        }
+
+        private class PendingElementChange
+        {
+            public ElementId ElementId;
+            public string Category;
+            public bool WasAdded;
+            public bool WasDeleted;
+            public bool WasMoved;
+            public bool WasModified;
+            public DateTime FirstSeen;
+            public readonly Dictionary<string, ParamChange> ParamMerges =
+                new Dictionary<string, ParamChange>(StringComparer.OrdinalIgnoreCase);
         }
     }
 
@@ -497,7 +649,7 @@ namespace BA.Core
                 if (!now.TryGetValue(kv.Key, out var newVal))
                     continue;
 
-                if (!StringEqualsLoose(kv.Value, newVal))
+                if (!StringEqualsLooseStatic(kv.Value, newVal))
                 {
                     yield return new ParamChange
                     {
@@ -509,7 +661,7 @@ namespace BA.Core
             }
         }
 
-        private static bool StringEqualsLoose(string a, string b)
+        private static bool StringEqualsLooseStatic(string a, string b)
         {
             if (a == null && b == null) return true;
             if (a == null || b == null) return false;
@@ -531,7 +683,7 @@ namespace BA.Core
             var doc = report.Document;
 
             var byView = report.Records
-                .Where(r => r.ChangeType != ChangeKind.Deleted)
+                .Where(r => !r.ChangeTypes.Contains(ChangeKind.Deleted))
                 .Where(r => r.ViewId != null && r.ViewId != ElementId.InvalidElementId)
                 .GroupBy(r => r.ViewId, new ElementIdEqualityComparer());
 
@@ -601,7 +753,7 @@ namespace BA.Core
                 t.Start();
 
                 var changed = report.Records
-                    .Where(r => r.ChangeType != ChangeKind.Deleted)
+                    .Where(r => !r.ChangeTypes.Contains(ChangeKind.Deleted))
                     .Select(r => r.ElementId)
                     .Distinct(new ElementIdEqualityComparer())
                     .ToList();
@@ -624,7 +776,6 @@ namespace BA.Core
 
                     try
                     {
-                        // Yes/No in Revit is integer 0/1
                         p.Set(1);
                         anyTagged = true;
                     }
@@ -691,7 +842,7 @@ namespace BA.Core
                 var ogs = new OverrideGraphicSettings();
                 ogs.SetProjectionLineColor(red);
                 ogs.SetSurfaceForegroundPatternColor(red);
-                ogs.SetSurfaceForegroundPatternId(new ElementId(1)); // Solid fill (assuming id 1 is valid)
+                ogs.SetSurfaceForegroundPatternId(new ElementId(1)); // Solid fill
 
                 var viewIds = report.Records
                     .Where(r => r.ViewId != null && r.ViewId != ElementId.InvalidElementId)
@@ -712,7 +863,7 @@ namespace BA.Core
             }
             catch
             {
-                // soft-fail; parameter might not be bound everywhere
+                // soft fail, parameter might not be bound everywhere
             }
         }
 

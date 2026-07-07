@@ -105,7 +105,7 @@ public partial class ManageIssuesWindow : Window
 
             if (string.IsNullOrWhiteSpace(exportFolder))
             {
-                exportFolder = @"S:\CAD\Autodesk Revit\BA_Resources\BA_Issues\CSV";
+                exportFolder = @"S:\CAD\Autodesk Revit\_admin\BA_tools\BA_Issues\CSV";
             }
 
             Directory.CreateDirectory(exportFolder);

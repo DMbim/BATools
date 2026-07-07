@@ -2,7 +2,6 @@
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using System;
-using System.Linq;
 using System.Windows;
 using BA.UI.KeyplanGrid;
 
@@ -23,25 +22,28 @@ namespace BA.KeyplanGrid
                 UIDocument uiDoc = uiApp.ActiveUIDocument;
                 Document doc = uiDoc.Document;
 
-                View sourceView = KeyplanViewService.FindViewByName(doc, "X.NP_Keyplan") ?? doc.ActiveView;
-                if (sourceView == null)
+                KeyplanLevelPickerWindow levelPicker = new KeyplanLevelPickerWindow(doc)
                 {
-                    TaskDialog.Show("Keyplan Grid", "No source view was found.");
-                    return Result.Cancelled;
-                }
+                    WindowStartupLocation = WindowStartupLocation.CenterScreen
+                };
 
-                CurveLoop outerLoop = KeyplanAreaSourceService.GetLargestOuterLoopFromView(doc, sourceView);
+                bool? pickerResult = levelPicker.ShowDialog();
+
+                if (pickerResult != true || levelPicker.SelectedOption == null)
+                    return Result.Cancelled;
+
+                KeyplanLevelOption selected = levelPicker.SelectedOption;
+
+                CurveLoop outerLoop = selected.OuterLoop;
                 if (outerLoop == null)
                 {
-                    TaskDialog.Show(
-                        "Keyplan Grid",
-                        "No valid rentable area boundary loop was found.\n\n" +
-                        "Open the rentable area plan and make sure at least one real Area element exists.");
+                    // Should not happen — picker only allows IsReady options — but guard anyway.
+                    TaskDialog.Show("Keyplan Grid", "Selected level has no resolvable area boundary.");
                     return Result.Cancelled;
                 }
 
                 KeyplanGridViewModel vm = KeyplanGridViewModel.CreateDefault();
-                vm.SourceViewName = sourceView.Name;
+                vm.SourceViewName = selected.SourceView?.Name ?? string.Empty;
                 vm.LoadInitialPreview(outerLoop);
 
                 KeyplanGridWindow window = new KeyplanGridWindow(doc, vm)
@@ -61,7 +63,7 @@ namespace BA.KeyplanGrid
             catch (Exception ex)
             {
                 message = ex.ToString();
-                TaskDialog.Show("Keyplan Grid - Error", ex.ToString());
+                Autodesk.Revit.UI.TaskDialog.Show("Keyplan Grid - Error", ex.ToString());
                 return Result.Failed;
             }
         }

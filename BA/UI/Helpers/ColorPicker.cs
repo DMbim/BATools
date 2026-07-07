@@ -1,4 +1,5 @@
-﻿// File: BA.UI/Helpers/ColorPicker.cs
+﻿using System.Diagnostics;
+using System.Windows.Forms;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
 
@@ -6,43 +7,38 @@ namespace BA.UI.Helpers
 {
     public static class ColorPicker
     {
-        // simple placeholder (no dependencies). Replace with real picker later.
-        public static bool TryPickWpfColor(System.Windows.Media.Color initial, out System.Windows.Media.Color picked)
-        {
-            var options = new[]
-            {
-                System.Windows.Media.Color.FromRgb(20,20,20),
-                System.Windows.Media.Color.FromRgb(70,70,70),
-                System.Windows.Media.Color.FromRgb(120,120,120),
-                System.Windows.Media.Color.FromRgb(160,160,160),
-                System.Windows.Media.Color.FromRgb(200,200,200),
-                System.Windows.Media.Color.FromRgb(235,235,235),
-            };
-
-            int idx = 0;
-            for (int i = 0; i < options.Length; i++)
-            {
-                if (options[i].R == initial.R && options[i].G == initial.G && options[i].B == initial.B)
-                {
-                    idx = (i + 1) % options.Length;
-                    break;
-                }
-            }
-
-            picked = options[idx];
-            return true;
-        }
-
         public static bool TryPickColor(System.Windows.Media.Color initial, out System.Windows.Media.Color picked)
         {
-            // Placeholder implementation for color picking logic
-            picked = initial;
-            return true;
+            using (var dialog = new ColorDialog())
+            {
+                dialog.Color = System.Drawing.Color.FromArgb(initial.A, initial.R, initial.G, initial.B);
+                dialog.FullOpen = true;
+                dialog.AnyColor = true;
+                dialog.SolidColorOnly = true;
+
+                var owner = new RevitMainWindowHandle();
+                var result = dialog.ShowDialog(owner);
+
+                if (result == DialogResult.OK)
+                {
+                    var c = dialog.Color;
+                    picked = System.Windows.Media.Color.FromArgb(c.A, c.R, c.G, c.B);
+                    return true;
+                }
+
+                picked = initial;
+                return false;
+            }
         }
 
         public static Autodesk.Revit.DB.Color ConvertToRevitColor(System.Windows.Media.Color color)
         {
             return new Autodesk.Revit.DB.Color(color.R, color.G, color.B);
+        }
+
+        private sealed class RevitMainWindowHandle : IWin32Window
+        {
+            public System.IntPtr Handle => Process.GetCurrentProcess().MainWindowHandle;
         }
     }
 }

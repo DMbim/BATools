@@ -24,6 +24,39 @@ using TextBox = System.Windows.Controls.TextBox;
 
 namespace BA.UI
 {
+    /// <summary>
+    /// ViewModel for a single entry in the favorites panel ItemsControl.
+    /// </summary>
+    public sealed class FavoriteVm : INotifyPropertyChanged
+    {
+        public Guid Guid { get; set; }
+
+        private bool _isChecked;
+        public bool IsChecked
+        {
+            get => _isChecked;
+            set { if (_isChecked == value) return; _isChecked = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Current name resolved from the SP file, or LastKnownName + " (stale)" if not resolvable.
+        /// </summary>
+        public string DisplayName { get; set; } = "";
+
+        /// <summary>
+        /// Secondary info line: spec, instance/type, and stale marker.
+        /// </summary>
+        public string SubText { get; set; } = "";
+
+        public bool IsStale { get; set; }
+
+        public FamilyHarmonizerFavorite Source { get; set; }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        private void OnPropertyChanged(string name = "")
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
     public partial class FamilyParametersUI : Window
     {
         private readonly UIApplication _uiApp;
@@ -33,14 +66,13 @@ namespace BA.UI
 
         public ObservableCollection<ParameterPreview> Parameters { get; } = new();
 
-
+        private readonly CollectionViewSource _parametersView = new();
 
         private readonly HarmonizerEventHandler _handler;
         private readonly ExternalEvent _extEvent;
 
         public FamilyParametersUI(ExternalCommandData commandData)
         {
-
 
             InitializeComponent();
 
@@ -53,10 +85,9 @@ namespace BA.UI
             if (TxtSharedParamPath != null)
                 TxtSharedParamPath.Text = _uiApp.Application.SharedParametersFilename ?? string.Empty;
 
-
-
+            InitParametersView();
             LoadParameters();
-
+            RefreshFavoritesList();
 
             _handler = new HarmonizerEventHandler
             {
@@ -77,16 +108,14 @@ namespace BA.UI
             _uiApp = _uiDoc.Application ?? throw new InvalidOperationException("UIApplication is null.");
             _doc = _uiDoc.Document ?? throw new InvalidOperationException("Active document is null.");
 
-
-
             DataContext = this;
 
             if (TxtSharedParamPath != null)
                 TxtSharedParamPath.Text = _uiApp.Application.SharedParametersFilename ?? string.Empty;
 
-
+            InitParametersView();
             LoadParameters();
-
+            RefreshFavoritesList();
 
             _handler = new HarmonizerEventHandler
             {
@@ -96,6 +125,58 @@ namespace BA.UI
             };
 
             _extEvent = ExternalEvent.Create(_handler);
+        }
+
+        // ============================
+        // Filtered view setup
+        // ============================
+
+        private void InitParametersView()
+        {
+            _parametersView.Source = Parameters;
+            _parametersView.Filter += ParametersView_Filter;
+            DgParameters.ItemsSource = _parametersView.View;
+        }
+
+        private void ParametersView_Filter(object sender, FilterEventArgs e)
+        {
+            if (e.Item is not ParameterPreview row)
+            {
+                e.Accepted = false;
+                return;
+            }
+
+            bool accept = true;
+
+            // Built-in group
+            if (RbBuiltInOnly?.IsChecked == true) accept &= row.IsBuiltIn;
+            else if (RbBuiltInNone?.IsChecked == true) accept &= !row.IsBuiltIn;
+
+            // Shared group
+            if (RbSharedOnly?.IsChecked == true) accept &= row.IsShared;
+            else if (RbSharedNone?.IsChecked == true) accept &= !row.IsShared;
+
+            // Scope group
+            if (RbScopeType?.IsChecked == true) accept &= string.Equals(row.Scope, "Type", StringComparison.OrdinalIgnoreCase);
+            else if (RbScopeInstance?.IsChecked == true) accept &= string.Equals(row.Scope, "Instance", StringComparison.OrdinalIgnoreCase);
+
+            e.Accepted = accept;
+        }
+
+        private void Filter_Changed(object sender, RoutedEventArgs e)
+        {
+            _parametersView.View?.Refresh();
+            UpdateVisibleCount();
+        }
+
+        private void UpdateVisibleCount()
+        {
+            if (TxtVisibleCount == null) return;
+
+            int visible = 0;
+            foreach (var _ in _parametersView.View) visible++;
+
+            TxtVisibleCount.Text = $"Showing {visible} of {Parameters.Count} parameters";
         }
 
         private void LoadParameters()
@@ -136,6 +217,12 @@ namespace BA.UI
                 }
                 catch { }
 
+                Guid sharedGuid = Guid.Empty;
+                if (fp.IsShared && fp.Definition is ExternalDefinition extDef)
+                {
+                    sharedGuid = extDef.GUID;
+                }
+
                 Parameters.Add(new ParameterPreview
                 {
                     Name = fp.Definition.Name,
@@ -147,9 +234,12 @@ namespace BA.UI
                     GroupName = groupName,
                     TargetName = "",
                     MatchedShared = "",
-                    DeleteRequested = false
+                    DeleteRequested = false,
+                    SharedGuid = sharedGuid
                 });
             }
+
+            UpdateVisibleCount();
         }
 
 
@@ -166,10 +256,6 @@ namespace BA.UI
                 .ToArray();
         }
 
-        /// <summary>
-        /// Sorts by GroupTypeId using GroupOptions order, then Name.
-        /// </summary>
-        /// 
         /// <summary>
         /// Shift-click on Sel checkbox applies same check to all currently selected rows.
         /// </summary>
@@ -222,6 +308,8 @@ namespace BA.UI
                 SharedParamUtils.LoadSharedParameterFile(app, string.IsNullOrWhiteSpace(spOverride) ? null : spOverride);
                 var lookup = SharedParamUtils.BuildExternalDefinitionLookup();
 
+                var fm = _doc.FamilyManager;
+
                 foreach (var row in Parameters)
                 {
                     string matched;
@@ -230,7 +318,7 @@ namespace BA.UI
                     if (ext != null && !row.IsBuiltIn && !row.IsShared)
                     {
                         row.MatchedShared = matched;
-                        row.TargetName = matched;   // <- ADD THIS: without it EffectiveAction stays "Keep"
+                        row.TargetName = matched;   // without it EffectiveAction stays "Keep"
 
                         var sTokens = NameMatcher.Tokens(matched);
                         var fTokens = NameMatcher.Tokens(row.Name);
@@ -239,10 +327,18 @@ namespace BA.UI
                     else
                     {
                         row.MatchedShared = "";
-                        row.TargetName = "";        // <- ADD THIS: clear stale target on re-scan
+                        row.TargetName = "";        // clear stale target on re-scan
                         row.MatchScore = 0;
                     }
+
+                    // Refresh SharedGuid against the new lookup so favorites saved
+                    // after this preview resolve to the correct definition.
+                    row.SharedGuid = FamilyParamUtils.ResolveSharedGuid(fm, row, lookup);
+                    row.IsFavoriteStale = false;
                 }
+
+                _parametersView.View?.Refresh();
+                UpdateVisibleCount();
 
                 MessageBox.Show("Preview updated.");
             }
@@ -288,6 +384,10 @@ namespace BA.UI
                         row.MatchedShared = sharedParam;
                         row.MatchScore = 1.00;
                         row.DeleteRequested = false;
+
+                        var fm = _doc.FamilyManager;
+                        row.SharedGuid = FamilyParamUtils.ResolveSharedGuid(fm, row, lookup);
+                        row.IsFavoriteStale = false;
                     }
                 }
             }
@@ -309,11 +409,220 @@ namespace BA.UI
 
 
         // ============================
-        // Your Preview (unchanged)
+        // Favorites panel
         // ============================
 
+        private void RefreshFavoritesList()
+        {
+            var favorites = FamilyHarmonizerFavoritesStore.Load();
 
+            // Resolve current names against the currently configured SP file, if available.
+            Dictionary<string, Definition> lookup = null;
+            Dictionary<Guid, string> guidToCurrentName = null;
 
+            try
+            {
+                var app = _uiApp.Application;
+                var spOverride = TxtSharedParamPath?.Text ?? string.Empty;
+
+                SharedParamUtils.LoadSharedParameterFile(app, string.IsNullOrWhiteSpace(spOverride) ? null : spOverride);
+                lookup = SharedParamUtils.BuildExternalDefinitionLookup();
+
+                guidToCurrentName = lookup.Values
+                    .OfType<ExternalDefinition>()
+                    .GroupBy(d => d.GUID)
+                    .ToDictionary(g => g.Key, g => g.First().Name);
+            }
+            catch
+            {
+                // No SP file configured / loadable yet; favorites will show as stale until one is set.
+            }
+
+            var vms = new List<FavoriteVm>();
+
+            foreach (var fav in favorites)
+            {
+                bool resolved = guidToCurrentName != null && guidToCurrentName.TryGetValue(fav.Guid, out var currentName);
+                string displayName = resolved ? guidToCurrentName[fav.Guid] : fav.LastKnownName;
+
+                string sub = resolved
+                    ? $"{fav.Spec} | {(fav.IsInstance ? "Instance" : "Type")}"
+                    : $"{fav.Spec} | {(fav.IsInstance ? "Instance" : "Type")} | not in current SP file (last known: '{fav.LastKnownName}')";
+
+                vms.Add(new FavoriteVm
+                {
+                    Guid = fav.Guid,
+                    DisplayName = displayName,
+                    SubText = sub,
+                    IsStale = !resolved,
+                    Source = fav,
+                    IsChecked = false
+                });
+            }
+
+            FavoritesList.ItemsSource = vms;
+        }
+
+        private void BtnSaveFavorite_Click(object sender, RoutedEventArgs e)
+        {
+            var rows = GetSelectedRows();
+            if (rows.Length == 0)
+            {
+                MessageBox.Show("Select one or more rows first.");
+                return;
+            }
+
+            try
+            {
+                var app = _uiApp.Application;
+                var spOverride = TxtSharedParamPath?.Text ?? string.Empty;
+
+                SharedParamUtils.LoadSharedParameterFile(app, string.IsNullOrWhiteSpace(spOverride) ? null : spOverride);
+                var lookup = SharedParamUtils.BuildExternalDefinitionLookup();
+
+                var fm = _doc.FamilyManager;
+
+                var savedNames = new List<string>();
+                var skippedNames = new List<string>();
+
+                foreach (var row in rows)
+                {
+                    var guid = FamilyParamUtils.ResolveSharedGuid(fm, row, lookup);
+                    if (guid == Guid.Empty)
+                    {
+                        skippedNames.Add(row.Name);
+                        continue;
+                    }
+
+                    row.SharedGuid = guid;
+
+                    // Resolve current name/spec from the lookup for accurate persisted hints.
+                    var def = lookup.Values.OfType<ExternalDefinition>().FirstOrDefault(d => d.GUID == guid);
+                    string nameForFavorite = def?.Name ?? (string.IsNullOrWhiteSpace(row.TargetName) ? row.Name : row.TargetName);
+                    string specForFavorite = row.Spec;
+
+                    FamilyHarmonizerFavoritesStore.AddOrUpdate(new FamilyHarmonizerFavorite
+                    {
+                        Guid = guid,
+                        LastKnownName = nameForFavorite,
+                        Spec = specForFavorite,
+                        IsInstance = row.DesiredIsInstance,
+                        GroupTypeId = row.GroupTypeId
+                    });
+
+                    savedNames.Add(nameForFavorite);
+                }
+
+                RefreshFavoritesList();
+
+                if (skippedNames.Count > 0)
+                {
+                    MessageBox.Show(
+                        $"Saved: {(savedNames.Count > 0 ? string.Join(", ", savedNames) : "(none)")}\n\n" +
+                        $"Skipped (no shared parameter could be resolved for): {string.Join(", ", skippedNames)}");
+                }
+                else
+                {
+                    MessageBox.Show($"Saved as favorite: {string.Join(", ", savedNames)}");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Save favorite failed: " + ex.Message);
+            }
+        }
+
+        private void BtnRemoveFavorite_Click(object sender, RoutedEventArgs e)
+        {
+            var items = FavoritesList.ItemsSource as IEnumerable<FavoriteVm>;
+            var toRemove = items?.Where(f => f.IsChecked).ToList();
+
+            if (toRemove == null || toRemove.Count == 0)
+            {
+                MessageBox.Show("Check one or more favorites to remove first.");
+                return;
+            }
+
+            foreach (var f in toRemove)
+                FamilyHarmonizerFavoritesStore.Remove(f.Guid);
+
+            RefreshFavoritesList();
+        }
+
+        private void BtnLoadFavorite_Click(object sender, RoutedEventArgs e)
+        {
+            var items = FavoritesList.ItemsSource as IEnumerable<FavoriteVm>;
+            var checked_ = items?.Where(f => f.IsChecked).ToList();
+
+            if (checked_ == null || checked_.Count == 0)
+            {
+                MessageBox.Show("Check exactly one favorite to load.");
+                return;
+            }
+
+            if (checked_.Count > 1)
+            {
+                MessageBox.Show("Check exactly one favorite to load (loading multiple favorites at once is not supported).");
+                return;
+            }
+
+            var fav = checked_[0];
+
+            var targetRows = GetSelectedRows();
+            if (targetRows.Length == 0)
+            {
+                MessageBox.Show("Select one or more rows in the grid to apply this favorite to first.");
+                return;
+            }
+
+            if (fav.IsStale)
+            {
+                MessageBox.Show(
+                    $"Favorite '{fav.Source.LastKnownName}' (GUID {fav.Guid}) was not found in the currently loaded " +
+                    $"shared parameter file. Set the correct shared param file path and try again.");
+                return;
+            }
+
+            try
+            {
+                var app = _uiApp.Application;
+                var spOverride = TxtSharedParamPath?.Text ?? string.Empty;
+
+                SharedParamUtils.LoadSharedParameterFile(app, string.IsNullOrWhiteSpace(spOverride) ? null : spOverride);
+                var lookup = SharedParamUtils.BuildExternalDefinitionLookup();
+
+                var def = lookup.Values.OfType<ExternalDefinition>().FirstOrDefault(d => d.GUID == fav.Guid);
+                if (def == null)
+                {
+                    MessageBox.Show("Favorite GUID could not be resolved against the current shared parameter file.");
+                    return;
+                }
+
+                string currentName = def.Name;
+
+                // "Load acts as replace": overwrite TargetName/MatchedShared on each selected row,
+                // discarding whatever was there (previous favorite, preview match, manual edit).
+                foreach (var row in targetRows)
+                {
+                    row.MatchedShared = currentName;
+                    row.TargetName = currentName;
+                    row.MatchScore = 1.0;
+                    row.DeleteRequested = false;
+                    row.SharedGuid = fav.Guid;
+                    row.IsFavoriteStale = false;
+                }
+
+                _parametersView.View?.Refresh();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Load favorite failed: " + ex.Message);
+            }
+        }
+
+        // ============================
+        // Grid editing helpers (unchanged)
+        // ============================
 
         private void DgParameters_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -386,9 +695,9 @@ namespace BA.UI
             if (dialog.ShowDialog() == true)
             {
                 using var sw = new System.IO.StreamWriter(dialog.FileName, false, Encoding.UTF8);
-                sw.WriteLine("Name,Scope,IsShared,Spec,Decision,TargetName,MatchedShared,Score,DeleteRequested");
+                sw.WriteLine("Name,Scope,IsShared,Spec,Decision,TargetName,MatchedShared,Score,DeleteRequested,SharedGuid");
                 foreach (var p in Parameters)
-                    sw.WriteLine($"{p.Name},{p.Scope},{p.IsShared},{p.Spec},{p.EffectiveAction},{p.TargetName},{p.MatchedShared},{p.MatchScore},{p.DeleteRequested}");
+                    sw.WriteLine($"{p.Name},{p.Scope},{p.IsShared},{p.Spec},{p.EffectiveAction},{p.TargetName},{p.MatchedShared},{p.MatchScore},{p.DeleteRequested},{p.SharedGuid}");
                 MessageBox.Show("Exported successfully.");
             }
         }
@@ -422,7 +731,10 @@ namespace BA.UI
             };
 
             if (dlg.ShowDialog() == true && TxtSharedParamPath != null)
+            {
                 TxtSharedParamPath.Text = dlg.FileName;
+                RefreshFavoritesList();
+            }
         }
 
         private void BtnApplyPrefix_Click(object sender, RoutedEventArgs e)
@@ -469,7 +781,7 @@ namespace BA.UI
 
             _handler.SharedParamOverridePath = TxtSharedParamPath?.Text ?? string.Empty;
 
-            _extEvent.Raise(); 
+            _extEvent.Raise();
             DialogResult = true;
         }
         private void DgParameters_KeyDown(object sender, KeyEventArgs e)

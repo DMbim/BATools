@@ -1,4 +1,5 @@
 ﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using System;
 using System.Collections.Generic;
@@ -14,18 +15,60 @@ namespace BA.Core.Overhead
         private static readonly Guid UpdaterGuid = new("8a4c9f75-5f6b-4a6b-8a4e-7a7c1a9a1111");
 
         // _syncLock guards _registered and _uid against startup/shutdown race conditions
-        // in multi-document sessions where Register/Unregister can be called concurrently
+        // in multi document sessions where Register/Unregister can be called concurrently
         // from UIControlledApplication event handlers on different threads.
         private static readonly object _syncLock = new();
         private static UpdaterId? _uid;
         private static bool _registered;
 
-        // Renamed from Suppress to IsSuppressed — .NET property naming convention.
+        // Renamed from Suppress to IsSuppressed, .NET property naming convention.
         // Callers in OverheadDisableService and OverheadGlobalService must be updated.
         public static bool IsSuppressed { get; set; }
 
-        // Global toggle (plugin-level). Distinct from the per-document settings.Enabled.
+        // Global toggle (plugin level). Distinct from the per document settings.Enabled.
         public static bool Enabled { get; set; } = true;
+
+        // Concrete Element derived types used for the Addition trigger. AddTrigger only
+        // accepts ElementClassFilter for the Addition change type, and ElementClassFilter
+        // only matches derived classes polymorphically for a small fixed set of Revit API
+        // types (FamilyInstance, HostObject, SpatialElement, CurveElement, and a few
+        // others). RoofBase is not one of those, so roof classes are listed as their
+        // concrete leaf types (FootPrintRoof, ExtrusionRoof) rather than the abstract base.
+        //
+        // Mullion and Panel are deliberately excluded. Both are proxy types over curtain
+        // grid data, not standalone native elements, and ElementClassFilter's constructor
+        // rejects them outright (confirmed at runtime for Mullion, Panel is architecturally
+        // identical and excluded preemptively rather than waiting for the same crash).
+        // New panels and mullions in an existing curtain wall/system are still detected
+        // indirectly: adding or editing a curtain grid modifies the host Wall or
+        // CurtainSystem element, which fires the existing Modify (ElementCategoryFilter
+        // based) trigger below if that category is in SelectedCategories. If per panel or
+        // per mullion proxies are actually required rather than one bounding box for the
+        // whole host, Execute needs to call CurtainGrid.GetPanelIds() /
+        // CurtainGrid.GetMullionIds() on the host when it changes, rather than expecting
+        // GetAddedElementIds() to report panels/mullions directly. Not implemented here.
+        //
+        // This list only needs to be a superset of what Execute cares about, the actual
+        // category restriction for newly created elements happens in Execute via
+        // BuildAllowedCategoryIds, not here. If you add a category to
+        // OverheadSettings.SelectedCategories whose backing class is not represented
+        // (directly, or indirectly through FamilyInstance) in this list, new elements of
+        // that category will not fire the Addition trigger until this list is extended.
+        private static readonly Type[] AdditionTriggerClasses =
+        {
+            typeof(Wall),
+            typeof(Floor),
+            typeof(Ceiling),
+            typeof(WallSweep),
+            typeof(Stairs),
+            typeof(Railing),
+            typeof(CurtainSystem),
+            // FamilyInstance is one of the API's special cased types, ElementClassFilter
+            // matches it and every derived family based element (doors, windows,
+            // furniture, casework, structural framing, columns, hosted curtain panel
+            // families, etc) polymorphically.
+            typeof(FamilyInstance)
+        };
 
         public OverheadProxyUpdater(AddInId addInId) => _addInId = addInId;
 
@@ -53,7 +96,7 @@ namespace BA.Core.Overhead
 
             if (!settings.Enabled) return;
 
-            // Delete first — remove proxies for deleted owners before syncing modified.
+            // Delete first, remove proxies for deleted owners before syncing modified.
             foreach (var delId in data.GetDeletedElementIds())
                 RemoveProxiesForElementAllViews(doc, delId);
 
@@ -63,7 +106,15 @@ namespace BA.Core.Overhead
 
             if (modified.Count == 0) return;
 
-            // Shared helper — eliminates the duplicate FilteredElementCollector
+            // The Addition trigger is registered against AdditionTriggerClasses, a fixed
+            // superset of concrete classes, since ElementClassFilter for the Addition
+            // change type cannot be restricted by category. This allow list is the real
+            // category restriction for newly created elements, previously that
+            // restriction lived only in the ElementCategoryFilter used for the
+            // Modify/Deletion triggers, which provided no protection at all for Addition.
+            var allowedCategoryIds = BuildAllowedCategoryIds(settings);
+
+            // Shared helper, eliminates the duplicate FilteredElementCollector
             // that was previously inlined here and in RemoveProxiesForElementAllViews.
             var plans = ProxyStateStore.GetFloorPlans(doc);
 
@@ -72,6 +123,7 @@ namespace BA.Core.Overhead
                 var e = doc.GetElement(eid);
                 if (e == null) continue;
                 if (e.Category == null || e.Category.CategoryType != CategoryType.Model) continue;
+                if (!allowedCategoryIds.Contains(e.Category.Id.Value)) continue;
 
                 var elemLevelId = GetAssociatedLevelId(e);
 
@@ -119,13 +171,32 @@ namespace BA.Core.Overhead
                 var cats = settings.SelectedCategories?.ToList()
                            ?? new List<BuiltInCategory> { BuiltInCategory.OST_Walls };
 
-                ElementFilter filter = cats.Count == 1
+                ElementFilter categoryFilter = cats.Count == 1
                     ? (ElementFilter)new ElementCategoryFilter(cats[0])
                     : new LogicalOrFilter(
                         cats.ConvertAll<ElementFilter>(c => new ElementCategoryFilter(c)));
 
-                UpdaterRegistry.AddTrigger(_uid, filter, Element.GetChangeTypeAny());
-                UpdaterRegistry.AddTrigger(_uid, filter, Element.GetChangeTypeElementDeletion());
+                UpdaterRegistry.AddTrigger(_uid, categoryFilter, Element.GetChangeTypeAny());
+                UpdaterRegistry.AddTrigger(_uid, categoryFilter, Element.GetChangeTypeElementDeletion());
+
+                // Addition change type only accepts ElementClassFilter, category filters
+                // are rejected by the API here. AdditionTriggerClasses is a fixed, curated
+                // superset of concrete, non proxy classes, see its declaration comment for
+                // why RoofBase, Mullion, and Panel specifically cannot be used. Actual
+                // category restriction for newly created elements happens in Execute via
+                // BuildAllowedCategoryIds.
+                var classFilters = AdditionTriggerClasses
+                    .Select(t => (ElementFilter)new ElementClassFilter(t))
+                    .ToList();
+
+                ElementFilter additionFilter = classFilters.Count == 1
+                    ? classFilters[0]
+                    : new LogicalOrFilter(classFilters);
+
+                UpdaterRegistry.AddTrigger(
+                    _uid,
+                    additionFilter,
+                    Element.GetChangeTypeElementAddition());
             }
         }
 
@@ -150,9 +221,23 @@ namespace BA.Core.Overhead
         // ═════════════════════════════════════════════════════════════════════════════════
 
         /// <summary>
+        /// Builds the set of Category.Id values (as long, Revit 2026 uses 64 bit
+        /// ElementId) allowed by the current settings.SelectedCategories. Falls back to
+        /// OST_Walls when none are configured, matching the same default used in
+        /// RefreshTriggers so Execute and trigger registration never disagree.
+        /// </summary>
+        private static HashSet<long> BuildAllowedCategoryIds(OverheadSettings settings)
+        {
+            var cats = settings.SelectedCategories?.ToList()
+                       ?? new List<BuiltInCategory> { BuiltInCategory.OST_Walls };
+
+            return new HashSet<long>(cats.Select(c => (long)c));
+        }
+
+        /// <summary>
         /// Synchronises proxy DetailCurves for a single element in a single plan view.
-        /// Wrapped in try-catch so a single element failure does not abort the updater
-        /// batch and does not roll back the parent sub-transaction managed by the DMU framework.
+        /// Wrapped in try catch so a single element failure does not abort the updater
+        /// batch and does not roll back the parent sub transaction managed by the DMU framework.
         /// </summary>
         private static void SyncProxiesForElementInView(
             Document doc, ViewPlan view, Element e, OverheadSettings settings)
@@ -194,10 +279,10 @@ namespace BA.Core.Overhead
             catch (Exception ex)
             {
                 Trace.WriteLine(
-                    $"[OverheadProxyUpdater] SyncProxiesForElementInView failed — " +
+                    $"[OverheadProxyUpdater] SyncProxiesForElementInView failed, " +
                     $"element {e?.Id}, view {view?.Id}: {ex.Message}");
                 // Swallowed intentionally. A single element failure must not abort the
-                // full updater batch — the proxy will be absent until next modification.
+                // full updater batch, the proxy will be absent until next modification.
             }
         }
 
@@ -216,7 +301,7 @@ namespace BA.Core.Overhead
                 catch (Exception ex)
                 {
                     Trace.WriteLine(
-                        $"[OverheadProxyUpdater] RemoveProxiesForElementAllViews failed — " +
+                        $"[OverheadProxyUpdater] RemoveProxiesForElementAllViews failed, " +
                         $"element {ownerId}, view {vp.Id}: {ex.Message}");
                 }
             }
@@ -224,7 +309,7 @@ namespace BA.Core.Overhead
 
         /// <summary>
         /// Walks the element's parameters to find an associated level ID.
-        /// LevelId covers most cases; the BIP list covers hosted families and MEP elements
+        /// LevelId covers most cases, the BIP list covers hosted families and MEP elements
         /// that do not expose LevelId directly.
         /// </summary>
         private static ElementId GetAssociatedLevelId(Element e)

@@ -12,11 +12,14 @@ namespace BA.UI.ExternalEvents
         private readonly RevitActionQueueHandler _handler;
         private readonly ExternalEvent _externalEvent;
 
+
         public RevitExternalInvoker(RevitActionQueueHandler handler, ExternalEvent externalEvent)
         {
             _handler = handler ?? throw new ArgumentNullException(nameof(handler));
             _externalEvent = externalEvent ?? throw new ArgumentNullException(nameof(externalEvent));
+
         }
+
 
         // ---------------------------
         // Primary API: Run(...)
@@ -46,6 +49,7 @@ namespace BA.UI.ExternalEvents
             _externalEvent.Raise();
         }
 
+
         // ---------------------------
         // Compatibility aliases: Invoke(...)
         // ---------------------------
@@ -55,5 +59,6 @@ namespace BA.UI.ExternalEvents
 
         public void Invoke<T>(Func<UIApplication, T> apiFunc, Action<T>? onCompleted = null, Action<Exception>? onError = null)
             => Run(apiFunc, onCompleted, onError);
+
     }
 }

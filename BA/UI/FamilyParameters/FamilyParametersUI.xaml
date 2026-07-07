@@ -3,155 +3,158 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Family Parameter Manager"
         Height="780"
-        Width="1450"
+        Width="1680"
         WindowStartupLocation="CenterOwner"
-        Background="#111111"
+        Background="#0B0C0F"
         Foreground="#F2F2F2"
         FontFamily="Segoe UI"
         FontSize="12">
 
     <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
 
-        <SolidColorBrush x:Key="BgWindow" Color="#111111"/>
-        <SolidColorBrush x:Key="BgPanel" Color="#1A1A1A"/>
-        <SolidColorBrush x:Key="BorderSoft" Color="#3A3A3A"/>
+            <SolidColorBrush x:Key="FpBorder" Color="#2C3440"/>
+            <SolidColorBrush x:Key="FpPanel"  Color="#11151C"/>
+            <SolidColorBrush x:Key="FpAlt"    Color="#16161A"/>
 
-        <SolidColorBrush x:Key="FgMain" Color="#F2F2F2"/>
-        <SolidColorBrush x:Key="FgDim" Color="#B8B8B8"/>
+            <Style x:Key="FpDataGridStyle" TargetType="DataGrid">
+                <Setter Property="Background"               Value="{StaticResource FpPanel}"/>
+                <Setter Property="Foreground"               Value="#F2F2F2"/>
+                <Setter Property="BorderBrush"              Value="{StaticResource FpBorder}"/>
+                <Setter Property="BorderThickness"          Value="1"/>
+                <Setter Property="RowBackground"            Value="{StaticResource FpPanel}"/>
+                <Setter Property="AlternatingRowBackground" Value="{StaticResource FpAlt}"/>
+                <Setter Property="GridLinesVisibility"      Value="All"/>
+                <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource FpBorder}"/>
+                <Setter Property="VerticalGridLinesBrush"   Value="{StaticResource FpBorder}"/>
+                <Setter Property="HeadersVisibility"        Value="Column"/>
+                <Setter Property="SelectionUnit"            Value="FullRow"/>
+                <Setter Property="RowHeaderWidth"           Value="0"/>
+                <Setter Property="ColumnHeaderHeight"       Value="34"/>
+                <Setter Property="AutoGenerateColumns"      Value="False"/>
+                <Setter Property="CanUserAddRows"           Value="False"/>
+                <Setter Property="EnableRowVirtualization"  Value="True"/>
+                <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+            </Style>
 
-        <SolidColorBrush x:Key="DgBg" Color="#111111"/>
-        <SolidColorBrush x:Key="DgAltBg" Color="#161616"/>
-        <SolidColorBrush x:Key="DgHoverBg" Color="#1E1E1E"/>
-        <SolidColorBrush x:Key="DgGridLine" Color="#2A2A2A"/>
+            <Style x:Key="FpHeaderStyle" TargetType="DataGridColumnHeader">
+                <Setter Property="Background"             Value="#16161A"/>
+                <Setter Property="Foreground"             Value="#F2F2F2"/>
+                <Setter Property="BorderBrush"            Value="{StaticResource FpBorder}"/>
+                <Setter Property="BorderThickness"        Value="0,0,0,1"/>
+                <Setter Property="Padding"                Value="8,6"/>
+                <Setter Property="FontWeight"             Value="SemiBold"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                <Setter Property="VerticalContentAlignment"   Value="Center"/>
+            </Style>
 
-        <SolidColorBrush x:Key="DgHeaderBg" Color="#1F1F1F"/>
-        <SolidColorBrush x:Key="DgHeaderFg" Color="#F2F2F2"/>
+            <Style x:Key="FpRowStyle" TargetType="DataGridRow">
+                <Setter Property="MinHeight" Value="28"/>
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="#1E2A3A"/>
+                    </Trigger>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="#2A5A9E"/>
+                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
 
-        <SolidColorBrush x:Key="DgSelBg" Color="#2A2A2A"/>
-        <SolidColorBrush x:Key="DgSelFg" Color="#FFFFFF"/>
+            <Style x:Key="FpCellStyle" TargetType="DataGridCell">
+                <Setter Property="Foreground"       Value="#F2F2F2"/>
+                <Setter Property="Background"       Value="Transparent"/>
+                <Setter Property="BorderBrush"      Value="{StaticResource FpBorder}"/>
+                <Setter Property="BorderThickness"  Value="0,0,1,1"/>
+                <Setter Property="Padding"          Value="6,3"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
 
-        <SolidColorBrush x:Key="EditBg" Color="#101010"/>
-        <SolidColorBrush x:Key="EditFg" Color="#FFFFFF"/>
+            <!-- Checkbox alignment inside cells -->
+            <Style x:Key="GridCheckBoxStyle" TargetType="CheckBox">
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+                <Setter Property="VerticalAlignment"   Value="Center"/>
+                <Setter Property="Margin"              Value="0"/>
+            </Style>
 
-        <Style TargetType="{x:Type Button}">
-            <Setter Property="Margin" Value="0,0,8,0"/>
-            <Setter Property="Padding" Value="10,6"/>
-            <Setter Property="MinHeight" Value="30"/>
-            <Setter Property="Background" Value="#202020"/>
-            <Setter Property="Foreground" Value="{StaticResource FgMain}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
+            <!-- Filter radio buttons -->
+            <Style x:Key="FpFilterRadio" TargetType="RadioButton">
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Setter Property="Margin" Value="0,0,12,0"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
 
-        <Style TargetType="{x:Type TextBox}">
-            <Setter Property="MinHeight" Value="30"/>
-            <Setter Property="Padding" Value="8,5"/>
-            <Setter Property="Background" Value="#101010"/>
-            <Setter Property="Foreground" Value="{StaticResource FgMain}"/>
-            <Setter Property="CaretBrush" Value="{StaticResource FgMain}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
+            <!-- Favorite list item -->
+            <Style x:Key="FpFavoriteCheckBox" TargetType="CheckBox">
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Setter Property="Margin" Value="4,3,4,3"/>
+            </Style>
 
-        <Style TargetType="{x:Type CheckBox}">
-            <Setter Property="Foreground" Value="{StaticResource FgMain}"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-
-        <Style x:Key="GridCheckBoxStyle" TargetType="{x:Type CheckBox}">
-            <Setter Property="HorizontalAlignment" Value="Center"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="0"/>
-        </Style>
-
-        <Style x:Key="GridEditingTextBox" TargetType="{x:Type TextBox}">
-            <Setter Property="Foreground" Value="{StaticResource EditFg}"/>
-            <Setter Property="Background" Value="{StaticResource EditBg}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="6,3"/>
-        </Style>
-
-        <Style TargetType="{x:Type DataGrid}">
-            <Setter Property="Background" Value="{StaticResource DgBg}"/>
-            <Setter Property="Foreground" Value="{StaticResource FgMain}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="RowBackground" Value="{StaticResource DgBg}"/>
-            <Setter Property="AlternatingRowBackground" Value="{StaticResource DgAltBg}"/>
-            <Setter Property="GridLinesVisibility" Value="All"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource DgGridLine}"/>
-            <Setter Property="VerticalGridLinesBrush" Value="{StaticResource DgGridLine}"/>
-            <Setter Property="HeadersVisibility" Value="Column"/>
-            <Setter Property="SelectionUnit" Value="FullRow"/>
-            <Setter Property="RowHeaderWidth" Value="0"/>
-            <Setter Property="ColumnHeaderHeight" Value="34"/>
-        </Style>
-
-        <Style TargetType="{x:Type DataGridColumnHeader}">
-            <Setter Property="Background" Value="{StaticResource DgHeaderBg}"/>
-            <Setter Property="Foreground" Value="{StaticResource DgHeaderFg}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
-            <Setter Property="BorderThickness" Value="0,0,0,1"/>
-            <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-
-        <Style TargetType="{x:Type DataGridRow}">
-            <Setter Property="MinHeight" Value="28"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource DgHoverBg}"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <Style TargetType="{x:Type DataGridCell}">
-            <Setter Property="Foreground" Value="{StaticResource FgMain}"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="{StaticResource DgGridLine}"/>
-            <Setter Property="BorderThickness" Value="0,0,1,1"/>
-            <Setter Property="Padding" Value="6,3"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Style.Triggers>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="{StaticResource DgSelBg}"/>
-                    <Setter Property="Foreground" Value="{StaticResource DgSelFg}"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
+        </ResourceDictionary>
     </Window.Resources>
 
-    <DockPanel Margin="10" LastChildFill="True" Background="{StaticResource BgWindow}">
+    <DockPanel Margin="10" LastChildFill="True">
 
-        <!-- TOP -->
+        <!-- ══ TOP BAR ═══════════════════════════════════════════════════════ -->
         <Border DockPanel.Dock="Top"
-                Background="{StaticResource BgPanel}"
-                BorderBrush="{StaticResource BorderSoft}"
-                BorderThickness="1"
-                Padding="10"
+                Style="{StaticResource BaDarkPanelBorder}"
                 Margin="0,0,0,10">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="10"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <WrapPanel Grid.Row="0">
-                    <Button Content="Preview match" Width="140" Click="BtnPreview_Click"/>
-                    <Button Content="Run apply" Width="120" Click="BtnRun_Click"/>
-                    <Button Content="Toggle Delete" Width="140" Click="BtnToggleDeleteSelected_Click"/>
-                    <Button Content="Set Instance" Width="120" Click="BtnSetInstanceSelected_Click"/>
-                    <Button Content="Set Type" Width="120" Click="BtnSetTypeSelected_Click"/>
-                    <Button Content="Add shared params" Width="160" Click="BtnAddShared_Click"/>
-                    <Button Content="Metric Units" Width="140" Click="BtnMetric_Click"/>
+                    <Button Content="Preview match"     Width="140" Margin="0,0,8,0" Style="{StaticResource BaSecondaryButton}" Click="BtnPreview_Click"/>
+                    <Button Content="Run apply"         Width="120" Margin="0,0,8,0" Style="{StaticResource BaPrimaryButton}"   Click="BtnRun_Click"/>
+                    <Button Content="Toggle Delete"     Width="140" Margin="0,0,8,0" Style="{StaticResource BaSecondaryButton}" Click="BtnToggleDeleteSelected_Click"/>
+                    <Button Content="Set Instance"      Width="120" Margin="0,0,8,0" Style="{StaticResource BaSecondaryButton}" Click="BtnSetInstanceSelected_Click"/>
+                    <Button Content="Set Type"          Width="120" Margin="0,0,8,0" Style="{StaticResource BaSecondaryButton}" Click="BtnSetTypeSelected_Click"/>
+                    <Button Content="Add shared params" Width="160" Margin="0,0,8,0" Style="{StaticResource BaSecondaryButton}" Click="BtnAddShared_Click"/>
+                    <Button Content="Metric Units"      Width="140" Style="{StaticResource BaSecondaryButton}" Click="BtnMetric_Click"/>
                 </WrapPanel>
 
-                <Grid Grid.Row="2">
+                <!-- ══ FILTER ROW ════════════════════════════════════════════ -->
+                <WrapPanel Grid.Row="2">
+                    <TextBlock Text="Built-in:" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="#A0A8B4"/>
+                    <RadioButton Content="All"          GroupName="FilterBuiltIn" x:Name="RbBuiltInAll"    IsChecked="True"  Style="{StaticResource FpFilterRadio}" Checked="Filter_Changed"/>
+                    <RadioButton Content="Built-in"     GroupName="FilterBuiltIn" x:Name="RbBuiltInOnly"   Style="{StaticResource FpFilterRadio}" Checked="Filter_Changed"/>
+                    <RadioButton Content="Non built-in" GroupName="FilterBuiltIn" x:Name="RbBuiltInNone"   Style="{StaticResource FpFilterRadio}" Checked="Filter_Changed"/>
+
+                    <Border Width="1" Background="{StaticResource FpBorder}" Margin="6,0,18,0"/>
+
+                    <TextBlock Text="Shared:" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="#A0A8B4"/>
+                    <RadioButton Content="All"        GroupName="FilterShared" x:Name="RbSharedAll"  IsChecked="True" Style="{StaticResource FpFilterRadio}" Checked="Filter_Changed"/>
+                    <RadioButton Content="Shared"     GroupName="FilterShared" x:Name="RbSharedOnly" Style="{StaticResource FpFilterRadio}" Checked="Filter_Changed"/>
+                    <RadioButton Content="Non shared" GroupName="FilterShared" x:Name="RbSharedNone" Style="{StaticResource FpFilterRadio}" Checked="Filter_Changed"/>
+
+                    <Border Width="1" Background="{StaticResource FpBorder}" Margin="6,0,18,0"/>
+
+                    <TextBlock Text="Scope:" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="#A0A8B4"/>
+                    <RadioButton Content="All"      GroupName="FilterScope" x:Name="RbScopeAll"      IsChecked="True" Style="{StaticResource FpFilterRadio}" Checked="Filter_Changed"/>
+                    <RadioButton Content="Type"     GroupName="FilterScope" x:Name="RbScopeType"     Style="{StaticResource FpFilterRadio}" Checked="Filter_Changed"/>
+                    <RadioButton Content="Instance" GroupName="FilterScope" x:Name="RbScopeInstance" Style="{StaticResource FpFilterRadio}" Checked="Filter_Changed"/>
+
+                    <Border Width="1" Background="{StaticResource FpBorder}" Margin="6,0,18,0"/>
+
+                    <TextBlock x:Name="TxtVisibleCount" Text="" VerticalAlignment="Center" Foreground="#A0A8B4"/>
+                </WrapPanel>
+
+                <Grid Grid.Row="4">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
@@ -167,58 +170,109 @@
                                Text="Shared param file:"
                                Margin="0,0,8,0"
                                VerticalAlignment="Center"
-                               Foreground="{StaticResource FgDim}"/>
+                               Foreground="#A0A8B4"/>
 
-                    <TextBox Grid.Column="1" x:Name="TxtSharedParamPath"/>
+                    <TextBox Grid.Column="1" x:Name="TxtSharedParamPath"
+                             Style="{StaticResource BaDarkTextBox}"/>
 
                     <Button Grid.Column="2"
                             Content="Browse"
                             Width="110"
                             Margin="10,0,0,0"
+                            Style="{StaticResource BaSecondaryButton}"
                             Click="BtnBrowseSP_Click"/>
 
                     <TextBlock Grid.Column="4"
                                Text="Prefix:"
                                Margin="0,0,8,0"
                                VerticalAlignment="Center"
-                               Foreground="{StaticResource FgDim}"/>
+                               Foreground="#A0A8B4"/>
 
-                    <TextBox Grid.Column="5" x:Name="TxtPrefixNew"/>
+                    <TextBox Grid.Column="5" x:Name="TxtPrefixNew"
+                             Style="{StaticResource BaDarkTextBox}"/>
 
                     <Button Grid.Column="6"
                             Content="Apply Prefix"
                             Width="120"
                             Margin="10,0,0,0"
+                            Style="{StaticResource BaSecondaryButton}"
                             Click="BtnApplyPrefix_Click"/>
 
                     <Button Grid.Column="7"
                             Content="Export CSV"
                             Width="120"
                             Margin="10,0,0,0"
+                            Style="{StaticResource BaSecondaryButton}"
                             Click="BtnExportCsv_Click"/>
                 </Grid>
             </Grid>
         </Border>
 
-        <!-- BOTTOM -->
+        <!-- ══ BOTTOM HINT BAR ═══════════════════════════════════════════════ -->
         <Border DockPanel.Dock="Bottom"
-                Background="{StaticResource BgPanel}"
-                BorderBrush="{StaticResource BorderSoft}"
-                BorderThickness="1"
-                Padding="10"
+                Style="{StaticResource BaDarkPanelBorder}"
                 Margin="0,10,0,0">
             <TextBlock Text="Target Name: leave empty = Keep, leave suggested shared name = Replace, type a different name = Rename. Delete is explicit."
-                       Foreground="{StaticResource FgDim}"/>
+                       Foreground="#A0A8B4"
+                       TextWrapping="Wrap"/>
         </Border>
 
-        <!-- MAIN GRID -->
+        <!-- ══ FAVORITES PANEL (right) ═════════════════════════════════════════ -->
+        <Border DockPanel.Dock="Right"
+                Style="{StaticResource BaDarkPanelBorder}"
+                Width="260"
+                Margin="10,0,0,0">
+            <DockPanel LastChildFill="True">
+
+                <TextBlock DockPanel.Dock="Top"
+                           Text="Favorite parameters"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,8"
+                           Foreground="#F2F2F2"/>
+
+                <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                    <Button Content="Save selected as favorite" Width="170" Margin="0,0,0,6" Style="{StaticResource BaSecondaryButton}" Click="BtnSaveFavorite_Click" HorizontalAlignment="Stretch"/>
+                    <Button Content="Remove checked"            Width="170" Margin="0,0,0,6" Style="{StaticResource BaSecondaryButton}" Click="BtnRemoveFavorite_Click" HorizontalAlignment="Stretch"/>
+                </WrapPanel>
+
+                <Button DockPanel.Dock="Bottom"
+                        Content="Load checked into selected rows"
+                        Style="{StaticResource BaPrimaryButton}"
+                        Margin="0,8,0,0"
+                        Click="BtnLoadFavorite_Click"/>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="FavoritesList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{StaticResource FpBorder}" BorderThickness="0,0,0,1" Padding="0,2">
+                                    <StackPanel>
+                                        <CheckBox Style="{StaticResource FpFavoriteCheckBox}"
+                                                  IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                  Content="{Binding DisplayName}"/>
+                                        <TextBlock Text="{Binding SubText}"
+                                                   Margin="24,0,4,4"
+                                                   FontSize="10"
+                                                   Foreground="#7E8896"
+                                                   TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+            </DockPanel>
+        </Border>
+
+        <!-- ══ MAIN GRID ═════════════════════════════════════════════════════ -->
         <DataGrid x:Name="DgParameters"
-                  ItemsSource="{Binding Parameters}"
-                  AutoGenerateColumns="False"
-                  CanUserAddRows="False"
+                  Style="{StaticResource FpDataGridStyle}"
+                  ColumnHeaderStyle="{StaticResource FpHeaderStyle}"
+                  RowStyle="{StaticResource FpRowStyle}"
+                  CellStyle="{StaticResource FpCellStyle}"
                   IsReadOnly="False"
                   SelectionMode="Extended"
-                  SelectionUnit="FullRow"
                   ScrollViewer.HorizontalScrollBarVisibility="Auto"
                   ScrollViewer.VerticalScrollBarVisibility="Auto"
                   KeyDown="DgParameters_KeyDown">
@@ -241,7 +295,7 @@
                                     IsReadOnly="True"/>
 
                 <DataGridTextColumn Header="Spec"
-                                    Width="160"
+                                    Width="150"
                                     Binding="{Binding Spec}"
                                     IsReadOnly="True"/>
 
@@ -273,20 +327,20 @@
                                     IsReadOnly="True"/>
 
                 <DataGridTextColumn Header="Target Name"
-                                    Width="260"
+                                    Width="240"
                                     Binding="{Binding TargetName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                     <DataGridTextColumn.EditingElementStyle>
-                        <Style TargetType="TextBox" BasedOn="{StaticResource GridEditingTextBox}"/>
+                        <Style TargetType="TextBox" BasedOn="{StaticResource BaDarkTextBox}"/>
                     </DataGridTextColumn.EditingElementStyle>
                 </DataGridTextColumn>
 
                 <DataGridTextColumn Header="Matched Shared"
-                                    Width="240"
+                                    Width="220"
                                     Binding="{Binding MatchedShared}"
                                     IsReadOnly="True"/>
 
                 <DataGridTextColumn Header="Score"
-                                    Width="70"
+                                    Width="60"
                                     Binding="{Binding MatchScore}"
                                     IsReadOnly="True"/>
 

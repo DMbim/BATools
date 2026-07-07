@@ -15,15 +15,10 @@
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-
-                <ResourceDictionary Source="/BA;component\UI\A_Templ\Theme.xaml"/>
-                <!-- If that fails in your setup, try:
-                <ResourceDictionary Source="Resources/Theme.xaml"/>
-                -->
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Window.Resources>
-
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
