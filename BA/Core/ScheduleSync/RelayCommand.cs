@@ -8,6 +8,8 @@ namespace BA
         private readonly Action<object> _execute;
         private Action ensureCoreSubcategories;
 
+        public Action<object> ExecuteBrowse { get; }
+
         public RelayCommand(Action<object> execute, Func<bool> value)
         {
             _execute = execute;
@@ -21,6 +23,11 @@ namespace BA
         public RelayCommand(Action ensureCoreSubcategories)
         {
             this.ensureCoreSubcategories = ensureCoreSubcategories;
+        }
+
+        public RelayCommand(Action<object> executeBrowse, Func<object, bool> canSave)
+        {
+            ExecuteBrowse = executeBrowse;
         }
 
         public bool CanExecute(object parameter) => true;

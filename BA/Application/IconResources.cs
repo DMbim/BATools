@@ -131,8 +131,19 @@ namespace BA.BAApplication
         public const string ClearOverrides32 = "/BA;component/Application/Resources/Icons32/ClearOverrides32.png";
         public const string UnhideAllElements16 = "/BA;component/Application/Resources/Icons16/UnhideAllElements16.png";
         public const string UnhideAllElements32 = "/BA;component/Application/Resources/Icons32/UnhideAllElements32.png";
-
+        public const string gethost_16 = "/BA;component/Application/Resources/Icons16/gethost_16.png";
+        public const string gethost_32 = "/BA;component/Application/Resources/Icons32/gethost_32.png";
+        public const string GetVolume_16 = "/BA;component/Application/Resources/Icons16/GetVolume_16.png";
+        public const string GetVolume_32 = "/BA;component/Application/Resources/Icons32/GetVolume_32.png";
+        public const string FamilyFromSelect_16 = "/BA;component/Application/Resources/Icons16/FamilyFromSelect_16.png";
+        public const string FamilyFromSelect_32 = "/BA;component/Application/Resources/Icons32/FamilyFromSelect_32.png";
+        public const string Orient_16 = "/BA;component/Application/Resources/Icons16/Orient_16.png";
+        public const string Orient_32 = "/BA;component/Application/Resources/Icons32/Orient_32.png";
         public const string SubCatSK16 = "/BA;component/Application/Resources/Icons16/SubCatSK16.png";
         public const string SubCatSK32 = "/BA;component/Application/Resources/Icons32/SubCatSK32.png";
+        public const string FamilyVer_16 = "/BA;component/Application/Resources/Icons16/FamilyVer_16.png";
+        public const string FamilyVer_32 = "/BA;component/Application/Resources/Icons32/FamilyVer_32.png";
+        public const string FamilyParVer_16 = "/BA;component/Application/Resources/Icons16/FamilyParVer_16.png";
+        public const string FamilyParVer_32 = "/BA;component/Application/Resources/Icons32/FamilyParVer_32.png";
     }
 }

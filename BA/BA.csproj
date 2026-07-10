@@ -102,10 +102,15 @@
 	  <None Remove="Application\Resources\Icons16\evilr_16.png" />
 	  <None Remove="Application\Resources\Icons16\ExpExc16.png" />
 	  <None Remove="Application\Resources\Icons16\ExpIExc16.png" />
+	  <None Remove="Application\Resources\Icons16\FamilyFromSelect_16.png" />
 	  <None Remove="Application\Resources\Icons16\FamilyParameters16.png" />
+	  <None Remove="Application\Resources\Icons16\FamilyParVer_16.png" />
+	  <None Remove="Application\Resources\Icons16\FamilyVer_16.png" />
 	  <None Remove="Application\Resources\Icons16\Fi16.png" />
 	  <None Remove="Application\Resources\Icons16\FIN16.png" />
 	  <None Remove="Application\Resources\Icons16\General_Test16.png" />
+	  <None Remove="Application\Resources\Icons16\gethost_16.png" />
+	  <None Remove="Application\Resources\Icons16\GetVolume_16.png" />
 	  <None Remove="Application\Resources\Icons16\ImpExc16.png" />
 	  <None Remove="Application\Resources\Icons16\Issues_16.png" />
 	  <None Remove="Application\Resources\Icons16\KeyPlan16.png" />
@@ -183,10 +188,15 @@
 	  <None Remove="Application\Resources\Icons32\evilr_32.png" />
 	  <None Remove="Application\Resources\Icons32\ExpExc32.png" />
 	  <None Remove="Application\Resources\Icons32\ExpIExc32.png" />
+	  <None Remove="Application\Resources\Icons32\FamilyFromSelect_32.png" />
 	  <None Remove="Application\Resources\Icons32\FamilyParameters32.png" />
+	  <None Remove="Application\Resources\Icons32\FamilyParVer_32.png" />
+	  <None Remove="Application\Resources\Icons32\FamilyVer_32.png" />
 	  <None Remove="Application\Resources\Icons32\Fi32.png" />
 	  <None Remove="Application\Resources\Icons32\FIN32.png" />
 	  <None Remove="Application\Resources\Icons32\General_Test32.png" />
+	  <None Remove="Application\Resources\Icons32\gethost_32.png" />
+	  <None Remove="Application\Resources\Icons32\GetVolume_32.png" />
 	  <None Remove="Application\Resources\Icons32\ImpExc32.png" />
 	  <None Remove="Application\Resources\Icons32\Issues_32.png" />
 	  <None Remove="Application\Resources\Icons32\KeyPlan32.png" />
@@ -196,6 +206,7 @@
 	  <None Remove="Application\Resources\Icons32\ManageIssues_32.png" />
 	  <None Remove="Application\Resources\Icons32\Markup32.png" />
 	  <None Remove="Application\Resources\Icons32\Menu_32.png" />
+	  <None Remove="Application\Resources\Icons32\Orient_32.png" />
 	  <None Remove="Application\Resources\Icons32\OverheadCommand32.png" />
 	  <None Remove="Application\Resources\Icons32\RayBounceCeiling32.png" />
 	  <None Remove="Application\Resources\Icons32\RevPar32.png" />
@@ -391,7 +402,16 @@
 	  <Resource Include="Application\Resources\Icons16\ExpIExc16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\FamilyFromSelect_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\FamilyParameters16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\FamilyParVer_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\FamilyVer_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\Fi16.png">
@@ -401,6 +421,12 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\General_Test16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\gethost_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\GetVolume_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\ImpExc16.png">
@@ -619,7 +645,16 @@
 	  <Resource Include="Application\Resources\Icons32\ExpIExc32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\FamilyFromSelect_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\FamilyParameters32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\FamilyParVer_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\FamilyVer_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\Fi32.png">
@@ -629,6 +664,12 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\General_Test32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\gethost_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\GetVolume_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\ImpExc32.png">
@@ -654,6 +695,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\Menu_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\Orient_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\OverheadCommand32.png">

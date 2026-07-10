@@ -93,7 +93,11 @@ namespace BA.BAApplication.Ribbon
                 "Settings", "Project\nSettings",
                 "General Plugin Settings",
                 IconResources.SettingsP16, IconResources.SettingsP32);
-
+          
+            panel.AddPushButton<Cmd_GetVolume>(
+                "GetVolume", "Get\nVolume",
+                "Get the volume of selected elements.",
+                IconResources.GetVolume_16, IconResources.GetVolume_32);
 
 
 

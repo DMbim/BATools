@@ -1,18 +1,19 @@
 ﻿// FILE: BA_Tools/Application/BaApplication.cs
+using Autodesk.Revit.DB.Events;
 using Autodesk.Revit.UI;
 using BA.App.Guards;
 using BA.App.Overhead;
 using BA.App.Settings;
 using BA.BAApplication.Ribbon;
 using BA.Core.Overhead;
+using BA.QA.FamilyVersioning.Hook;
+using BA.Telemetry.Infrastructure;
+using BA.Telemetry.Services;
 using BATools.SelectionManager.Infrastructure;
 using Nice3point.Revit.Toolkit.External;
 using System;
 using ExternalEvent = Autodesk.Revit.UI.ExternalEvent;
-using BA.Telemetry.Infrastructure;
-using BA.Telemetry.Services;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
-using BA.QA.FamilyVersioning.Hook;
 
 namespace BA.BAApplication
 {
@@ -32,7 +33,7 @@ namespace BA.BAApplication
                 OverheadProxyUpdater.Register(Application);
                 ImportCadWarningGuard.Register(Application);
                 FamilyImportWarningGuardV2.Register(Application);
-
+                Application.ControlledApplication.DocumentSynchronizingWithCentral += OnDocumentSynchronizingWithCentral;
                 PluginSettingsBootstrap.ApplySavedSettingsToRuntime();
                 OverheadToggleController.Initialize(Application);
                 SelectionManagerActivator.Instance.Initialize(Application);
@@ -114,10 +115,28 @@ namespace BA.BAApplication
                 OverheadProxyUpdater.Unregister(Application);
                 ImportCadWarningGuard.Unregister(Application);
                 FamilyImportWarningGuardV2.Unregister(Application);
+                Application.ControlledApplication.DocumentSynchronizingWithCentral -= OnDocumentSynchronizingWithCentral;
+
             }
             catch (Exception ex)
             {
                 AppLogger.LogError("OnShutdown", ex);
+            }
+        }
+        private void OnDocumentSynchronizingWithCentral(object sender, DocumentSynchronizingWithCentralEventArgs e)
+        {
+            try
+            {
+                bool shouldProceed = BA.Core.Ledger.LedgerSyncService.Run(e.Document, out string cancelReason);
+                if (!shouldProceed)
+                {
+                    TaskDialog.Show("Ledger Sync Conflict", cancelReason);
+                    e.Cancel();
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.LogError("OnDocumentSynchronizingWithCentral: unhandled failure applying ledger", ex);
             }
         }
     }

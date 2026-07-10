@@ -95,6 +95,12 @@ namespace BA.BAApplication.Ribbon
                 "UnhideAllElements", "Unhide\nAll Elements",
         "Unhide all elements in the active view.",
         IconResources.UnhideAllElements16, IconResources.UnhideAllElements32);
+
+
+            panel.AddPushButton<Cmd_RevealHost>(
+                "RevealHost", "Reveal\nHost",
+            "Unhide all elements in the active view.",
+            IconResources.gethost_16, IconResources.gethost_32);
         }
     }
 

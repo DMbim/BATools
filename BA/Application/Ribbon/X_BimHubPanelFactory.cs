@@ -44,13 +44,21 @@ namespace BA.BAApplication.Ribbon
             panel.AddPushButton<Cmd_FamilyVersioningSetup>(
                 "VersionSetup", "Version\nSetUp",
                 "Set up family versioning.",
-                IconResources.SelectionManager16, IconResources.SelectionManager32);
+                IconResources.FamilyParVer_16, IconResources.FamilyParVer_32);
 
             panel.AddPushButton<Cmd_FamilyVersioningDashboard>(
                 "VersionDashboard", "Version\nDashboard",
                 "Open the family versioning dashboard.",
-                IconResources.SelectionManager16, IconResources.SelectionManager32);
+                IconResources.FamilyParVer_16, IconResources.FamilyParVer_32);
 
+            panel.AddPushButton<CmdPublishTypeData>(
+                "PublishTypeData", "Publish\nType Data",
+                "Publish type data for families.",
+                IconResources.FamilyParVer_16, IconResources.FamilyParVer_32);
+            panel.AddPushButton<CmdOpenLedgerSettings>(
+                "OpenLedgerSettings", "Ledger\nSettings",
+                "Open the ledger settings.",
+                IconResources.FamilyParVer_16, IconResources.FamilyParVer_32);
         }
     }
 }
