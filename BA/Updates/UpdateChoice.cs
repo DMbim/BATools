@@ -3,8 +3,7 @@
     internal enum UpdateChoice
     {
         None = 0,
-        UpdateNow = 1,
-        UpdateLater = 2,
-        UpdateAfterClose = 3
+        Update = 1,
+        Later = 2
     }
 }

@@ -2,65 +2,183 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Tag All Selected"
-        Width="420"
+        Width="440"
         SizeToContent="Height"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="Manual"
         ResizeMode="NoResize"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        Closing="Window_Closing"
+        Loaded="Window_Loaded">
 
     <Window.Resources>
+
         <Style TargetType="GroupBox">
             <Setter Property="Margin" Value="0,6,0,0"/>
             <Setter Property="Padding" Value="8"/>
         </Style>
+
         <Style TargetType="TextBlock" x:Key="LabelStyle">
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Width" Value="150"/>
         </Style>
+
         <Style TargetType="TextBox">
             <Setter Property="Margin" Value="0,2,0,2"/>
             <Setter Property="Width" Value="80"/>
             <Setter Property="HorizontalAlignment" Value="Left"/>
         </Style>
+
         <Style TargetType="ComboBox">
             <Setter Property="Margin" Value="0,2,0,2"/>
             <Setter Property="MinWidth" Value="200"/>
         </Style>
+
+        <Style TargetType="ToolTip">
+            <Setter Property="MaxWidth" Value="280"/>
+            <Setter Property="TextBlock.TextWrapping" Value="Wrap"/>
+        </Style>
+
     </Window.Resources>
 
-    <StackPanel Margin="12">
+    <StackPanel Margin="12"
+                ToolTipService.InitialShowDelay="600"
+                ToolTipService.ShowDuration="12000">
 
+        <!-- ===== TAG TYPE PER CATEGORY ===== -->
         <GroupBox Header="Tag type per category">
+            <GroupBox.ToolTip>
+                <ToolTip>
+                    <TextBlock TextWrapping="Wrap">
+                        For each category present in your selection, choose which tag
+                        family and type to use. Only tag families compatible with each
+                        category are shown. Multi category tags (which can tag any element
+                        type) are always included in every list.
+                    </TextBlock>
+                </ToolTip>
+            </GroupBox.ToolTip>
             <StackPanel x:Name="CategoryRowsPanel">
                 <!-- Rows added programmatically in code-behind, one per category -->
             </StackPanel>
         </GroupBox>
 
+        <!-- ===== LEADER ===== -->
         <GroupBox Header="Leader">
-            <CheckBox x:Name="CbUseLeader" Content="Add leader to tags pushed off their host due to collision"
-                      IsChecked="False"/>
+            <CheckBox x:Name="CbUseLeader"
+                      Content="Add leader to placed tags"
+                      IsChecked="False">
+                <CheckBox.ToolTip>
+                    <ToolTip>
+                        <TextBlock TextWrapping="Wrap">
+                            When enabled, all newly created tags will be placed with a leader
+                            line connecting the tag head to the tagged element. By default
+                            leaders are off to keep drawings clean. Enable when tags are
+                            expected to be moved far from their host elements (e.g. in
+                            crowded areas where collision resolution will displace tags
+                            significantly).
+                        </TextBlock>
+                    </ToolTip>
+                </CheckBox.ToolTip>
+            </CheckBox>
         </GroupBox>
 
-        <GroupBox Header="Collision resolution (when a new tag overlaps existing annotation)">
+        <!-- ===== COLLISION RESOLUTION ===== -->
+        <GroupBox Header="Collision resolution">
+            <GroupBox.ToolTip>
+                <ToolTip>
+                    <TextBlock TextWrapping="Wrap">
+                        Settings for the MTV (Minimum Translation Vector) simulation used
+                        to resolve collisions between newly placed tags and existing
+                        annotations (tags, text notes, dimensions, generic symbols) already
+                        present in the view. Both the new tag and the colliding annotation
+                        can move  displacement is shared between them proportionally.
+                    </TextBlock>
+                </ToolTip>
+            </GroupBox.ToolTip>
             <StackPanel>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Gap (mm):" Style="{StaticResource LabelStyle}"/>
-                    <TextBox x:Name="TbGap" Text="6"/>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                    <TextBlock Text="Gap (mm):" Style="{StaticResource LabelStyle}">
+                        <TextBlock.ToolTip>
+                            <ToolTip>
+                                <TextBlock TextWrapping="Wrap">
+                                    Minimum clear distance in millimetres between annotation
+                                    bounding boxes after collision resolution. Applied as a
+                                    margin inflate on each element's bounding box before
+                                    overlap detection, so the visible gap between element
+                                    edges will equal this value.
+                                </TextBlock>
+                            </ToolTip>
+                        </TextBlock.ToolTip>
+                    </TextBlock>
+                    <TextBox x:Name="TbGap" Text="6">
+                        <TextBox.ToolTip>
+                            <ToolTip>
+                                <TextBlock TextWrapping="Wrap">
+                                    Minimum clear distance in mm between annotation edges.
+                                </TextBlock>
+                            </ToolTip>
+                        </TextBox.ToolTip>
+                    </TextBox>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Iterations:" Style="{StaticResource LabelStyle}"/>
-                    <TextBox x:Name="TbIterations" Text="30"/>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                    <TextBlock Text="Iterations:" Style="{StaticResource LabelStyle}">
+                        <TextBlock.ToolTip>
+                            <ToolTip>
+                                <TextBlock TextWrapping="Wrap">
+                                    Number of MTV simulation passes per tag collision. Each pass
+                                    pushes colliding elements apart by a damped step. Higher values
+                                    resolve complex overlaps more completely. 20 to 30 is sufficient
+                                    for typical tag_vs_annotation collisions involving 2 to 4 elements.
+                                </TextBlock>
+                            </ToolTip>
+                        </TextBlock.ToolTip>
+                    </TextBlock>
+                    <TextBox x:Name="TbIterations" Text="30">
+                        <TextBox.ToolTip>
+                            <ToolTip>
+                                <TextBlock TextWrapping="Wrap">
+                                    MTV passes per collision (recommended: 20 to 40).
+                                </TextBlock>
+                            </ToolTip>
+                        </TextBox.ToolTip>
+                    </TextBox>
                 </StackPanel>
+
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Damping (0-1):" Style="{StaticResource LabelStyle}"/>
-                    <TextBox x:Name="TbDamping" Text="0.75"/>
+                    <TextBlock Text="Damping (0 to 1):" Style="{StaticResource LabelStyle}">
+                        <TextBlock.ToolTip>
+                            <ToolTip>
+                                <TextBlock TextWrapping="Wrap">
+                                    Fraction of the computed displacement applied per iteration.
+                                    Lower values produce smoother, more controlled separation.
+                                    Higher values converge faster but can overshoot in tight spaces.
+                                    0.6 to 0.8 is the stable range for annotation collision resolution.
+                                </TextBlock>
+                            </ToolTip>
+                        </TextBlock.ToolTip>
+                    </TextBlock>
+                    <TextBox x:Name="TbDamping" Text="0.75">
+                        <TextBox.ToolTip>
+                            <ToolTip>
+                                <TextBlock TextWrapping="Wrap">
+                                    Displacement fraction per iteration (0 to 1, recommended: 0.6 to 0.8).
+                                </TextBlock>
+                            </ToolTip>
+                        </TextBox.ToolTip>
+                    </TextBox>
                 </StackPanel>
+
             </StackPanel>
         </GroupBox>
 
+        <!-- ===== BUTTONS ===== -->
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-            <Button x:Name="BtnApply" Content="Apply" Width="80" Margin="0,0,8,0" Click="BtnApply_Click" IsDefault="True"/>
-            <Button x:Name="BtnCancel" Content="Cancel" Width="80" Click="BtnCancel_Click" IsCancel="True"/>
+            <Button x:Name="BtnApply" Content="Apply" Width="80"
+                    Margin="0,0,8,0" Click="BtnApply_Click" IsDefault="True"/>
+            <Button x:Name="BtnCancel" Content="Cancel" Width="80"
+                    Click="BtnCancel_Click" IsCancel="True"/>
         </StackPanel>
 
     </StackPanel>

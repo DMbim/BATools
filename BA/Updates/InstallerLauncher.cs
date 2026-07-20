@@ -7,12 +7,12 @@ namespace BA.Updates
 {
     internal static class InstallerLauncher
     {
-        public static bool LaunchUpdate(UIApplication uiapp, UpdateCheckResult r, bool silent)
+        public static bool LaunchUpdate(UpdateCheckResult r, bool silent)
         {
             var addinAsm = typeof(InstallerLauncher).Assembly;
             var addinDir = Path.GetDirectoryName(addinAsm.Location) ?? "";
-
             var installerPath = Path.Combine(addinDir, UpdateConfig.InstallerExeName);
+
             if (!File.Exists(installerPath))
             {
                 TaskDialog.Show("BA Tools Update",
@@ -21,14 +21,14 @@ namespace BA.Updates
                 return false;
             }
 
-            // IMPORTANT: Always wait for Revit to close before touching files
+            // We are running inside the Revit process, so the current process IS Revit
+            // regardless of whether this was triggered from Idling or ApplicationClosing.
             var revitPid = Process.GetCurrentProcess().Id;
+            var revitVersion = r.RevitVersion ?? "2026";
 
-            // Keep args compatible with what you already used in UpdateCoordinator.
-            // Your installer must parse these.
             var args =
                 $"--mode update " +
-                $"--revit {uiapp.Application.VersionNumber} " +
+                $"--revit {revitVersion} " +
                 $"--tag \"{r.Tag}\" " +
                 $"--asset \"{r.AssetName}\" " +
                 $"--assetUrl \"{r.AssetUrl}\" " +
@@ -43,7 +43,6 @@ namespace BA.Updates
                     Arguments = args,
                     UseShellExecute = true
                 };
-
                 Process.Start(psi);
                 return true;
             }

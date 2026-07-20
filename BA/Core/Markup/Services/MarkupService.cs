@@ -6,6 +6,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
+using BA.Core.Parameters;
 using BA.Markup.Models;
 using BA.Markup.Settings;
 using View = Autodesk.Revit.DB.View;
@@ -373,17 +374,59 @@ namespace BA.Markup.Services
             param.Set(internalValue);
         }
 
-        private static void SetStringParameter(Element element, string paramName, string value)
+        private void SetStringParameter(Element element, string paramName, string value)
         {
             var param = element.LookupParameter(paramName);
+
+            if (param == null)
+            {
+                // Required parameter missing on this element -- attempt to create it
+                // from the shared parameter file and bind it to the element's category
+                // as an Instance parameter under Text, then retry the lookup once.
+                EnsureSharedParameterBound(element.Category, paramName);
+                param = element.LookupParameter(paramName);
+            }
+
             if (param == null)
                 throw new InvalidOperationException(
-                    $"Shared parameter '{paramName}' not found on element {element.Id}. " +
-                    "Verify the parameter is bound to the correct category.");
+                    $"Shared parameter '{paramName}' could not be found or created for category " +
+                    $"'{element.Category?.Name}' on element {element.Id}. " +
+                    "Check the shared parameter file path in Markup settings and that the file is reachable.");
+
             if (param.IsReadOnly)
                 throw new InvalidOperationException(
                     $"Shared parameter '{paramName}' is read-only on element {element.Id}.");
+
             param.Set(value);
+        }
+
+        /// <summary>
+        /// Creates the named shared parameter from the configured shared parameter
+        /// file if it doesn't already exist there, then binds it to the given
+        /// category as an Instance parameter under the Text parameter group.
+        /// No GUID hint is used -- matched/created purely by name. Any failure
+        /// here (file unreachable, bind rejected, etc.) propagates as-is from
+        /// SharedParameterBinder, which already throws clear, specific
+        /// InvalidOperationExceptions -- not swallowed here, so the real reason
+        /// reaches whatever catches this instead of being replaced by a generic
+        /// "not found" message from the retry above.
+        /// </summary>
+        private void EnsureSharedParameterBound(Category? category, string paramName)
+        {
+            if (category == null) return;
+
+            var app = _uiDoc.Application.Application;
+
+            SharedParameterBinder.BindSharedParameter(
+                app,
+                _doc,
+                _settings.SharedParameterFilePath,
+                paramName,
+                Guid.Empty,
+                GroupTypeId.Text,
+                isInstance: true,
+                categories: new List<Category> { category },
+                createIfMissing: true);
         }
 
         private static void SetStringParameterIfExists(Element element, string paramName, string value)

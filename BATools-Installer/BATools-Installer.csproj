@@ -7,7 +7,7 @@
 
 		<RootNamespace>BATools_Installer</RootNamespace>
 
-		<Configurations>Debug;Release;Release R26</Configurations>
+		<Configurations>Debug;Release;Release R26;Debug R26</Configurations>
 	</PropertyGroup>
 
 </Project>

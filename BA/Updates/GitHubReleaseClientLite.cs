@@ -12,6 +12,7 @@ namespace BA.Updates
     {
         public string? tag_name { get; set; }
         public string? html_url { get; set; }
+        public string? body { get; set; }
         public GitHubAsset[]? assets { get; set; }
     }
 

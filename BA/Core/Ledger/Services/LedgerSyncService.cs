@@ -19,22 +19,37 @@ namespace BA.Core.Ledger
     /// Local      = live value currently on the FamilySymbol in this document
     /// Remote     = LedgerFileService's Main Ledger (shared, network, locked)
     ///
-    /// Design decision: this is all-or-nothing per sync attempt. The whole document is scanned
-    /// read-only first with zero writes. If ANY field conflicts (local changed AND remote
-    /// changed to something different since this user's baseline), nothing is written anywhere
-    /// -- not the Main Ledger, not the Personal Ledger, not the document -- and the entire
+    /// Design decision: this is all-or-nothing per sync attempt with respect to genuine
+    /// conflicts only. If ANY field conflicts (local changed AND remote changed to something
+    /// different since this user's baseline), nothing is written anywhere and the entire
     /// Synchronize with Central is cancelled via e.Cancel(true) so the user can resolve it
-    /// before anything commits. Only when there are zero conflicts do pushes, pulls, and both
-    /// ledger baselines get written, atomically as one batch.
+    /// before anything commits. Individual field-level failures that are not conflicts
+    /// (missing binding, bad value parse) do NOT cancel the sync, they are skipped, logged,
+    /// and retried on the next sync attempt since their Personal Ledger baseline is not
+    /// advanced on failure.
+    ///
+    /// NOTE ON PARAMETER SCOPE: this entire engine reads FamilySymbol.Parameters, which by
+    /// Revit API construction can only ever return Type-bound shared parameters -- Instance-
+    /// bound parameters live on FamilyInstance, not FamilySymbol/ElementType, and never appear
+    /// here. Every binding this service creates is therefore correctly a TypeBinding; this is
+    /// not a simplification, it is what the object being scanned makes possible. If Instance
+    /// parameter sync is ever added, it needs a separate scan over placed FamilyInstance
+    /// elements, a different key structure, and its own binding-kind handling; it does not
+    /// belong bolted onto this class.
     /// </summary>
     public static class LedgerSyncService
     {
-        private class FieldCandidate
+        internal class FieldCandidate
         {
             public string FamilyTypeKey;
             public string ParamGuidString;
             public string ParameterName;
             public StorageType StorageType;
+
+            // Null when this field is known to the Main Ledger but has never existed locally
+            // on this symbol (new-parameter propagation case). ClassifyField never reads
+            // LiveValue in the baselineEntry == null / mainEntry != null branch, so this is
+            // safe, but it must never be treated as "the live value is the empty string".
             public string LiveValue;
         }
 
@@ -49,24 +64,76 @@ namespace BA.Core.Ledger
             public LedgerParameterEntry SourceEntry;
         }
 
-        private class ConflictItem
+        public enum LedgerConflictResolution
         {
-            public string FamilyTypeKey;
-            public string ParameterName;
-            public string LocalValue;
-            public string ServerValue;
-            public string ServerEditedBy;
-            public DateTime ServerTimestampUtc;
+            KeepMine,
+            AcceptServer,
+            CancelSync
         }
 
         /// <summary>
-        /// Runs the full scan + (cancel on conflict) or (push+pull+commit) cycle.
-        /// Returns true if the caller's sync should proceed, false if it must be cancelled.
-        /// The caller (BaApplication's event handler) is responsible for calling e.Cancel(true)
-        /// when this returns false; this method does not touch the event args itself so it
-        /// stays independently testable.
+        /// Public-facing conflict summary passed to the resolver delegate. Field/ServerEntry
+        /// are internal-only, used to convert a resolved conflict back into a PushItem or
+        /// PullItem; the resolver itself only needs the display properties above them.
         /// </summary>
-        public static bool Run(Document doc, out string cancelReason)
+        public class LedgerConflictItem
+        {
+            public string FamilyTypeKey { get; internal set; }
+            public string ParameterName { get; internal set; }
+            public string LocalValue { get; internal set; }
+            public string ServerValue { get; internal set; }
+            public string ServerEditedBy { get; internal set; }
+            public DateTime ServerTimestampUtc { get; internal set; }
+
+            internal FieldCandidate Field;
+            internal LedgerParameterEntry ServerEntry;
+        }
+
+        /// <summary>
+        /// Public-facing summary of a pull that failed specifically because the shared
+        /// parameter binding could not be resolved or created in this document (as opposed to
+        /// a bad value parse, which is logged but not surfaced to the user since it indicates
+        /// ledger data corruption rather than an environment issue the user can fix).
+        /// </summary>
+        public class LedgerBindingFailure
+        {
+            public string FamilyTypeKey { get; internal set; }
+            public string ParameterName { get; internal set; }
+            public string Reason { get; internal set; }
+        }
+
+        private enum ApplyOutcome
+        {
+            Applied,
+            BindingFailed,
+            ValueRejected
+        }
+
+        /// <summary>
+        /// Runs the full scan + resolve + commit cycle. Returns true if the caller's sync
+        /// should proceed, false if it must be cancelled. The caller (BaApplication's event
+        /// handler) is responsible for calling e.Cancel() when this returns false; this method
+        /// does not touch the event args itself so it stays independently testable.
+        ///
+        /// resolveConflicts is invoked ONLY if at least one genuine conflict is found (local
+        /// and remote both changed, to different values, since this user's baseline). It is
+        /// the caller's responsibility to show a TaskDialog (or equivalent) with all listed
+        /// conflicts and return a single uniform resolution for all of them.
+        ///
+        /// warnBindingFailures is invoked ONLY if at least one pull failed because a shared
+        /// parameter binding could not be resolved or created in this document (parameter GUID
+        /// not found in this session's shared parameter file, or Insert/ReInsert rejected by
+        /// Revit). This does NOT cancel the sync; every other successful push/pull in this
+        /// batch still commits. It exists purely to tell the user that a newly published Type
+        /// Parameter did not make it into this document and why, since the alternative is a
+        /// silent retry-forever with no visible symptom. Optional; pass null to suppress (not
+        /// recommended, since these failures are otherwise invisible).
+        /// </summary>
+        public static bool Run(
+            Document doc,
+            Func<List<LedgerConflictItem>, LedgerConflictResolution> resolveConflicts,
+            Action<List<LedgerBindingFailure>> warnBindingFailures,
+            out string cancelReason)
         {
             cancelReason = null;
 
@@ -81,7 +148,7 @@ namespace BA.Core.Ledger
             TypeDataLedger mainLedger;
             try
             {
-                mainLedger = LedgerFileService.ReadOnly();
+                mainLedger = LedgerFileService.ReadOnly(doc);
             }
             catch (Exception ex)
             {
@@ -99,7 +166,7 @@ namespace BA.Core.Ledger
 
             var pushes = new List<PushItem>();
             var pulls = new List<PullItem>();
-            var conflicts = new List<ConflictItem>();
+            var conflicts = new List<LedgerConflictItem>();
 
             // ---- Scan phase: read-only, no writes ----
             foreach (KeyValuePair<string, FamilySymbol> kvp in symbolsByKey)
@@ -116,6 +183,9 @@ namespace BA.Core.Ledger
                 mainLedger.Families.TryGetValue(familyTypeKey, out LedgerFamilyNode mainNode);
                 personalLedger.Families.TryGetValue(familyTypeKey, out LedgerFamilyNode personalNode);
 
+                var processedGuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                // Pass 1: parameters that already exist and are bound on this symbol.
                 foreach (Parameter parameter in symbol.Parameters)
                 {
                     if (!parameter.IsShared || parameter.IsReadOnly)
@@ -135,6 +205,8 @@ namespace BA.Core.Ledger
                     }
 
                     string guidString = guid.ToString("D");
+                    processedGuids.Add(guidString);
+
                     string liveValue = ExtractValueAsString(parameter);
 
                     var field = new FieldCandidate
@@ -154,14 +226,93 @@ namespace BA.Core.Ledger
 
                     ClassifyField(field, mainEntry, baselineEntry, pushes, pulls, conflicts);
                 }
+
+                // Pass 2: parameters the Main Ledger knows about for this family/type that are
+                // NOT currently bound on this symbol at all, and that this user has never
+                // synced before (no Personal Ledger baseline). This is the case that was
+                // previously unreachable: User A binds a brand-new shared parameter and pushes
+                // it, Building B has never heard of it, symbol.Parameters can't see it because
+                // it isn't bound yet. Synthesize a candidate straight from the ledger entry so
+                // it reaches ApplyParameter, which is what actually calls
+                // ParameterBindingFixupService.
+                //
+                // Only fires when baselineEntry is null: if a baseline exists but the
+                // parameter is now absent from the symbol, that means it was bound before and
+                // something unbound it locally since -- a different situation this pass does
+                // not attempt to resolve, to avoid pushing a null/empty value over a
+                // deliberate local unbind.
+                if (mainNode != null)
+                {
+                    foreach (KeyValuePair<string, LedgerParameterEntry> kvp2 in mainNode.Parameters)
+                    {
+                        string guidString = kvp2.Key;
+                        if (processedGuids.Contains(guidString))
+                        {
+                            continue;
+                        }
+
+                        LedgerParameterEntry mainEntry = kvp2.Value;
+
+                        LedgerParameterEntry baselineEntry = null;
+                        personalNode?.Parameters.TryGetValue(guidString, out baselineEntry);
+
+                        if (baselineEntry != null)
+                        {
+                            continue; // previously bound, now missing locally: not this pass's job
+                        }
+
+                        if (!Enum.TryParse(mainEntry.StorageType, out StorageType storageType)
+                            || storageType == StorageType.ElementId
+                            || storageType == StorageType.None)
+                        {
+                            AppLogger.LogError(
+                                $"LedgerSyncService.Run: Main Ledger entry for '{familyTypeKey}' / '{mainEntry.ParameterName}' has invalid StorageType '{mainEntry.StorageType}', skipping.", null);
+                            continue;
+                        }
+
+                        var field = new FieldCandidate
+                        {
+                            FamilyTypeKey = familyTypeKey,
+                            ParamGuidString = guidString,
+                            ParameterName = mainEntry.ParameterName,
+                            StorageType = storageType,
+                            LiveValue = null
+                        };
+
+                        ClassifyField(field, mainEntry, null, pushes, pulls, conflicts);
+                    }
+                }
             }
 
-            // ---- Conflict gate: all-or-nothing ----
+            // ---- Conflict gate: ask the caller how to resolve, uniformly, if anything conflicts ----
             if (conflicts.Count > 0)
             {
-                cancelReason = BuildConflictMessage(conflicts);
-                AppLogger.LogInfo($"LedgerSyncService.Run: {conflicts.Count} conflict(s) detected, cancelling sync. {cancelReason}");
-                return false;
+                LedgerConflictResolution resolution = resolveConflicts != null
+                    ? resolveConflicts(conflicts)
+                    : LedgerConflictResolution.CancelSync;
+
+                AppLogger.LogInfo($"LedgerSyncService.Run: {conflicts.Count} conflict(s) detected, resolution = {resolution}.");
+
+                switch (resolution)
+                {
+                    case LedgerConflictResolution.KeepMine:
+                        foreach (LedgerConflictItem conflict in conflicts)
+                        {
+                            pushes.Add(new PushItem { Field = conflict.Field });
+                        }
+                        break;
+
+                    case LedgerConflictResolution.AcceptServer:
+                        foreach (LedgerConflictItem conflict in conflicts)
+                        {
+                            pulls.Add(new PullItem { Field = conflict.Field, SourceEntry = conflict.ServerEntry });
+                        }
+                        break;
+
+                    default:
+                        cancelReason = BuildConflictMessage(conflicts);
+                        return false;
+                }
             }
 
             if (pushes.Count == 0 && pulls.Count == 0)
@@ -169,12 +320,13 @@ namespace BA.Core.Ledger
                 return true; // nothing to do, let the real sync proceed untouched
             }
 
-            // ---- Commit phase: only reached when there were zero conflicts ----
+            // ---- Commit phase: only reached when there were zero conflicts (or all resolved) ----
             DateTime commitTimestamp = DateTime.UtcNow;
+            var bindingFailures = new List<LedgerBindingFailure>();
 
             if (pushes.Count > 0)
             {
-                LedgerFileService.OpenAndModify(ledger =>
+                LedgerFileService.OpenAndModify(doc,ledger =>
                 {
                     foreach (PushItem push in pushes)
                     {
@@ -209,28 +361,37 @@ namespace BA.Core.Ledger
                         {
                             try
                             {
-                                bool applied = ApplyParameter(doc, symbol, pull.Field.ParamGuidString, pull.SourceEntry);
-                                if (!applied)
+                                ApplyOutcome outcome = ApplyParameter(doc, symbol, pull.Field.ParamGuidString, pull.SourceEntry, out string bindingFailureDetail);
+
+                                switch (outcome)
                                 {
-                                    // No exception, but nothing was actually written (parse
-                                    // failure, missing/read-only parameter). Must be treated
-                                    // as a failure, not left to silently advance the baseline
-                                    // for a value that was never applied to the document.
-                                    AppLogger.LogError(
-                                        $"LedgerSyncService.Run: ApplyParameter returned false for '{pull.Field.ParameterName}' on '{pull.Field.FamilyTypeKey}' (bad value or missing parameter)", null);
-                                    pull.SourceEntry = null;
+                                    case ApplyOutcome.Applied:
+                                        break;
+
+                                    case ApplyOutcome.BindingFailed:
+                                        AppLogger.LogError(
+                                            $"LedgerSyncService.Run: could not bind/resolve shared parameter '{pull.Field.ParameterName}' ({pull.Field.ParamGuidString}) on '{pull.Field.FamilyTypeKey}' in this document. {bindingFailureDetail}", null);
+                                        bindingFailures.Add(new LedgerBindingFailure
+                                        {
+                                            FamilyTypeKey = pull.Field.FamilyTypeKey,
+                                            ParameterName = pull.Field.ParameterName,
+                                            Reason = bindingFailureDetail ?? "Shared parameter binding could not be found or created in this document."
+                                        });
+                                        pull.SourceEntry = null;
+                                        break;
+
+                                    case ApplyOutcome.ValueRejected:
+                                        AppLogger.LogError(
+                                            $"LedgerSyncService.Run: ApplyParameter rejected value for '{pull.Field.ParameterName}' on '{pull.Field.FamilyTypeKey}' (bad value or read-only parameter).", null);
+                                        pull.SourceEntry = null;
+                                        break;
                                 }
                             }
                             catch (Exception ex)
                             {
-                                // Should be rare here since conflicts were already ruled out,
-                                // but a type could still be locked by another user at the exact
-                                // moment of commit. Log and continue; it will be re-evaluated
-                                // fresh on the next sync attempt since the Personal Ledger
-                                // baseline for this field is not updated below on failure.
                                 AppLogger.LogError(
                                     $"LedgerSyncService.Run: failed to apply pull for '{pull.Field.ParameterName}' on '{pull.Field.FamilyTypeKey}'", ex);
-                                pull.SourceEntry = null; // marks this pull as not-applied, see baseline update below
+                                pull.SourceEntry = null;
                             }
                         }
                     }
@@ -264,6 +425,12 @@ namespace BA.Core.Ledger
 
             AppLogger.LogInfo($"LedgerSyncService.Run: {pushes.Count} field(s) pushed, {pulls.Count(p => p.SourceEntry != null)} field(s) pulled.");
 
+            if (bindingFailures.Count > 0)
+            {
+                AppLogger.LogInfo($"LedgerSyncService.Run: {bindingFailures.Count} field(s) could not be bound in this document, see errors above.");
+                warnBindingFailures?.Invoke(bindingFailures);
+            }
+
             return true;
         }
 
@@ -273,26 +440,23 @@ namespace BA.Core.Ledger
             LedgerParameterEntry baselineEntry,
             List<PushItem> pushes,
             List<PullItem> pulls,
-            List<ConflictItem> conflicts)
+            List<LedgerConflictItem> conflicts)
         {
             if (baselineEntry == null)
             {
                 if (mainEntry == null)
                 {
                     // Bootstrap: nobody has ever published this field. This user's live value
-                    // becomes the seed.
+                    // becomes the seed. Only reachable from pass 1 (a live parameter exists);
+                    // pass 2 always has a non-null mainEntry by construction.
                     pushes.Add(new PushItem { Field = field });
                 }
                 else
                 {
                     // This user has no history with this field, but the Main Ledger does.
-                    // Whether or not it already matches the live value, this field's baseline
-                    // must still be recorded -- otherwise, if it happens to already match,
-                    // nothing gets written anywhere (no push, no pull), the Personal Ledger
-                    // never actually gets created for this field, and every future sync
-                    // re-derives the exact same "nothing to do" conclusion forever. Treating
-                    // this as a pull (even when it's a same-value no-op Set) guarantees the
-                    // baseline always gets seeded on first encounter.
+                    // Covers both: (a) pass 1, live value happens to already match or differ,
+                    // baseline must still be seeded either way, and (b) pass 2, the parameter
+                    // doesn't exist locally at all yet and must be bound + set from scratch.
                     pulls.Add(new PullItem { Field = field, SourceEntry = mainEntry });
                 }
                 return;
@@ -325,14 +489,16 @@ namespace BA.Core.Ledger
             else
             {
                 // Both sides changed, to different values. Genuine conflict.
-                conflicts.Add(new ConflictItem
+                conflicts.Add(new LedgerConflictItem
                 {
                     FamilyTypeKey = field.FamilyTypeKey,
                     ParameterName = field.ParameterName,
                     LocalValue = field.LiveValue,
                     ServerValue = mainEntry.Value,
                     ServerEditedBy = mainEntry.LastEditedBy,
-                    ServerTimestampUtc = mainEntry.TimestampUtc
+                    ServerTimestampUtc = mainEntry.TimestampUtc,
+                    Field = field,
+                    ServerEntry = mainEntry
                 });
             }
         }
@@ -348,58 +514,64 @@ namespace BA.Core.Ledger
             node.Parameters[paramGuidString] = entry;
         }
 
-        private static bool ApplyParameter(Document doc, FamilySymbol symbol, string paramGuidString, LedgerParameterEntry entry)
+        private static ApplyOutcome ApplyParameter(Document doc, FamilySymbol symbol, string paramGuidString, LedgerParameterEntry entry, out string bindingFailureDetail)
         {
+            bindingFailureDetail = null;
+
             if (!Guid.TryParse(paramGuidString, out Guid targetGuid))
             {
-                return false;
+                return ApplyOutcome.ValueRejected;
             }
 
             Parameter target = FindSharedParameter(symbol, targetGuid);
 
             if (target == null)
             {
-                // Not found on this symbol at all: either the parameter isn't bound to this
-                // category, or isn't bound anywhere in the project. Attempt a silent fix-up,
-                // then retry the lookup once. Regenerate() inside the fix-up service ensures
-                // the symbol's Parameters collection reflects the new/widened binding before
-                // this retry runs.
-                bool fixedUp = ParameterBindingFixupService.EnsureParameterBound(doc, symbol.Category, targetGuid);
+                bool fixedUp = ParameterBindingFixupService.EnsureParameterBound(doc, symbol.Category, targetGuid, out bindingFailureDetail);
                 if (fixedUp)
                 {
                     target = FindSharedParameter(symbol, targetGuid);
+                    bindingFailureDetail = null;
+                }
+
+                if (target == null)
+                {
+                    if (bindingFailureDetail == null)
+                    {
+                        bindingFailureDetail = "Binding fix-up reported success but the parameter still could not be found on this symbol after Regenerate().";
+                    }
+                    return ApplyOutcome.BindingFailed;
                 }
             }
 
-            if (target == null || target.IsReadOnly)
+            if (target.IsReadOnly)
             {
-                return false;
+                return ApplyOutcome.ValueRejected;
             }
 
             switch (target.StorageType)
             {
                 case StorageType.String:
-                    return target.Set(entry.Value ?? string.Empty);
+                    return target.Set(entry.Value ?? string.Empty) ? ApplyOutcome.Applied : ApplyOutcome.ValueRejected;
 
                 case StorageType.Integer:
                     if (int.TryParse(entry.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int intVal))
                     {
-                        return target.Set(intVal);
+                        return target.Set(intVal) ? ApplyOutcome.Applied : ApplyOutcome.ValueRejected;
                     }
-                    return false;
+                    return ApplyOutcome.ValueRejected;
 
                 case StorageType.Double:
                     if (double.TryParse(entry.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double dblVal))
                     {
-                        return target.Set(dblVal);
+                        return target.Set(dblVal) ? ApplyOutcome.Applied : ApplyOutcome.ValueRejected;
                     }
-                    return false;
+                    return ApplyOutcome.ValueRejected;
 
                 default:
-                    return false;
+                    return ApplyOutcome.ValueRejected;
             }
         }
-
         private static Parameter FindSharedParameter(FamilySymbol symbol, Guid targetGuid)
         {
             return symbol.Parameters
@@ -422,13 +594,13 @@ namespace BA.Core.Ledger
             }
         }
 
-        private static string BuildConflictMessage(List<ConflictItem> conflicts)
+        private static string BuildConflictMessage(List<LedgerConflictItem> conflicts)
         {
             var sb = new StringBuilder();
             sb.AppendLine("Synchronize with Central was cancelled because the following Type Parameters were changed by someone else since your last sync:");
             sb.AppendLine();
 
-            foreach (ConflictItem c in conflicts)
+            foreach (LedgerConflictItem c in conflicts)
             {
                 sb.AppendLine($"- {c.FamilyTypeKey} / {c.ParameterName}:");
                 sb.AppendLine($"    Your value: '{c.LocalValue}'");

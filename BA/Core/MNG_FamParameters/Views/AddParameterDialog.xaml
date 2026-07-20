@@ -1,0 +1,101 @@
+﻿<!-- BA/UI/AddParameterDialog.xaml -->
+<Window x:Class="BA.UI.AddParameterDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Add Family Parameter"
+        Width="460"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{DynamicResource Brush.WindowBg}"
+        Foreground="{DynamicResource Brush.WindowFg}">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <StackPanel Margin="16">
+
+        <!-- Shared toggle -->
+        <CheckBox Content="Add as Shared Parameter"
+                  IsChecked="{Binding IsShared, Mode=TwoWay}"
+                  Foreground="{DynamicResource Brush.WindowFg}"
+                  Margin="0,0,0,14"/>
+
+        <!-- Non-shared fields -->
+        <StackPanel Visibility="{Binding IsNonSharedVisible}">
+            <TextBlock Text="Name"
+                       Foreground="{DynamicResource Brush.WindowFg}"
+                       Margin="0,0,0,4"/>
+            <TextBox Text="{Binding ParamName, UpdateSourceTrigger=PropertyChanged}"
+                     Style="{DynamicResource BaDarkTextBox}"
+                     Margin="0,0,0,12"/>
+
+            <TextBlock Text="Spec / Type"
+                       Foreground="{DynamicResource Brush.WindowFg}"
+                       Margin="0,0,0,4"/>
+            <ComboBox ItemsSource="{Binding Specs}"
+                      SelectedItem="{Binding SelectedSpec}"
+                      DisplayMemberPath="Label"
+                      Style="{DynamicResource BaDarkComboBox}"
+                      Margin="0,0,0,12"/>
+        </StackPanel>
+
+        <!-- Shared param picker -->
+        <StackPanel Visibility="{Binding IsSharedVisible}">
+            <TextBlock Text="Shared Parameter"
+                       Foreground="{DynamicResource Brush.WindowFg}"
+                       Margin="0,0,0,4"/>
+            <ComboBox ItemsSource="{Binding SharedParams}"
+                      SelectedItem="{Binding SelectedShared}"
+                      DisplayMemberPath="Name"
+                      Style="{DynamicResource BaDarkComboBox}"
+                      Margin="0,0,0,12"/>
+        </StackPanel>
+
+        <!-- Group -->
+        <TextBlock Text="Parameter Group"
+                   Foreground="{DynamicResource Brush.WindowFg}"
+                   Margin="0,0,0,4"/>
+        <ComboBox ItemsSource="{Binding Groups}"
+                  SelectedItem="{Binding SelectedGroup}"
+                  DisplayMemberPath="Name"
+                  Style="{DynamicResource BaDarkComboBox}"
+                  Margin="0,0,0,12"/>
+
+        <!-- Scope -->
+        <TextBlock Text="Scope"
+                   Foreground="{DynamicResource Brush.WindowFg}"
+                   Margin="0,0,0,4"/>
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+            <RadioButton Content="Instance"
+                         GroupName="ScopeGroup"
+                         IsChecked="{Binding IsInstance, Mode=TwoWay}"
+                         Foreground="{DynamicResource Brush.WindowFg}"
+                         Margin="0,0,20,0"/>
+            <RadioButton Content="Type"
+                         GroupName="ScopeGroup"
+                         IsChecked="{Binding IsType, Mode=TwoWay}"
+                         Foreground="{DynamicResource Brush.WindowFg}"/>
+        </StackPanel>
+
+        <!-- Buttons -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Add"
+                    Style="{DynamicResource BaPrimaryButton}"
+                    Width="80"
+                    Margin="0,0,8,0"
+                    Click="BtnAdd_Click"/>
+            <Button Content="Cancel"
+                    Style="{DynamicResource BaSecondaryButton}"
+                    Width="80"
+                    Click="BtnCancel_Click"/>
+        </StackPanel>
+
+    </StackPanel>
+</Window>

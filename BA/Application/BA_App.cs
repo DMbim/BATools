@@ -1,5 +1,4 @@
-﻿// FILE: BA_Tools/Application/BaApplication.cs
-using Autodesk.Revit.DB.Events;
+﻿using Autodesk.Revit.DB.Events;
 using Autodesk.Revit.UI;
 using BA.App.Guards;
 using BA.App.Overhead;
@@ -12,6 +11,8 @@ using BA.Telemetry.Services;
 using BATools.SelectionManager.Infrastructure;
 using Nice3point.Revit.Toolkit.External;
 using System;
+using System.Collections.Generic;
+using System.Text;
 using ExternalEvent = Autodesk.Revit.UI.ExternalEvent;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 
@@ -49,7 +50,7 @@ namespace BA.BAApplication
                 RibbonPanel panelBimHub = Application.CreatePanel("BIM Hub", bimTabName); // <- NEW
                 BimHubPanelFactory.Build(panelBimHub);
 
-                AnnotationPanelFactory.Build(panelAnnotation);     
+                AnnotationPanelFactory.Build(panelAnnotation);
                 RoomsPanelFactory.Build(panelRooms);
                 FamiliesPanelFactory.Build(panelFamilies);
                 ProjectPanelFactory.Build(panelProject);
@@ -93,6 +94,8 @@ namespace BA.BAApplication
                     _familyVersioningHook.Register();
                     _familyVersioningHook.SeedOpenDocuments();
                 }
+
+
             }
             catch (Exception ex)
             {
@@ -104,7 +107,6 @@ namespace BA.BAApplication
                     uiAppFinal.Idling -= OnFirstIdling;
             }
         }
-
         public override void OnShutdown()
         {
             try
@@ -115,6 +117,7 @@ namespace BA.BAApplication
                 OverheadProxyUpdater.Unregister(Application);
                 ImportCadWarningGuard.Unregister(Application);
                 FamilyImportWarningGuardV2.Unregister(Application);
+                BA.Updates.UpdateService.Unregister(Application);
                 Application.ControlledApplication.DocumentSynchronizingWithCentral -= OnDocumentSynchronizingWithCentral;
 
             }
@@ -127,7 +130,12 @@ namespace BA.BAApplication
         {
             try
             {
-                bool shouldProceed = BA.Core.Ledger.LedgerSyncService.Run(e.Document, out string cancelReason);
+                bool shouldProceed = BA.Core.Ledger.LedgerSyncService.Run(
+                    e.Document,
+                    ResolveLedgerConflicts,
+                    WarnBindingFailures,
+                    out string cancelReason);
+
                 if (!shouldProceed)
                 {
                     TaskDialog.Show("Ledger Sync Conflict", cancelReason);
@@ -138,6 +146,82 @@ namespace BA.BAApplication
             {
                 AppLogger.LogError("OnDocumentSynchronizingWithCentral: unhandled failure applying ledger", ex);
             }
+        }
+
+        private static BA.Core.Ledger.LedgerSyncService.LedgerConflictResolution ResolveLedgerConflicts(
+            List<BA.Core.Ledger.LedgerSyncService.LedgerConflictItem> conflicts)
+        {
+            var sb = new StringBuilder();
+            foreach (var c in conflicts)
+            {
+                sb.AppendLine($"{c.FamilyTypeKey} / {c.ParameterName}:");
+                sb.AppendLine($"   Your value: '{c.LocalValue}'");
+                sb.AppendLine($"   Server value: '{c.ServerValue}' (by {c.ServerEditedBy} at {c.ServerTimestampUtc:u})");
+                sb.AppendLine();
+            }
+
+            var dialog = new TaskDialog("Ledger Sync Conflict")
+            {
+                MainInstruction = $"{conflicts.Count} field(s) were changed by someone else since your last sync",
+                MainContent = sb.ToString(),
+                CommonButtons = TaskDialogCommonButtons.None,
+                AllowCancellation = true
+            };
+
+            dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Keep MY value(s)",
+                "Overwrite the server with what you have locally for every listed field.");
+            dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Accept SERVER value(s)",
+                "Discard your local changes for every listed field and pull the server's values instead.");
+            dialog.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Cancel sync",
+                "Don't sync anything right now. Resolve manually and try again later.");
+
+            TaskDialogResult result = dialog.Show();
+
+            switch (result)
+            {
+                case TaskDialogResult.CommandLink1:
+                    return BA.Core.Ledger.LedgerSyncService.LedgerConflictResolution.KeepMine;
+                case TaskDialogResult.CommandLink2:
+                    return BA.Core.Ledger.LedgerSyncService.LedgerConflictResolution.AcceptServer;
+                default:
+                    return BA.Core.Ledger.LedgerSyncService.LedgerConflictResolution.CancelSync;
+            }
+        }
+
+        /// <summary>
+        /// Non-blocking notice shown after a sync that otherwise completed successfully, for
+        /// any field where a newly published Type Parameter could not be bound into this
+        /// document (GUID not present in this session's shared parameter file, or Revit
+        /// rejected the binding). Does NOT cancel or roll back anything; everything else in
+        /// the sync already committed by the time this runs. Purely informational, so the user
+        /// isn't left wondering why a parameter a colleague added isn't showing up here.
+        /// </summary>
+        private static void WarnBindingFailures(List<BA.Core.Ledger.LedgerSyncService.LedgerBindingFailure> failures)
+        {
+            if (failures == null || failures.Count == 0)
+            {
+                return;
+            }
+
+            var sb = new StringBuilder();
+            foreach (var f in failures)
+            {
+                sb.AppendLine($"{f.FamilyTypeKey} / {f.ParameterName}:");
+                sb.AppendLine($"   {f.Reason}");
+                sb.AppendLine();
+            }
+
+            var dialog = new TaskDialog("Ledger Sync – Parameter Binding Warning")
+            {
+                MainInstruction = $"{failures.Count} Type Parameter(s) could not be applied in this document",
+                MainContent = sb.ToString()
+                    + "This usually means the shared parameter file loaded in this Revit session is out of date or points to a different file than the one used when the parameter was created."
+                    + " Check File > Options > Shared Parameters, then try Synchronize with Central again.",
+                CommonButtons = TaskDialogCommonButtons.Ok,
+                AllowCancellation = true
+            };
+
+            dialog.Show();
         }
     }
 }

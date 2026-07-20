@@ -14,31 +14,37 @@ namespace BA_Tools.ScheduleExporter.Models
         /// </summary>
         public int ColumnIndex { get; set; }
 
-        /// <summary>Revit ScheduleFieldId — uniquely identifies the field within the schedule definition.</summary>
-        public ScheduleFieldId FieldId { get; set; }
+        public ScheduleFieldId FieldId     { get; set; }
+        public ElementId       ParameterId { get; set; }
 
-        /// <summary>
-        /// ElementId of the backing parameter.
-        /// For BuiltInParameters: ElementId whose Value equals the negative BuiltInParameter enum integer.
-        /// For shared parameters: ElementId of the SharedParameterElement in the document.
-        /// </summary>
-        public ElementId ParameterId { get; set; }
-
-        /// <summary>Column heading as shown in the Revit schedule (may differ from parameter name).</summary>
+        /// <summary>Column heading as shown in the Revit schedule.</summary>
         public string DisplayName { get; set; }
 
-        /// <summary>How this column is categorized for export/import treatment.</summary>
-        public FieldCategory Category { get; set; }
+        public FieldCategory Category    { get; set; }
+        public StorageType   StorageType { get; set; }
+
+        /// <summary>
+        /// Revit spec type ForgeTypeId for Double parameters (e.g. SpecTypeId.Length).
+        /// Used to display the unit label in the Excel data type row and to parse
+        /// display-unit strings back to internal values on import.
+        /// Null for non-Double parameters.
+        /// </summary>
+        public ForgeTypeId SpecTypeId { get; set; }
+
+        /// <summary>
+        /// Human-readable data type label for the Excel row 2, e.g.:
+        ///   "Text",  "Integer",  "Length (m)",  "Area (m²)",
+        ///   "TYPE · Text",  "Calculated (formula)",  "Reference"
+        /// Populated by ScheduleReaderService after StorageType probe.
+        /// </summary>
+        public string DataTypeLabel { get; set; }
 
         /// <summary>
         /// True when this column must never be written on import.
-        /// Calculated, ElementIdType, and Hidden categories are always read-only.
+        /// Calculated, ElementIdType and Hidden categories are always read-only.
         /// </summary>
         public bool IsReadOnly => Category == FieldCategory.Calculated
                                || Category == FieldCategory.ElementIdType
                                || Category == FieldCategory.Hidden;
-
-        /// <summary>Revit StorageType of the backing parameter. None for Calculated/Hidden.</summary>
-        public StorageType StorageType { get; set; }
     }
 }

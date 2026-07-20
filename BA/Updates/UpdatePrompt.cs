@@ -1,11 +1,10 @@
-﻿// File: BA/Updates/UpdatePrompt.cs
-using Autodesk.Revit.UI;
+﻿using Autodesk.Revit.UI;
 
 namespace BA.Updates
 {
     internal static class UpdatePrompt
     {
-        public static UpdateChoice Show(UIApplication uiapp, UpdateCheckResult r)
+        public static UpdateChoice Show(UpdateCheckResult r)
         {
             var td = new TaskDialog("BA Tools Update")
             {
@@ -15,22 +14,28 @@ namespace BA.Updates
             };
 
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Update now",
-                "Starts the updater now. It will wait, then update after you close Revit.");
+                "Update",
+                "Starts the updater now. It waits for Revit to close, then installs the new version automatically.");
 
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Update later",
-                "No changes now. You’ll be prompted again next time Revit is opened.");
+                "Not now",
+                "Skip this version. You won't be asked again until a newer version is released.");
 
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Update after Revit is closed",
-                "Starts the updater in waiting + silent mode. It will update automatically after Revit exits.");
+            if (!string.IsNullOrWhiteSpace(r.Body))
+            {
+                var body = r.Body.Length > 1000 ? r.Body.Substring(0, 1000) + "..." : r.Body;
+                td.ExpandedContent = body;
+            }
+
+            if (!string.IsNullOrWhiteSpace(r.ReleaseUrl))
+            {
+                td.FooterText = $"Release notes: {r.ReleaseUrl}";
+            }
 
             var res = td.Show();
 
-            if (res == TaskDialogResult.CommandLink1) return UpdateChoice.UpdateNow;
-            if (res == TaskDialogResult.CommandLink3) return UpdateChoice.UpdateAfterClose;
-            return UpdateChoice.UpdateLater;
+            if (res == TaskDialogResult.CommandLink1) return UpdateChoice.Update;
+            return UpdateChoice.Later;
         }
     }
 }

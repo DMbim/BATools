@@ -58,26 +58,42 @@
 
         <!-- Bottom -->
         <Grid Grid.Row="2" Margin="0,10,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock VerticalAlignment="Center" Text="Shared Params file:" Margin="0,0,8,0"/>
-                <TextBox x:Name="TxtSpPath" Height="26" Width="520" IsReadOnly="True"
-                         Background="#1B1B1C" Foreground="#121214" BorderBrush="#3A3A3D" Padding="6,3"/>
-                <Button Margin="8,0,0,0" Width="90" Content="Browse..." Click="BtnBrowseSp_Click"/>
+            <!-- File path row -->
+            <Grid Grid.Row="0" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-                <TextBlock x:Name="TxtSelectionSummary" Margin="16,0,0,0" VerticalAlignment="Center" Foreground="#B7B7BC"/>
-            </StackPanel>
+                <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Shared Params file:" Margin="0,0,8,0"/>
+                <TextBox Grid.Column="1" x:Name="TxtSpPath" Height="26" IsReadOnly="True"
+                         Background="#1B1B1C" Foreground="#F2F2F2" BorderBrush="#3A3A3D" Padding="6,3"
+                         VerticalContentAlignment="Center"/>
+                <Button Grid.Column="2" Margin="8,0,0,0" Width="90" Content="Browse..." Click="BtnBrowseSp_Click"/>
+            </Grid>
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Width="170" Margin="0,0,8,0" Content="Create / Bind Shared" Click="BtnAddShared_Click"/>
-                <Button Width="120" Margin="0,0,8,0" Content="Edit Binding" Click="BtnEdit_Click"/>
-                <Button Width="110" Margin="0,0,8,0" Content="Remove Binding" Click="BtnRemove_Click"/>
-                <Button Width="90" IsCancel="True" Content="Close"/>
-            </StackPanel>
+            <!-- Selection summary + action buttons row -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" x:Name="TxtSelectionSummary" VerticalAlignment="Center" Foreground="#B7B7BC"/>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Width="170" Margin="0,0,8,0" Content="Create / Bind Shared" Click="BtnAddShared_Click"/>
+                    <Button Width="120" Margin="0,0,8,0" Content="Edit Binding" Click="BtnEdit_Click"/>
+                    <Button Width="110" Margin="0,0,8,0" Content="Remove Binding" Click="BtnRemove_Click"/>
+                    <Button Width="90" IsCancel="True" Content="Close"/>
+                </StackPanel>
+            </Grid>
         </Grid>
     </Grid>
 </Window>

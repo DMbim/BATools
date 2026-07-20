@@ -1,7 +1,5 @@
-﻿
 using System;
 using System.Linq;
-using System.Windows.Input;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -9,7 +7,6 @@ using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 using Nice3point.Revit.Toolkit.External;
 using BA.Core.Rooms;
 using BA.Settings.Rooms;
-using BA.UI.Rooms;
 using BA.Core.Classification;
 
 namespace BA.Commands.Rooms
@@ -25,45 +22,40 @@ namespace BA.Commands.Rooms
 
             var settings = ElementToRoomSettings.LoadWithLegacyMigration();
 
-            if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
-            {
-                var dlg = new ElementToRoomSettingsWindow(c, settings, linkMode: true);
-                if (dlg.ShowDialog() != true) return Result.Cancelled;
-                settings.Save();
-            }
-
             if (string.IsNullOrWhiteSpace(settings.SelectedCategoryToken) ||
                 string.IsNullOrWhiteSpace(settings.DestinationParameter) ||
                 string.IsNullOrWhiteSpace(settings.SourceParameter))
             {
-                TaskDialog.Show("Element → Room", "Settings missing. Hold SHIFT to configure.");
+                TaskDialog.Show("Element \u2192 Room",
+                    "Settings missing. Open the Settings panel from the Element \u2192 Room pulldown to configure.");
                 return Result.Cancelled;
             }
 
             var link = LinkResolver.FindLinkInstance(doc, settings.SelectedLinkInstanceUniqueId, settings.SelectedLinkInstanceName);
             if (link == null)
             {
-                TaskDialog.Show("Element → Room", "No valid Revit link saved. Hold SHIFT to configure.");
+                TaskDialog.Show("Element \u2192 Room",
+                    "No valid Revit link saved. Open the Settings panel from the Element \u2192 Room pulldown to configure.");
                 return Result.Cancelled;
             }
 
             var category = CategoryResolver.TryResolveCategory(doc, settings.SelectedCategoryToken);
             if (category == null)
             {
-                TaskDialog.Show("Element → Room", $"Category '{settings.SelectedCategoryToken}' not found.");
+                TaskDialog.Show("Element \u2192 Room", $"Category '{settings.SelectedCategoryToken}' not found.");
                 return Result.Cancelled;
             }
 
-            using (var t = new Transaction(doc, "BA – Element To Room (Link)"))
+            using (var t = new Transaction(doc, "BA \u2013 Element To Room (Link)"))
             {
                 t.Start();
                 var stats = ElementToRoomService.AssignFromLinkedRooms(
                     doc, link, category, settings.SourceParameter, settings.DestinationParameter);
                 t.Commit();
-
-                TaskDialog.Show("Element → Room (Link)",
+                TaskDialog.Show("Element \u2192 Room (Link)",
                     $"Considered: {stats.ElementsConsidered}\n" +
                     $"Written: {stats.ElementsWritten}\n" +
+                    $"  (via source fallback: {stats.ElementsWrittenViaSourceFallback}, via destination fallback: {stats.ElementsWrittenViaDestinationFallback})\n" +
                     $"No point: {stats.ElementsNoPoint}\n" +
                     $"No room: {stats.ElementsNoRoom}\n" +
                     $"Missing params: {stats.ElementsNoParams}");
@@ -78,12 +70,9 @@ namespace BA.Commands.Rooms
         public static Category? TryResolveCategory(Document doc, string token)
         {
             if (string.IsNullOrWhiteSpace(token)) return null;
-
             token = token.Trim();
-
             if (Enum.TryParse(token, true, out BuiltInCategory bic))
                 return Category.GetCategory(doc, bic);
-
             return doc.Settings.Categories
                 .Cast<Category>()
                 .FirstOrDefault(c => c != null && c.Name.Equals(token, StringComparison.OrdinalIgnoreCase));

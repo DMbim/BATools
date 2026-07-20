@@ -1,6 +1,3 @@
-﻿using System;
-using System.Linq;
-using System.Windows.Input;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -8,8 +5,6 @@ using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 using BA.Core.Classification;
 using BA.Core.Rooms;
 using BA.Settings.Rooms;
-using BA.UI.Rooms;
-
 
 namespace BA.Commands.Rooms
 {
@@ -24,38 +19,32 @@ namespace BA.Commands.Rooms
 
             var settings = ElementToRoomSettings.LoadWithLegacyMigration();
 
-            if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
-            {
-                var dlg = new ElementToRoomSettingsWindow(c, settings, linkMode: false);
-                if (dlg.ShowDialog() != true) return Result.Cancelled;
-                settings.Save();
-            }
-
             if (string.IsNullOrWhiteSpace(settings.SelectedCategoryToken) ||
                 string.IsNullOrWhiteSpace(settings.DestinationParameter) ||
                 string.IsNullOrWhiteSpace(settings.SourceParameter))
             {
-                TaskDialog.Show("Element → Room", "Settings missing. Hold SHIFT to configure.");
+                TaskDialog.Show("Element \u2192 Room",
+                    "Settings missing. Open the Settings panel from the Element \u2192 Room pulldown to configure.");
                 return Result.Cancelled;
             }
 
             var category = CategoryResolver.TryResolveCategory(doc, settings.SelectedCategoryToken);
             if (category == null)
             {
-                TaskDialog.Show("Element → Room", $"Category '{settings.SelectedCategoryToken}' not found.");
+                TaskDialog.Show("Element \u2192 Room", $"Category '{settings.SelectedCategoryToken}' not found.");
                 return Result.Cancelled;
             }
 
-            using (var t = new Transaction(doc, "BA – Element To Room (Local)"))
+            using (var t = new Transaction(doc, "BA \u2013 Element To Room (Local)"))
             {
                 t.Start();
                 var stats = ElementToRoomService.AssignFromLocalRooms(
                     doc, category, settings.SourceParameter, settings.DestinationParameter);
                 t.Commit();
-
-                TaskDialog.Show("Element → Room (Local)",
+                TaskDialog.Show("Element \u2192 Room (Local)",
                     $"Considered: {stats.ElementsConsidered}\n" +
                     $"Written: {stats.ElementsWritten}\n" +
+                    $"  (via source fallback: {stats.ElementsWrittenViaSourceFallback}, via destination fallback: {stats.ElementsWrittenViaDestinationFallback})\n" +
                     $"No point: {stats.ElementsNoPoint}\n" +
                     $"No room: {stats.ElementsNoRoom}\n" +
                     $"Missing params: {stats.ElementsNoParams}");

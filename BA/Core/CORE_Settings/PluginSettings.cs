@@ -9,6 +9,16 @@ namespace BA.Core.Settings
         public Dictionary<string, bool> Toggles { get; set; } =
             new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
+        // Key -> double (window positions, numeric field values)
+        public Dictionary<string, double> Doubles { get; set; } =
+            new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+        // Key -> string (enum names, composite values like "FamilyName:TypeName")
+        public Dictionary<string, string> Strings { get; set; } =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // ---- bool ----
+
         public bool GetBool(string key, bool @default)
         {
             if (string.IsNullOrWhiteSpace(key)) return @default;
@@ -19,6 +29,34 @@ namespace BA.Core.Settings
         {
             if (string.IsNullOrWhiteSpace(key)) return;
             Toggles[key] = value;
+        }
+
+        // ---- double ----
+
+        public double GetDouble(string key, double @default)
+        {
+            if (string.IsNullOrWhiteSpace(key)) return @default;
+            return Doubles.TryGetValue(key, out var v) ? v : @default;
+        }
+
+        public void SetDouble(string key, double value)
+        {
+            if (string.IsNullOrWhiteSpace(key)) return;
+            Doubles[key] = value;
+        }
+
+        // ---- string ----
+
+        public string GetString(string key, string @default = "")
+        {
+            if (string.IsNullOrWhiteSpace(key)) return @default;
+            return Strings.TryGetValue(key, out var v) && !string.IsNullOrEmpty(v) ? v : @default;
+        }
+
+        public void SetString(string key, string value)
+        {
+            if (string.IsNullOrWhiteSpace(key)) return;
+            Strings[key] = value ?? "";
         }
     }
 
@@ -33,7 +71,6 @@ namespace BA.Core.Settings
         public string Name { get; }
         public string Description { get; }
         public bool DefaultValue { get; }
-
         public Func<bool> Getter { get; }
         public Action<bool> Setter { get; }
 

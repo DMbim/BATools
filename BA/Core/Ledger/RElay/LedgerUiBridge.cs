@@ -9,11 +9,11 @@ namespace BA.Core.Ledger
 {
     /// <summary>
     /// Bridges the non-modal LedgerSettingsWindow (WPF thread) to the Revit API thread using
-    /// the standard ExternalEvent pattern. Two separate ExternalEvents: one read-only
-    /// (diagnostics refresh), one write-capable (setting the manual central identifier, which
-    /// needs its own Transaction). Kept separate rather than one handler doing both, so a
-    /// write request can never accidentally piggyback on a stale read-only Raise() or vice
-    /// versa.
+    /// the standard ExternalEvent pattern. Three separate ExternalEvents: one read-only
+    /// (diagnostics refresh), and two write-capable (setting the manual central identifier,
+    /// and setting the manual project set override), each needing its own Transaction. Kept
+    /// separate rather than combining, so a write request can never accidentally piggyback on
+    /// a stale read-only Raise() or vice versa.
     ///
     /// EnsureInitialized() MUST be called from a valid Revit API context (IExternalCommand.Execute)
     /// the first time, since ExternalEvent.Create() requires the Revit API thread.
@@ -26,6 +26,9 @@ namespace BA.Core.Ledger
         private static ExternalEvent _setIdentifierEvent;
         private static readonly SetIdentifierHandler SetIdentifierHandlerInstance = new SetIdentifierHandler();
 
+        private static ExternalEvent _setProjectSetEvent;
+        private static readonly SetProjectSetHandler SetProjectSetHandlerInstance = new SetProjectSetHandler();
+
         public static void EnsureInitialized()
         {
             if (_refreshEvent == null)
@@ -36,6 +39,11 @@ namespace BA.Core.Ledger
             if (_setIdentifierEvent == null)
             {
                 _setIdentifierEvent = ExternalEvent.Create(SetIdentifierHandlerInstance);
+            }
+
+            if (_setProjectSetEvent == null)
+            {
+                _setProjectSetEvent = ExternalEvent.Create(SetProjectSetHandlerInstance);
             }
         }
 
@@ -96,6 +104,38 @@ namespace BA.Core.Ledger
             };
 
             _setIdentifierEvent.Raise();
+        }
+
+        /// <summary>
+        /// Sets the manual Project Set override on the active document's ProjectInformation
+        /// element inside a real Transaction. Passing null or empty clears the override,
+        /// reverting the document to auto-detection from its central file path. onComplete(true)
+        /// on success, onComplete(false) if it failed (see the log for why).
+        /// </summary>
+        public static void RequestSetProjectSet(string projectSetName, Action<bool> onComplete)
+        {
+            if (_setProjectSetEvent == null)
+            {
+                AppLogger.LogError("LedgerUiBridge.RequestSetProjectSet: EnsureInitialized() was never called", null);
+                onComplete?.Invoke(false);
+                return;
+            }
+
+            Dispatcher callingDispatcher = Application.Current?.Dispatcher;
+            SetProjectSetHandlerInstance.PendingProjectSetName = projectSetName;
+            SetProjectSetHandlerInstance.PendingCallback = success =>
+            {
+                if (callingDispatcher != null)
+                {
+                    callingDispatcher.BeginInvoke(new Action(() => onComplete?.Invoke(success)));
+                }
+                else
+                {
+                    onComplete?.Invoke(success);
+                }
+            };
+
+            _setProjectSetEvent.Raise();
         }
 
         private class RefreshHandler : IExternalEventHandler
@@ -163,6 +203,48 @@ namespace BA.Core.Ledger
             }
 
             public string GetName() => "BA Ledger Settings Set Central Identifier";
+        }
+
+        private class SetProjectSetHandler : IExternalEventHandler
+        {
+            public string PendingProjectSetName;
+            public Action<bool> PendingCallback;
+
+            public void Execute(UIApplication app)
+            {
+                string projectSetName = PendingProjectSetName;
+                Action<bool> callback = PendingCallback;
+                PendingProjectSetName = null;
+                PendingCallback = null;
+
+                Document doc = app.ActiveUIDocument?.Document;
+                if (doc == null)
+                {
+                    AppLogger.LogError("LedgerUiBridge.SetProjectSetHandler.Execute: no active document", null);
+                    callback?.Invoke(false);
+                    return;
+                }
+
+                try
+                {
+                    using (var tx = new Transaction(doc, "Set Ledger Project Set"))
+                    {
+                        tx.Start();
+                        ProjectSetService.SetProjectSetName(doc, projectSetName);
+                        tx.Commit();
+                    }
+
+                    AppLogger.LogInfo($"LedgerUiBridge.SetProjectSetHandler: project set override set to '{projectSetName}' on '{doc.Title}'.");
+                    callback?.Invoke(true);
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogError("LedgerUiBridge.SetProjectSetHandler.Execute failed", ex);
+                    callback?.Invoke(false);
+                }
+            }
+
+            public string GetName() => "BA Ledger Settings Set Project Set";
         }
     }
 }

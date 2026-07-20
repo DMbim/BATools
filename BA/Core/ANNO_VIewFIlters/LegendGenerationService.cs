@@ -17,32 +17,27 @@ namespace BA.Core.ViewFilters
             var existingLegend = new FilteredElementCollector(doc)
                 .OfClass(typeof(View))
                 .Cast<View>()
-                .FirstOrDefault(v => v.ViewType == ViewType.Legend);
+                .Where(v => v.ViewType == ViewType.Legend)
+                .FirstOrDefault(v => !v.Name.StartsWith("BA_Legend", StringComparison.OrdinalIgnoreCase));
 
             if (existingLegend == null)
                 throw new InvalidOperationException(
-                    "No legend view exists in the project. Create at least one legend view manually first, then retry.");
+                    "No usable template legend view was found. Every legend view in the project appears to already be a BA generated legend. Create a fresh, untouched legend view manually first, then retry.");
 
             var newLegendId = existingLegend.Duplicate(ViewDuplicateOption.Duplicate);
             var newLegend = doc.GetElement(newLegendId) as View;
 
-            // The duplicated legend inherits whatever crop region the source
-            // legend had, often a small default size. Content generated here
-            // has no fixed size and can run past that boundary as bucket
-            // count grows. An element sitting at or beyond the crop edge
-            // reports a clipped bounding box from get_BoundingBox, not its
-            // true extent, which was producing an undersized swatch for
-            // whichever row landed lowest, consistently the last one. Turning
-            // the crop off entirely removes this constraint rather than
-            // trying to guess a crop size large enough in advance. // <- NEW
             if (newLegend.CropBoxActive)
             {
                 newLegend.CropBoxActive = false;
             }
-            newLegend.CropBoxVisible = false; // <- NEW, cosmetic, no visible crop boundary line in the view
-            doc.Regenerate(); // <- NEW, ensure the crop change is committed before any bounding box reads below
+            newLegend.CropBoxVisible = false;
+            doc.Regenerate();
 
-            string baseName = SanitizeName($"BA_Legend_{rule.CategoryName}_{rule.ParameterName}");
+            // View name (Project Browser) now uses a readable separator
+            // rather than raw underscore concatenation of possibly
+            // space-containing category and parameter names. // <- CHANGED
+            string baseName = SanitizeName($"BA_Legend - {rule.CategoryName} - {rule.ParameterName}");
             newLegend.Name = MakeUniqueViewName(doc, baseName);
 
             var textNoteType = new FilteredElementCollector(doc)
@@ -61,13 +56,32 @@ namespace BA.Core.ViewFilters
 
             double yPos = 0;
             double spacing = 0.1;
+
+            // New. One title placed once above the row list, reading
+            // "Category / Parameter". Row labels no longer repeat this text
+            // per row, they show only the bucket's own value or range. // <- NEW
+            string titleText = $"{rule.CategoryName} / {rule.ParameterName}";
+            var titleOrigin = new XYZ(0, yPos, 0);
+            var titleNote = TextNote.Create(doc, newLegend.Id, titleOrigin, titleText, textNoteType.Id);
+            doc.Regenerate();
+
+            var titleBbox = titleNote.get_BoundingBox(newLegend);
+            double titleHeight = titleBbox.Max.Y - titleBbox.Min.Y;
+            double titleSpacing = titleHeight * 0.75; // slightly larger gap than between rows, to visually separate the title from the list
+
+            yPos = titleBbox.Min.Y - (titleHeight + titleSpacing);
+
             var rowBottoms = new List<double>();
+            var rowHeights = new List<double>();
             double maxTextRight = 0;
 
             foreach (var bucket in rule.Buckets)
             {
                 var origin = new XYZ(0, yPos, 0);
-                string labelText = $"{rule.CategoryName} / {rule.ParameterName} - {bucket.Label}";
+
+                // Row label is now just the bucket's own label, category and
+                // parameter are stated once in the title above, not per row. // <- CHANGED
+                string labelText = bucket.Label;
 
                 var textNote = TextNote.Create(doc, newLegend.Id, origin, labelText, textNoteType.Id);
                 doc.Regenerate();
@@ -78,6 +92,7 @@ namespace BA.Core.ViewFilters
 
                 maxTextRight = Math.Max(maxTextRight, bbox.Max.X);
                 rowBottoms.Add(bbox.Min.Y);
+                rowHeights.Add(height);
 
                 yPos = bbox.Min.Y - (height + spacing);
             }
@@ -88,10 +103,7 @@ namespace BA.Core.ViewFilters
             {
                 var bucket = rule.Buckets[i];
 
-                double rowHeight = i < rowBottoms.Count - 1
-                    ? Math.Abs(rowBottoms[i] - rowBottoms[i + 1]) - spacing
-                    : spacing * 4;
-
+                double rowHeight = rowHeights[i];
                 if (rowHeight <= 0) rowHeight = spacing * 2;
 
                 double rowWidth = rowHeight * 2;
@@ -115,10 +127,14 @@ namespace BA.Core.ViewFilters
                 ogs.SetSurfaceForegroundPatternColor(color);
                 ogs.SetCutForegroundPatternColor(color);
 
-                if (solidFillPatternId != null)
+                var patternId = (bucket.FillPatternId != null && bucket.FillPatternId != ElementId.InvalidElementId)
+                    ? bucket.FillPatternId
+                    : solidFillPatternId;
+
+                if (patternId != null)
                 {
-                    ogs.SetSurfaceForegroundPatternId(solidFillPatternId);
-                    ogs.SetCutForegroundPatternId(solidFillPatternId);
+                    ogs.SetSurfaceForegroundPatternId(patternId);
+                    ogs.SetCutForegroundPatternId(patternId);
                 }
 
                 newLegend.SetElementOverrides(region.Id, ogs);

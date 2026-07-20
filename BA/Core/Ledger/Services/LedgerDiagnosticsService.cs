@@ -28,6 +28,21 @@ namespace BA.Core.Ledger
         public List<PendingLedgerItem> PendingItems { get; set; } = new List<PendingLedgerItem>();
         public List<CategoryOption> AvailableCategories { get; set; } = new List<CategoryOption>();
         public string CurrentCentralIdentifier { get; set; }
+
+        /// <summary>
+        /// The Project Set this document currently resolves to (auto-detected from the
+        /// central's file path, or a manual override if one is set), or null if neither
+        /// resolved and this document is using the legacy fallback ledger.
+        /// </summary>
+        public string CurrentProjectSetName { get; set; }
+
+        /// <summary>
+        /// The actual physical ledger file path this document is currently reading/writing,
+        /// shown so the user can visually confirm which project set's file they're synced
+        /// against. Purely informational; LedgerFileService resolves this independently on
+        /// every call, this is not cached or authoritative.
+        /// </summary>
+        public string ResolvedLedgerFilePath { get; set; }
     }
 
     /// <summary>
@@ -46,6 +61,8 @@ namespace BA.Core.Ledger
             }
 
             result.CurrentCentralIdentifier = CentralIdentifierService.GetIdentifier(doc);
+            result.CurrentProjectSetName = ProjectSetService.GetProjectSetName(doc);
+            result.ResolvedLedgerFilePath = LedgerFileService.ResolveLedgerPathForDocument(doc);
 
             // Categories actually used by loaded families in this document, not the full
             // system category list. This is what a filter checkbox list should show, since
@@ -63,12 +80,13 @@ namespace BA.Core.Ledger
             TypeDataLedger ledger;
             try
             {
-                ledger = LedgerFileService.ReadOnly();
+                ledger = LedgerFileService.ReadOnly(doc);
             }
             catch (Exception)
             {
                 // Ledger unreachable right now (locked or path invalid). Return what we have
-                // (category list) rather than throwing out of a diagnostics refresh.
+                // (category list, resolved path) rather than throwing out of a diagnostics
+                // refresh.
                 return result;
             }
 

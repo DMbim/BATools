@@ -28,7 +28,8 @@ namespace BA.UI.Views
             ContentRendered += (_, __) =>
             {
                 Vm.EnsureTemplatesLoaded();
-                Vm.EnsureParameterCategoriesLoaded(); // <- NEW
+                Vm.EnsureParameterCategoriesLoaded();
+                Vm.EnsureFillPatternsLoaded();
             };
             Closed += (_, __) =>
             {

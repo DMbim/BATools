@@ -56,6 +56,9 @@ namespace BA.ViewModels
         private bool _trackAllCategories;
         private string _centralIdentifierText;
         private bool _isSettingIdentifier;
+        private string _projectSetText;
+        private bool _isSettingProjectSet;
+        private string _resolvedLedgerFilePathDisplay = string.Empty;
 
         public LedgerSettingsViewModel(LedgerSettings settings, LedgerDiagnosticsResult initialDiagnostics)
         {
@@ -71,12 +74,15 @@ namespace BA.ViewModels
 
             ApplyDiagnostics(initialDiagnostics);
             _centralIdentifierText = initialDiagnostics?.CurrentCentralIdentifier ?? string.Empty;
+            _projectSetText = initialDiagnostics?.CurrentProjectSetName ?? string.Empty;
 
             BrowseCommand = new RelayCommand(ExecuteBrowse);
             SaveCommand = new RelayCommand(ExecuteSave, CanSave);
             CancelCommand = new RelayCommand(ExecuteCancel);
             RefreshCommand = new RelayCommand(ExecuteRefresh, () => !IsRefreshing);
             SetIdentifierCommand = new RelayCommand(ExecuteSetIdentifier, () => !IsSettingIdentifier && !string.IsNullOrWhiteSpace(CentralIdentifierText));
+            SetProjectSetCommand = new RelayCommand(ExecuteSetProjectSet, () => !IsSettingProjectSet && !string.IsNullOrWhiteSpace(ProjectSetText));
+            ClearProjectSetCommand = new RelayCommand(ExecuteClearProjectSet, () => !IsSettingProjectSet);
         }
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -224,7 +230,57 @@ namespace BA.ViewModels
             }
         }
 
+        /// <summary>
+        /// Text box value for the manual Project Set override. Normally the Project Set is
+        /// auto-detected from the central's file path (e.g. "N:\17-081\CAD\..." -> "17-081")
+        /// and this field just displays whatever was detected/loaded. Typing a value and
+        /// clicking Set forces this document to use that Project Set's ledger file regardless
+        /// of what auto-detection would produce; Clear removes the override and reverts to
+        /// auto-detection. Same persistence pattern as CentralIdentifierText: writes to the
+        /// document via ExtensibleStorage on its own explicit action, not the main Save button.
+        /// </summary>
+        public string ProjectSetText
+        {
+            get => _projectSetText;
+            set
+            {
+                if (_projectSetText == value)
+                {
+                    return;
+                }
+                _projectSetText = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public bool IsSettingProjectSet
+        {
+            get => _isSettingProjectSet;
+            private set
+            {
+                _isSettingProjectSet = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// Read-only display of the actual physical ledger file this document currently
+        /// resolves to, so the user can visually confirm which project set's file they're
+        /// synced against without having to infer it from the project set name alone.
+        /// </summary>
+        public string ResolvedLedgerFilePathDisplay
+        {
+            get => _resolvedLedgerFilePathDisplay;
+            private set
+            {
+                _resolvedLedgerFilePathDisplay = value;
+                OnPropertyChanged();
+            }
+        }
+
         public ICommand SetIdentifierCommand { get; }
+        public ICommand SetProjectSetCommand { get; }
+        public ICommand ClearProjectSetCommand { get; }
 
         public ICommand BrowseCommand { get; }
         public ICommand SaveCommand { get; }
@@ -293,17 +349,29 @@ namespace BA.ViewModels
         {
             AppLogger.LogInfo("LedgerSettingsViewModel.ExecuteSave: command invoked.");
 
-            _settings.LedgerFilePath = LedgerFilePath.Trim();
-            _settings.RetryCount = int.Parse(RetryCountText, CultureInfo.InvariantCulture);
-            _settings.RetryDelayMs = int.Parse(RetryDelayMsText, CultureInfo.InvariantCulture);
-            _settings.AllowedCategoryIds = TrackAllCategories
-                ? new System.Collections.Generic.List<long>()
-                : Categories.Where(c => c.IsSelected).Select(c => c.Id).ToList();
+            try
+            {
+                _settings.LedgerFilePath = LedgerFilePath.Trim();
+                _settings.RetryCount = int.Parse(RetryCountText, CultureInfo.InvariantCulture);
+                _settings.RetryDelayMs = int.Parse(RetryDelayMsText, CultureInfo.InvariantCulture);
+                _settings.AllowedCategoryIds = TrackAllCategories
+                    ? new System.Collections.Generic.List<long>()
+                    : Categories.Where(c => c.IsSelected).Select(c => c.Id).ToList();
 
-            _settings.Save();
-            LedgerFileService.ReloadSettings();
+                _settings.Save();
+                LedgerFileService.ReloadSettings();
 
-            RequestClose?.Invoke(true);
+                RequestClose?.Invoke(true);
+            }
+            catch (Exception ex)
+            {
+                AppLogger.LogError("LedgerSettingsViewModel.ExecuteSave: failed to save settings", ex);
+                MessageBox.Show(
+                    $"Could not save Ledger Settings: {ex.Message}",
+                    "Ledger Settings",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
         }
 
         private void ExecuteCancel()
@@ -341,6 +409,66 @@ namespace BA.ViewModels
             });
         }
 
+        private void ExecuteSetProjectSet()
+        {
+            AppLogger.LogInfo("LedgerSettingsViewModel.ExecuteSetProjectSet: command invoked.");
+            IsSettingProjectSet = true;
+            string projectSetName = ProjectSetText?.Trim();
+
+            LedgerUiBridge.RequestSetProjectSet(projectSetName, success =>
+            {
+                IsSettingProjectSet = false;
+
+                if (success)
+                {
+                    MessageBox.Show(
+                        $"Project Set override set to '{projectSetName}' for this document. Refreshing diagnostics...",
+                        "Ledger Settings",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    ExecuteRefresh();
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "Could not set the Project Set override. Check the log for details.",
+                        "Ledger Settings",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            });
+        }
+
+        private void ExecuteClearProjectSet()
+        {
+            AppLogger.LogInfo("LedgerSettingsViewModel.ExecuteClearProjectSet: command invoked.");
+            IsSettingProjectSet = true;
+
+            LedgerUiBridge.RequestSetProjectSet(null, success =>
+            {
+                IsSettingProjectSet = false;
+
+                if (success)
+                {
+                    ProjectSetText = string.Empty;
+                    MessageBox.Show(
+                        "Project Set override cleared. This document will now auto-detect its Project Set from the central's file path. Refreshing diagnostics...",
+                        "Ledger Settings",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    ExecuteRefresh();
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "Could not clear the Project Set override. Check the log for details.",
+                        "Ledger Settings",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            });
+        }
+
         private void ExecuteRefresh()
         {
             AppLogger.LogInfo("LedgerSettingsViewModel.ExecuteRefresh: command invoked.");
@@ -364,6 +492,8 @@ namespace BA.ViewModels
                 ? diagnostics.LastSyncUtc.Value.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)
                 : "Not yet synced in this document";
             CentralIdentifierText = diagnostics.CurrentCentralIdentifier ?? string.Empty;
+            ProjectSetText = diagnostics.CurrentProjectSetName ?? string.Empty;
+            ResolvedLedgerFilePathDisplay = diagnostics.ResolvedLedgerFilePath ?? string.Empty;
 
             PendingItems.Clear();
             foreach (PendingLedgerItem item in diagnostics.PendingItems)

@@ -11,12 +11,11 @@ namespace BA.UI.Rooms
     {
         private readonly Document _doc;
         private readonly ElementToRoomSettings _settings;
-        private readonly bool _linkMode;
 
         public string? SelectedCategoryName { get; private set; }
         public RevitLinkInstance? SelectedLinkInstance { get; private set; }
 
-        public ElementToRoomSettingsWindow(ExternalCommandData commandData, ElementToRoomSettings settings, bool linkMode)
+        public ElementToRoomSettingsWindow(ExternalCommandData commandData, ElementToRoomSettings settings)
         {
             InitializeComponent();
 
@@ -24,16 +23,30 @@ namespace BA.UI.Rooms
                 ?? throw new ArgumentNullException(nameof(commandData));
 
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
-            _linkMode = linkMode;
 
             PopulateCategoryDropdown();
             PopulateLinkDropdown();
 
-            // Show/hide link controls based on mode
-            LblLink.Visibility = _linkMode ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-            E2RLinks.Visibility = _linkMode ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            // Default mode: Link if there's saved link data, otherwise Local.
+            // ModeRadio_Checked fires immediately on whichever we set here and
+            // handles the LblLink/E2RLinks visibility toggle.
+            bool defaultToLink = !string.IsNullOrWhiteSpace(_settings.SelectedLinkInstanceUniqueId)
+                || !string.IsNullOrWhiteSpace(_settings.SelectedLinkInstanceName);
+            RbLink.IsChecked = defaultToLink;
+            RbLocal.IsChecked = !defaultToLink;
 
             RestoreSavedValues();
+        }
+
+        private void ModeRadio_Checked(object sender, RoutedEventArgs e)
+        {
+            // Guard: this can fire during InitializeComponent before LblLink/E2RLinks exist.
+            if (LblLink == null || E2RLinks == null)
+                return;
+
+            bool isLink = RbLink.IsChecked == true;
+            LblLink.Visibility = isLink ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            E2RLinks.Visibility = isLink ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
         }
 
         private void PopulateCategoryDropdown()
@@ -61,27 +74,22 @@ namespace BA.UI.Rooms
 
         private void RestoreSavedValues()
         {
-            // Category
             if (!string.IsNullOrWhiteSpace(_settings.SelectedCategoryToken))
                 E2RCategories.SelectedItem = _settings.SelectedCategoryToken;
 
-            // Link
-            if (_linkMode)
+            var links = E2RLinks.ItemsSource as System.Collections.Generic.IEnumerable<RevitLinkInstance>;
+            if (links != null)
             {
-                var links = E2RLinks.ItemsSource as System.Collections.Generic.IEnumerable<RevitLinkInstance>;
-                if (links != null)
-                {
-                    var pre =
-                        (!string.IsNullOrWhiteSpace(_settings.SelectedLinkInstanceUniqueId)
-                            ? links.FirstOrDefault(x => x.UniqueId.Equals(_settings.SelectedLinkInstanceUniqueId, StringComparison.OrdinalIgnoreCase))
-                            : null)
-                        ?? (!string.IsNullOrWhiteSpace(_settings.SelectedLinkInstanceName)
-                            ? links.FirstOrDefault(x => x.Name.Equals(_settings.SelectedLinkInstanceName, StringComparison.OrdinalIgnoreCase))
-                            : null);
+                var pre =
+                    (!string.IsNullOrWhiteSpace(_settings.SelectedLinkInstanceUniqueId)
+                        ? links.FirstOrDefault(x => x.UniqueId.Equals(_settings.SelectedLinkInstanceUniqueId, StringComparison.OrdinalIgnoreCase))
+                        : null)
+                    ?? (!string.IsNullOrWhiteSpace(_settings.SelectedLinkInstanceName)
+                        ? links.FirstOrDefault(x => x.Name.Equals(_settings.SelectedLinkInstanceName, StringComparison.OrdinalIgnoreCase))
+                        : null);
 
-                    if (pre != null)
-                        E2RLinks.SelectedItem = pre;
-                }
+                if (pre != null)
+                    E2RLinks.SelectedItem = pre;
             }
 
             E2RLocalSourceCB.Text = _settings.SourceParameter ?? "";
@@ -106,13 +114,12 @@ namespace BA.UI.Rooms
                 return;
             }
 
-            // Save to settings
             SelectedCategoryName = cat;
             _settings.SelectedCategoryToken = cat;
             _settings.SourceParameter = src;
             _settings.DestinationParameter = dst;
 
-            if (_linkMode)
+            if (RbLink.IsChecked == true)
             {
                 if (E2RLinks.SelectedItem is not RevitLinkInstance link)
                 {
@@ -124,6 +131,9 @@ namespace BA.UI.Rooms
                 _settings.SelectedLinkInstanceUniqueId = link.UniqueId;
                 _settings.SelectedLinkInstanceName = link.Name;
             }
+            // Local mode: leave any previously saved link-instance fields untouched
+            // rather than clearing them, so switching back to Link mode later
+            // restores the last selection instead of forcing a re-pick.
 
             DialogResult = true;
             Close();

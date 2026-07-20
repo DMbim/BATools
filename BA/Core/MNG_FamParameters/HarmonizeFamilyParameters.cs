@@ -84,9 +84,20 @@ namespace BA.Core
                                             continue;
                                         }
 
-                                        bool ok = FamilyParamUtils.RemoveParameterSafe(doc, fm, fp, log);
-                                        if (ok) { deleted++; t.Commit(); }
-                                        else { skipped++; t.RollBack(); }
+                                        string error;
+                                        bool ok = FamilyParamUtils.RemoveParameterSafe(fm, fp, out error);
+                                        if (ok)
+                                        {
+                                            log?.AppendLine($"DELETE: '{d.Name}' succeeded.");
+                                            deleted++;
+                                            t.Commit();
+                                        }
+                                        else
+                                        {
+                                            log?.AppendLine($"DELETE: '{d.Name}' failed: {error}");
+                                            skipped++;
+                                            t.RollBack();
+                                        }
                                     }
                                     catch (Exception ex)
                                     {
@@ -152,9 +163,9 @@ namespace BA.Core
                                             continue;
                                         }
 
-                                        bool ok = FamilyParamUtils.RenameParameterSafe(doc, fm, fp, d.TargetName, log);
+                                        bool ok = FamilyParamUtils.RenameParameterSafe(fm, fp, d.TargetName, out string error);
                                         if (ok) { renamed++; t.Commit(); }
-                                        else { skipped++; t.RollBack(); }
+                                        else { log?.AppendLine($"RENAME: '{d.Name}' failed: {error}"); skipped++; t.RollBack(); }
                                     }
                                     catch (Exception ex)
                                     {

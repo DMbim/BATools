@@ -54,11 +54,11 @@ namespace BA.BAApplication.Ribbon
             panel.AddPushButton<CmdPublishTypeData>(
                 "PublishTypeData", "Publish\nType Data",
                 "Publish type data for families.",
-                IconResources.FamilyParVer_16, IconResources.FamilyParVer_32);
+                IconResources.FamilyVer_16, IconResources.FamilyVer_32);
             panel.AddPushButton<CmdOpenLedgerSettings>(
                 "OpenLedgerSettings", "Ledger\nSettings",
                 "Open the ledger settings.",
-                IconResources.FamilyParVer_16, IconResources.FamilyParVer_32);
+                IconResources.FamilyVer_16, IconResources.FamilyVer_32);
         }
     }
 }

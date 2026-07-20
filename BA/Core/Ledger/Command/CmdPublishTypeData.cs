@@ -67,7 +67,7 @@ namespace BA.Commands
 
                 // Step 1: read-only pass to compute the diff and detect conflicts against
                 // whatever is currently in the ledger.
-                TypeDataLedger snapshotLedger = LedgerFileService.ReadOnly();
+                TypeDataLedger snapshotLedger = LedgerFileService.ReadOnly(doc);
                 snapshotLedger.Families.TryGetValue(ledgerKey, out LedgerFamilyNode existingNodeSnapshot);
 
                 var conflicts = new List<ConflictItem>();
@@ -122,7 +122,7 @@ namespace BA.Commands
                 DateTime publishTimestamp = DateTime.UtcNow;
                 var reconflictParamNames = new List<string>();
 
-                LedgerFileService.OpenAndModify(ledger =>
+                LedgerFileService.OpenAndModify(doc,ledger =>
                 {
                     if (!ledger.Families.TryGetValue(ledgerKey, out LedgerFamilyNode node))
                     {

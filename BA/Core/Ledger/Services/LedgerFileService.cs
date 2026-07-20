@@ -2,19 +2,27 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Threading;
+using Autodesk.Revit.DB;
 using BA.BAApplication;
 
 namespace BA.Core.Ledger
 {
     /// <summary>
-    /// Exclusive-lock access to the shared Type Data Ledger JSON file. Every read-modify-write
-    /// cycle happens under a single held FileStream lock (FileShare.None) so it is atomic with
-    /// respect to any other Publisher/Subscriber using this same method. Retries with backoff
+    /// Exclusive-lock access to a project set's Type Data Ledger JSON file. Every read-modify-
+    /// write cycle happens under a single held FileStream lock (FileShare.None) so it is atomic
+    /// with respect to any other Publisher/Subscriber using the same file. Retries with backoff
     /// on IOException/UnauthorizedAccessException, which is what a concurrent lock holder on
     /// the network share looks like from this process's point of view.
     ///
-    /// Path and retry tuning now come from BA.Settings.LedgerSettings rather than hardcoded
-    /// constants. Call ReloadSettings() after the user saves changes in the settings window.
+    /// PROJECT SETS: the physical file used is now resolved per Document via
+    /// ProjectSetService.GetProjectSetName(doc), so two centrals in different project sets
+    /// write to entirely different files on disk and cannot affect each other, even
+    /// accidentally. A central with no resolvable project set (not workshared yet, path
+    /// doesn't match the expected convention, or auto-detect otherwise fails) falls back to
+    /// the single legacy file at LedgerSettings.LedgerFilePath, preserving today's behavior
+    /// for anything not yet organized into a project set. The folder containing that legacy
+    /// path is reused as the root directory for all project-set-specific files; no new
+    /// setting was needed for this.
     /// </summary>
     public static class LedgerFileService
     {
@@ -24,8 +32,6 @@ namespace BA.Core.Ledger
         {
             WriteIndented = true
         };
-
-        public static string CurrentLedgerPath => _settings.LedgerFilePath;
 
         /// <summary>
         /// Re-reads LedgerSettings from disk. Call this after the settings window saves,
@@ -37,18 +43,36 @@ namespace BA.Core.Ledger
         }
 
         /// <summary>
+        /// The actual ledger file this document currently resolves to, for display/diagnostics
+        /// purposes (e.g. showing the user which file they're synced against).
+        /// </summary>
+        public static string ResolveLedgerPathForDocument(Document doc)
+        {
+            string rootDir = Path.GetDirectoryName(_settings.LedgerFilePath);
+            string projectSetName = ProjectSetService.GetProjectSetName(doc);
+
+            if (string.IsNullOrWhiteSpace(projectSetName))
+            {
+                return _settings.LedgerFilePath;
+            }
+
+            string sanitized = SanitizeForFileName(projectSetName);
+            return Path.Combine(rootDir ?? string.Empty, $"Data_Ledger_{sanitized}.json");
+        }
+
+        /// <summary>
         /// Opens the ledger under an exclusive lock, invokes <paramref name="mutate"/> with the
         /// deserialized ledger, and writes it back only if <paramref name="mutate"/> returns true.
         /// The lock is held for the entire duration of the callback, so do not show UI (TaskDialog,
         /// PickObject, etc.) from inside <paramref name="mutate"/> or you will block every other
-        /// publisher/subscriber on the project for as long as that UI is open.
+        /// publisher/subscriber on this project set for as long as that UI is open.
         /// </summary>
-        public static bool OpenAndModify(Func<TypeDataLedger, bool> mutate)
+        public static bool OpenAndModify(Document doc, Func<TypeDataLedger, bool> mutate)
         {
             Exception lastException = null;
             int maxRetries = Math.Max(1, _settings.RetryCount);
             int retryDelayMs = Math.Max(1, _settings.RetryDelayMs);
-            string path = _settings.LedgerFilePath;
+            string path = ResolveLedgerPathForDocument(doc);
 
             for (int attempt = 0; attempt < maxRetries; attempt++)
             {
@@ -92,8 +116,8 @@ namespace BA.Core.Ledger
                 }
             }
 
-            AppLogger.LogError("LedgerFileService.OpenAndModify: exhausted retries acquiring exclusive lock", lastException);
-            throw new IOException($"Could not acquire exclusive access to ledger file after {maxRetries} attempts.", lastException);
+            AppLogger.LogError($"LedgerFileService.OpenAndModify: exhausted retries acquiring exclusive lock on '{path}'", lastException);
+            throw new IOException($"Could not acquire exclusive access to ledger file '{path}' after {maxRetries} attempts.", lastException);
         }
 
         /// <summary>
@@ -101,10 +125,10 @@ namespace BA.Core.Ledger
         /// read lock, since some network filesystems allow a writer to interleave mid-read
         /// under FileShare.Read, which would defeat the point.
         /// </summary>
-        public static TypeDataLedger ReadOnly()
+        public static TypeDataLedger ReadOnly(Document doc)
         {
             TypeDataLedger result = null;
-            OpenAndModify(ledger =>
+            OpenAndModify(doc, ledger =>
             {
                 result = ledger;
                 return false;
@@ -145,6 +169,15 @@ namespace BA.Core.Ledger
                 string json = JsonSerializer.Serialize(empty, SerializerOptions);
                 File.WriteAllText(path, json);
             }
+        }
+
+        private static string SanitizeForFileName(string value)
+        {
+            foreach (char c in Path.GetInvalidFileNameChars())
+            {
+                value = value.Replace(c, '_');
+            }
+            return value;
         }
     }
 }

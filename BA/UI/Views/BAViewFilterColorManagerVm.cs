@@ -30,6 +30,11 @@ namespace BA.UI.Views
 
         private bool _suppressCascade;
 
+        // Synthetic entry, not from ParameterEnumerationService. Represents
+        // "no pattern chosen, use solid fill", the same default behavior
+        // that already existed before pattern support was added. // <- NEW
+        private static readonly FillPatternInfo SolidPatternEntry = new FillPatternInfo(ElementId.InvalidElementId, "Solid (default)");
+
         public ObservableCollection<ViewTemplateItem> ViewTemplates { get; } = new();
         public ObservableCollection<FilterRowItem> Filters { get; } = new();
         public ObservableCollection<PaletteColorItem> Palette { get; } = new();
@@ -38,7 +43,7 @@ namespace BA.UI.Views
         public ObservableCollection<CategoryInfo> Categories { get; } = new();
         public ObservableCollection<ParameterInfo> Parameters { get; } = new();
         public ObservableCollection<ColorBucketItem> Buckets { get; } = new();
-        public BA.UI.Mvvm.RelayCommand ApplyToAllInViewCommand { get; } // <- NEW
+        public ObservableCollection<FillPatternInfo> Patterns { get; } = new(); // <- NEW
 
         private ProcessMethod _currentMethod = ProcessMethod.ValueBucket;
 
@@ -190,6 +195,7 @@ namespace BA.UI.Views
         public BA.UI.Mvvm.RelayCommand HelpCommand { get; }
 
         public BA.UI.Mvvm.RelayCommand LoadCategoriesCommand { get; }
+        public BA.UI.Mvvm.RelayCommand LoadPatternsCommand { get; } // <- NEW
         public BA.UI.Mvvm.RelayCommand RandomColorsCommand { get; }
         public BA.UI.Mvvm.RelayCommand GradientCommand { get; }
         public BA.UI.Mvvm.RelayCommand AddBucketCommand { get; }
@@ -199,7 +205,8 @@ namespace BA.UI.Views
         public BA.UI.Mvvm.RelayCommand LoadSchemeCommand { get; }
         public BA.UI.Mvvm.RelayCommand CreateViewFiltersCommand { get; }
         public BA.UI.Mvvm.RelayCommand CreateLegendCommand { get; }
-        public BA.UI.Mvvm.RelayCommand ApplyToSelectionCommand { get; } // <- NEW
+        public BA.UI.Mvvm.RelayCommand ApplyToSelectionCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ApplyToAllInViewCommand { get; }
 
         public BAViewFilterColorManagerVm(UIApplication uiApp, RevitExternalInvoker revit, Window window)
         {
@@ -226,6 +233,7 @@ namespace BA.UI.Views
             HelpCommand = new BA.UI.Mvvm.RelayCommand(_ => ShowHelp());
 
             LoadCategoriesCommand = new BA.UI.Mvvm.RelayCommand(_ => LoadCategories());
+            LoadPatternsCommand = new BA.UI.Mvvm.RelayCommand(_ => LoadPatterns()); // <- NEW
             RandomColorsCommand = new BA.UI.Mvvm.RelayCommand(_ => RandomizeBucketColors(), _ => Buckets.Count > 0);
             GradientCommand = new BA.UI.Mvvm.RelayCommand(_ => ApplyGradient(), _ => Buckets.Count >= 2);
             AddBucketCommand = new BA.UI.Mvvm.RelayCommand(_ => AddManualBucket());
@@ -235,8 +243,8 @@ namespace BA.UI.Views
             LoadSchemeCommand = new BA.UI.Mvvm.RelayCommand(_ => LoadScheme());
             CreateViewFiltersCommand = new BA.UI.Mvvm.RelayCommand(_ => CreateViewFilters(), _ => SelectedViewTemplate != null && Buckets.Count > 0);
             CreateLegendCommand = new BA.UI.Mvvm.RelayCommand(_ => CreateLegendFromRule(), _ => Buckets.Count > 0);
-            ApplyToSelectionCommand = new BA.UI.Mvvm.RelayCommand(_ => ApplyOverridesToSelection(), _ => Buckets.Count > 0); // <- NEW
-            ApplyToAllInViewCommand = new BA.UI.Mvvm.RelayCommand(_ => ApplyOverridesToAllInView(), _ => Buckets.Count > 0); // <- NEW
+            ApplyToSelectionCommand = new BA.UI.Mvvm.RelayCommand(_ => ApplyOverridesToSelection(), _ => Buckets.Count > 0);
+            ApplyToAllInViewCommand = new BA.UI.Mvvm.RelayCommand(_ => ApplyOverridesToAllInView(), _ => Buckets.Count > 0);
         }
 
         public void EnsureTemplatesLoaded()
@@ -249,6 +257,12 @@ namespace BA.UI.Views
         {
             if (Categories.Count == 0)
                 LoadCategoriesCommand.Execute(null);
+        }
+
+        public void EnsureFillPatternsLoaded() // <- NEW
+        {
+            if (Patterns.Count == 0)
+                LoadPatternsCommand.Execute(null);
         }
 
         public void Dispose() { }
@@ -270,8 +284,8 @@ namespace BA.UI.Views
             SaveSchemeCommand.RaiseCanExecuteChanged();
             CreateViewFiltersCommand.RaiseCanExecuteChanged();
             CreateLegendCommand.RaiseCanExecuteChanged();
-            ApplyToSelectionCommand.RaiseCanExecuteChanged(); // <- NEW
-            ApplyToAllInViewCommand.RaiseCanExecuteChanged(); // <- NEW
+            ApplyToSelectionCommand.RaiseCanExecuteChanged();
+            ApplyToAllInViewCommand.RaiseCanExecuteChanged();
         }
 
         private void SeedDefaultPalette()
@@ -533,10 +547,9 @@ namespace BA.UI.Views
                 "Parameter Colors tab:\n" +
                 "1) Pick a Category, then a Parameter\n" +
                 "2) Pick Value or Range, buckets auto generate from the model\n" +
-                "3) Edit colors, labels, and range breakpoints as needed\n" +
-                "4) Create View Filters and/or Create Legend, or Apply to Selection to color\n" +
-                "   only the currently selected elements directly, without creating a filter\n\n" +
-                "Notes:\n. Sets Cut + Projection LINE colors and matching solid FILL colors.\n. Palette JSON import/export supported.",
+                "3) Edit colors, patterns, labels, and range breakpoints as needed\n" +
+                "4) Create View Filters, Create Legend, Apply to Selection, or Apply to All in View\n\n" +
+                "Notes:\n. Sets Cut + Projection LINE colors and matching FILL colors and patterns.\n. Palette JSON import/export supported.",
                 "BA | Help", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
@@ -558,6 +571,32 @@ namespace BA.UI.Views
                     StatusText = $"Loaded {Categories.Count} categories.";
                 },
                 ex => StatusText = "Category load failed: " + ex.Message
+            );
+        }
+
+        // Fill patterns are document wide, not category dependent, so this
+        // loads once per session, same as categories, rather than reloading
+        // whenever the selected category changes. // <- NEW
+        private void LoadPatterns()
+        {
+            StatusText = "Loading fill patterns...";
+
+            _revit.Run(
+                app =>
+                {
+                    var doc = app.ActiveUIDocument?.Document;
+                    return ParameterEnumerationService.GetAvailableFillPatterns(doc);
+                },
+                pats =>
+                {
+                    Patterns.Clear();
+                    Patterns.Add(SolidPatternEntry);
+                    foreach (var p in pats)
+                        Patterns.Add(p);
+
+                    StatusText = $"Loaded {Patterns.Count - 1} fill pattern(s).";
+                },
+                ex => StatusText = "Fill pattern load failed: " + ex.Message
             );
         }
 
@@ -638,7 +677,11 @@ namespace BA.UI.Views
                         var coreBuckets = ParameterEnumerationService.BuildValueBuckets(distinct);
                         Buckets.Clear();
                         foreach (var b in coreBuckets)
-                            Buckets.Add(ColorBucketItem.FromCore(b));
+                        {
+                            var item = ColorBucketItem.FromCore(b);
+                            item.SelectedPattern = SolidPatternEntry; // <- NEW, newly generated buckets default to solid
+                            Buckets.Add(item);
+                        }
 
                         _currentMethod = ProcessMethod.ValueBucket;
                         StatusText = $"Generated {Buckets.Count} value bucket(s).";
@@ -660,7 +703,11 @@ namespace BA.UI.Views
                         var coreBuckets = ParameterEnumerationService.BuildDefaultRangeBuckets(extent.Min, extent.Max);
                         Buckets.Clear();
                         foreach (var b in coreBuckets)
-                            Buckets.Add(ColorBucketItem.FromCore(b));
+                        {
+                            var item = ColorBucketItem.FromCore(b);
+                            item.SelectedPattern = SolidPatternEntry; // <- NEW
+                            Buckets.Add(item);
+                        }
 
                         _currentMethod = ProcessMethod.RangeBucket;
                         StatusText = $"Generated {Buckets.Count} range bucket(s), observed {extent.Min:0.##} to {extent.Max:0.##}.";
@@ -711,7 +758,10 @@ namespace BA.UI.Views
 
         private void AddManualBucket()
         {
-            var item = new ColorBucketItem();
+            var item = new ColorBucketItem
+            {
+                SelectedPattern = SolidPatternEntry // <- NEW
+            };
 
             if (_currentMethod == ProcessMethod.RangeBucket)
             {
@@ -856,11 +906,6 @@ namespace BA.UI.Views
             );
         }
 
-        // Applies the current rule directly to whatever is selected in the
-        // active view, no ParameterFilterElement involved. Reads live
-        // selection through UIDocument.Selection, which only exists on the
-        // Revit API thread, so this has to go through _revit.Run the same
-        // as every other Revit touching operation in this ViewModel. // <- NEW
         private void ApplyOverridesToSelection()
         {
             if (SelectedCategory == null || SelectedParameter == null || Buckets.Count == 0)
@@ -930,13 +975,7 @@ namespace BA.UI.Views
                 ex => StatusText = "Apply to selection failed: " + ex.Message
             );
         }
-        // Applies the current rule to every element of the configured category
-        // visible in the active view, not just the current selection. Uses
-        // FilteredElementCollector(doc, view.Id), which correctly respects view
-        // specific visibility, crop region, and view range, this is not the same
-        // as a document wide collector. No ParameterFilterElement is created,
-        // this is a direct one time paint, identical override logic to
-        // ApplyOverridesToSelection, just a different source of element ids. // <- NEW
+
         private void ApplyOverridesToAllInView()
         {
             if (SelectedCategory == null || SelectedParameter == null || Buckets.Count == 0)
@@ -1009,6 +1048,7 @@ namespace BA.UI.Views
                 ex => StatusText = "Apply to all in view failed: " + ex.Message
             );
         }
+
         private sealed class SchemeDto
         {
             public string CategoryName { get; set; } = string.Empty;
@@ -1028,6 +1068,11 @@ namespace BA.UI.Views
             public byte R { get; set; }
             public byte G { get; set; }
             public byte B { get; set; }
+            // Pattern is stored by name, not ElementId. Fill pattern ids are
+            // not stable across documents, the same as category and
+            // parameter, which is why those are also re-resolved by name on
+            // load rather than stored as raw ids. // <- NEW
+            public string PatternName { get; set; } = string.Empty;
         }
 
         private void SaveScheme()
@@ -1063,7 +1108,8 @@ namespace BA.UI.Views
                         RangeMax = b.RangeMax,
                         R = b.R,
                         G = b.G,
-                        B = b.B
+                        B = b.B,
+                        PatternName = b.SelectedPattern?.Name ?? SolidPatternEntry.Name // <- NEW
                     }).ToList()
                 };
 
@@ -1154,6 +1200,14 @@ namespace BA.UI.Views
                     Buckets.Clear();
                     foreach (var b in dto.Buckets)
                     {
+                        // Pattern resolved by name against the currently
+                        // loaded Patterns collection. If the saved pattern
+                        // no longer exists in this document, or Patterns
+                        // hasn't loaded yet, this falls back to solid rather
+                        // than leaving the bucket in a broken state. // <- NEW
+                        var resolvedPattern = Patterns.FirstOrDefault(p =>
+                            p.Name.Equals(b.PatternName, StringComparison.OrdinalIgnoreCase)) ?? SolidPatternEntry;
+
                         Buckets.Add(new ColorBucketItem
                         {
                             Label = b.Label,
@@ -1162,7 +1216,8 @@ namespace BA.UI.Views
                             RangeMax = b.RangeMax,
                             R = b.R,
                             G = b.G,
-                            B = b.B
+                            B = b.B,
+                            SelectedPattern = resolvedPattern
                         });
                     }
 
@@ -1270,6 +1325,10 @@ namespace BA.UI.Views
         private byte _b;
         public byte B { get => _b; set { if (SetProperty(ref _b, value)) OnPropertyChanged(nameof(Swatch)); } }
 
+        // New. Bound directly to the pattern ComboBox in the bucket grid. // <- NEW
+        private FillPatternInfo _selectedPattern;
+        public FillPatternInfo SelectedPattern { get => _selectedPattern; set => SetProperty(ref _selectedPattern, value); }
+
         public Brush Swatch => new SolidColorBrush(Color.FromRgb(R, G, B));
 
         public static ColorBucketItem FromCore(ColorBucket core)
@@ -1283,6 +1342,9 @@ namespace BA.UI.Views
                 R = core.R,
                 G = core.G,
                 B = core.B
+                // SelectedPattern intentionally not set here, callers assign
+                // it explicitly (defaulting to solid) since this method has
+                // no access to the live Patterns collection.
             };
         }
 
@@ -1296,7 +1358,10 @@ namespace BA.UI.Views
                 RangeMax = RangeMax,
                 R = R,
                 G = G,
-                B = B
+                B = B,
+                FillPatternId = (SelectedPattern != null && SelectedPattern.Id != ElementId.InvalidElementId)
+                    ? SelectedPattern.Id
+                    : ElementId.InvalidElementId // <- NEW
             };
         }
     }

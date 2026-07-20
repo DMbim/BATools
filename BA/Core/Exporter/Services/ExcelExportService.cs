@@ -1,140 +1,251 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using ClosedXML.Excel;
 using BA_Tools.ScheduleExporter.Models;
 
 namespace BA_Tools.ScheduleExporter.Services
 {
     /// <summary>
-    /// Writes schedule data to a ClosedXML Excel workbook (.xlsx).
+    /// Writes schedule data to a single-sheet ClosedXML Excel workbook (.xlsx).
     ///
-    /// WORKBOOK STRUCTURE:
-    ///   Sheet 1: Schedule data (named after the schedule, max 31 chars)
-    ///   Sheet 2: "Legend" — color key and usage instructions
+    /// SHEET LAYOUT:
+    ///   Row 1:       Column headers  (dark navy, white bold)
+    ///   Row 2:       Data type labels (color-coded by field category)
+    ///   Rows 3..N+2: Data rows        (alternating white / pale-gray stripes)
+    ///   Row N+3:     (blank separator)
+    ///   Row N+4+:    Legend block
+    ///   Row ??+:     Export info block (schedule name, date, filters, sort)
     ///
-    /// COLUMN LAYOUT (Schedule sheet):
-    ///   Column A: __ElementId  — hidden, locked, stores ElementId.Value as number
-    ///   Column B: __UniqueId   — hidden, locked, stores UniqueId string
-    ///   Column C+: schedule fields in definition order (visible fields only)
+    /// NO SHEET PROTECTION — colors are informational only.
+    /// Calculated cells are italic gray to indicate they are read-only on import.
     ///
-    /// CELL PROTECTION:
-    ///   Instance parameters:    unlocked, no fill  — fully editable
-    ///   Type parameters:        unlocked, blue fill — editable with warning on import
-    ///   Calculated/ElementId:   locked,  gray fill + italic
-    ///   Hidden system columns:  locked, hidden
-    ///   Sheet protection enabled (no password) with Sort, AutoFilter, FormatColumns/Rows allowed.
+    /// FORMULA INJECTION GUARD:
+    ///   Any string starting with = + - @ is prefixed with a single-quote space
+    ///   to prevent Excel treating the value as a formula.
+    ///
+    /// CELL LENGTH GUARD:
+    ///   Excel cells are capped at 32 767 characters; longer values are truncated.
     /// </summary>
     public class ExcelExportService
     {
-        // Excel column indices
-        private const int ElementIdCol = 1;  // Column A
-        private const int UniqueIdCol = 2;   // Column B
-        private const int DataColStart = 3;  // First schedule field column
+        // ─── Layout constants ──────────────────────────────────────────────────
 
-        // Color palette
-        private static readonly XLColor ColorTypeParam  = XLColor.FromArgb(0xBD, 0xD7, 0xEE); // Light blue
-        private static readonly XLColor ColorCalculated = XLColor.FromArgb(0xD6, 0xD6, 0xD6); // Light gray
-        private static readonly XLColor ColorHeader     = XLColor.FromArgb(0x1F, 0x49, 0x7D); // Dark blue
-        private static readonly XLColor ColorHeaderFont = XLColor.White;
+        private const int ColElementId = 1; // Column A — hidden system column
+        private const int ColUniqueId  = 2; // Column B — hidden system column
+        private const int ColDataStart = 3; // Column C — first schedule field
+
+        private const int RowHeader   = 1;
+        private const int RowDataType = 2;
+        private const int RowDataFrom = 3;
+
+        private const int ExcelMaxCellLength = 32767;
+
+        // ─── Colour palette ────────────────────────────────────────────────────
+
+        // Header row
+        private static readonly XLColor ClrHeaderBg   = XLColor.FromArgb(0x1F, 0x38, 0x64); // deep navy
+        private static readonly XLColor ClrHeaderText  = XLColor.White;
+
+        // Data type row backgrounds (per field category)
+        private static readonly XLColor ClrDtInstance = XLColor.FromArgb(0xE2, 0xEF, 0xDA); // soft green
+        private static readonly XLColor ClrDtType     = XLColor.FromArgb(0xBD, 0xD7, 0xEE); // cornflower blue
+        private static readonly XLColor ClrDtCalc     = XLColor.FromArgb(0xD9, 0xD9, 0xD9); // light gray
+
+        // Data type row foreground
+        private static readonly XLColor ClrDtTextDark = XLColor.FromArgb(0x26, 0x3F, 0x22); // dark green text
+        private static readonly XLColor ClrDtTextBlue = XLColor.FromArgb(0x1F, 0x49, 0x7D); // dark blue text
+        private static readonly XLColor ClrDtTextGray = XLColor.FromArgb(0x59, 0x59, 0x59); // dark gray text
+
+        // Data rows
+        private static readonly XLColor ClrRowEven = XLColor.White;
+        private static readonly XLColor ClrRowOdd  = XLColor.FromArgb(0xF2, 0xF6, 0xFB); // pale blue-gray
+        private static readonly XLColor ClrCalcRow = XLColor.FromArgb(0xF0, 0xF0, 0xF0); // light gray for calc cells
+        private static readonly XLColor ClrTypeRow = XLColor.FromArgb(0xEB, 0xF5, 0xFD); // very light blue for type cells
+
+        // Section header
+        private static readonly XLColor ClrSectionBg   = XLColor.FromArgb(0xD6, 0xDC, 0xE4); // muted blue-gray
+        private static readonly XLColor ClrSectionText  = XLColor.FromArgb(0x1F, 0x38, 0x64);
+
+        // Legend swatch border
+        private static readonly XLColor ClrBorder = XLColor.FromArgb(0xCC, 0xCC, 0xCC);
+
+        // ─── Public API ────────────────────────────────────────────────────────
 
         public void Export(
-            string filePath,
-            string scheduleName,
+            string                  filePath,
             List<ScheduleFieldMeta> fields,
-            List<ScheduleRowData> rows)
+            List<ScheduleRowData>   rows,
+            ScheduleExportContext   context)
         {
             if (string.IsNullOrWhiteSpace(filePath))
                 throw new ArgumentNullException(nameof(filePath));
             if (fields == null) throw new ArgumentNullException(nameof(fields));
-            if (rows == null) throw new ArgumentNullException(nameof(rows));
+            if (rows   == null) throw new ArgumentNullException(nameof(rows));
+            if (context == null) context = new ScheduleExportContext
+            {
+                ScheduleName = "Schedule",
+                ExportedAt   = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+            };
+
+            // Guard: Excel cannot open a file that is already open by Excel
+            if (File.Exists(filePath))
+            {
+                try   { File.Delete(filePath); }
+                catch { throw new IOException(
+                    $"Cannot overwrite '{Path.GetFileName(filePath)}' — the file may be open in Excel."); }
+            }
 
             string dir = Path.GetDirectoryName(filePath);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
 
-            using var workbook = new XLWorkbook();
-            IXLWorksheet ws = workbook.Worksheets.Add(SanitizeSheetName(scheduleName));
+            using var workbook  = new XLWorkbook();
+            string    sheetName = SanitizeSheetName(context.ScheduleName);
+            IXLWorksheet ws     = workbook.Worksheets.Add(sheetName);
 
-            WriteHeaders(ws, fields);
+            int dataRowCount = rows.Count;
+            int lastDataRow  = RowDataFrom + dataRowCount - 1;
+
+            // ── Write sections ───────────────────────────────────────────────
+            WriteHeaderRow(ws, fields);
+            WriteDataTypeRow(ws, fields);
             WriteDataRows(ws, fields, rows);
-            UnlockEditableCells(ws, fields, rows.Count);
-            ApplySheetProtection(ws);
+            int nextRow = WriteInlineLegend(ws, fields, lastDataRow + 2);
+            WriteExportInfoBlock(ws, context, nextRow + 1, fields.Count);
+
+            // ── Global formatting ────────────────────────────────────────────
+            ApplyColumnWidths(ws, fields);
+            ApplyGlobalBorders(ws, fields.Count, dataRowCount);
             ApplyAutoFilterAndFreeze(ws, fields.Count);
-            SetColumnWidths(ws, fields);
-            AddLegendSheet(workbook);
+
+            // Hide system columns
+            ws.Column(ColElementId).Hide();
+            ws.Column(ColUniqueId).Hide();
+
+            ws.ShowGridLines = false; // Cleaner look with custom borders
 
             workbook.SaveAs(filePath);
         }
 
-        // ─── Header row ────────────────────────────────────────────────────────
+        // ─── Row 1: Header ────────────────────────────────────────────────────
 
-        private void WriteHeaders(IXLWorksheet ws, List<ScheduleFieldMeta> fields)
+        private void WriteHeaderRow(IXLWorksheet ws, List<ScheduleFieldMeta> fields)
         {
-            // System columns — hidden, no styling needed
-            ws.Cell(1, ElementIdCol).Value = "__ElementId";
-            ws.Cell(1, UniqueIdCol).Value  = "__UniqueId";
+            // System columns
+            StyleHeader(ws.Cell(RowHeader, ColElementId), "__ElementId");
+            StyleHeader(ws.Cell(RowHeader, ColUniqueId),  "__UniqueId");
 
-            ws.Column(ElementIdCol).Hide();
-            ws.Column(UniqueIdCol).Hide();
-
-            // Schedule field headers
             foreach (ScheduleFieldMeta meta in fields)
             {
-                int col = meta.ColumnIndex + DataColStart;
-                IXLCell cell = ws.Cell(1, col);
-                cell.Value = meta.DisplayName;
-                cell.Style.Font.Bold = true;
-                cell.Style.Font.FontColor = ColorHeaderFont;
-                cell.Style.Fill.BackgroundColor = ColorHeader;
-                cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+                IXLCell cell = ws.Cell(RowHeader, meta.ColumnIndex + ColDataStart);
+                StyleHeader(cell, meta.DisplayName);
 
-                // Apply column color band in header based on field category
-                ApplyHeaderCategoryIndicator(cell, meta);
+                // Subtle category tint on header background so columns are
+                // distinguishable even on the dark header
+                switch (meta.Category)
+                {
+                    case FieldCategory.TypeParameter:
+                        cell.Style.Fill.BackgroundColor = XLColor.FromArgb(0x17, 0x4A, 0x89);
+                        break;
+                    case FieldCategory.Calculated:
+                    case FieldCategory.ElementIdType:
+                        cell.Style.Fill.BackgroundColor = XLColor.FromArgb(0x45, 0x45, 0x55);
+                        break;
+                }
             }
+
+            ws.Row(RowHeader).Height = 20;
         }
 
-        private void ApplyHeaderCategoryIndicator(IXLCell headerCell, ScheduleFieldMeta meta)
+        private static void StyleHeader(IXLCell cell, string text)
         {
-            // Apply a slightly tinted header color for type param and calculated columns
-            // so the band is visible even on the dark header row
-            switch (meta.Category)
+            cell.Value = SafeString(text);
+            cell.Style.Font.Bold          = true;
+            cell.Style.Font.FontColor     = XLColor.White;
+            cell.Style.Font.FontSize      = 10;
+            cell.Style.Fill.BackgroundColor = XLColor.FromArgb(0x1F, 0x38, 0x64);
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+            cell.Style.Alignment.Vertical   = XLAlignmentVerticalValues.Center;
+        }
+
+        // ─── Row 2: Data type labels ──────────────────────────────────────────
+
+        private void WriteDataTypeRow(IXLWorksheet ws, List<ScheduleFieldMeta> fields)
+        {
+            // System columns: keep consistent style
+            StyleDataType(ws.Cell(RowDataType, ColElementId), "ID",       FieldCategory.Hidden);
+            StyleDataType(ws.Cell(RowDataType, ColUniqueId),  "UniqueId", FieldCategory.Hidden);
+
+            foreach (ScheduleFieldMeta meta in fields)
             {
+                IXLCell cell = ws.Cell(RowDataType, meta.ColumnIndex + ColDataStart);
+                StyleDataType(cell, meta.DataTypeLabel ?? string.Empty, meta.Category);
+            }
+
+            ws.Row(RowDataType).Height = 16;
+        }
+
+        private static void StyleDataType(IXLCell cell, string label, FieldCategory category)
+        {
+            cell.Value = SafeString(label);
+            cell.Style.Font.Italic   = true;
+            cell.Style.Font.FontSize = 9;
+            cell.Style.Alignment.Vertical   = XLAlignmentVerticalValues.Center;
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+
+            switch (category)
+            {
+                case FieldCategory.Instance:
+                    cell.Style.Fill.BackgroundColor = XLColor.FromArgb(0xE2, 0xEF, 0xDA);
+                    cell.Style.Font.FontColor       = XLColor.FromArgb(0x26, 0x3F, 0x22);
+                    break;
                 case FieldCategory.TypeParameter:
-                    headerCell.Style.Fill.BackgroundColor = XLColor.FromArgb(0x17, 0x5A, 0x9C); // Slightly lighter blue
+                    cell.Style.Fill.BackgroundColor = XLColor.FromArgb(0xBD, 0xD7, 0xEE);
+                    cell.Style.Font.FontColor       = XLColor.FromArgb(0x1F, 0x49, 0x7D);
                     break;
                 case FieldCategory.Calculated:
                 case FieldCategory.ElementIdType:
-                    headerCell.Style.Fill.BackgroundColor = XLColor.FromArgb(0x59, 0x59, 0x59); // Gray header
+                    cell.Style.Fill.BackgroundColor = XLColor.FromArgb(0xD9, 0xD9, 0xD9);
+                    cell.Style.Font.FontColor       = XLColor.FromArgb(0x59, 0x59, 0x59);
+                    break;
+                default:
+                    cell.Style.Fill.BackgroundColor = XLColor.FromArgb(0xE8, 0xE8, 0xE8);
+                    cell.Style.Font.FontColor       = XLColor.FromArgb(0x80, 0x80, 0x80);
                     break;
             }
         }
 
-        // ─── Data rows ─────────────────────────────────────────────────────────
+        // ─── Rows 3+: Data ────────────────────────────────────────────────────
 
         private void WriteDataRows(
-            IXLWorksheet ws,
+            IXLWorksheet            ws,
             List<ScheduleFieldMeta> fields,
-            List<ScheduleRowData> rows)
+            List<ScheduleRowData>   rows)
         {
             for (int r = 0; r < rows.Count; r++)
             {
-                int excelRow = r + 2; // Row 1 is header
+                int excelRow = RowDataFrom + r;
                 ScheduleRowData row = rows[r];
+                bool isOddRow = (r % 2 == 1);
 
-                // System hidden columns — store as numbers for reliable roundtrip
-                ws.Cell(excelRow, ElementIdCol).Value = (double)row.ElementId;
-                ws.Cell(excelRow, UniqueIdCol).Value  = row.UniqueId ?? string.Empty;
+                // System columns
+                ws.Cell(excelRow, ColElementId).Value = (double)row.ElementId;
+                ws.Cell(excelRow, ColUniqueId).Value  = row.UniqueId ?? string.Empty;
 
                 foreach (ScheduleFieldMeta meta in fields)
                 {
-                    int col = meta.ColumnIndex + DataColStart;
+                    int     col  = meta.ColumnIndex + ColDataStart;
                     IXLCell cell = ws.Cell(excelRow, col);
 
-                    object value = row.Values.TryGetValue(meta.ColumnIndex, out object v) ? v : string.Empty;
+                    object value = row.Values.TryGetValue(meta.ColumnIndex, out object v)
+                        ? v : string.Empty;
                     SetCellValue(cell, value);
-                    ApplyDataCellStyle(cell, meta);
+                    ApplyDataCellStyle(cell, meta, isOddRow);
                 }
+
+                ws.Row(excelRow).Height = 15;
             }
         }
 
@@ -142,180 +253,291 @@ namespace BA_Tools.ScheduleExporter.Services
         {
             switch (value)
             {
-                case int i:
-                    cell.Value = i;
-                    break;
-                case long l:
-                    cell.Value = (double)l;
-                    break;
-                case double d:
-                    cell.Value = d;
-                    break;
-                case bool b:
-                    cell.Value = b;
-                    break;
+                case int    i: cell.Value = i; break;
+                case long   l: cell.Value = (double)l; break;
+                case double d: cell.Value = d; break;
+                case bool   b: cell.Value = b; break;
+                case null:     cell.Value = Blank.Value; break;
                 case string s:
+                    // Formula injection guard
+                    if (s.Length > 0 && (s[0] == '=' || s[0] == '+' || s[0] == '-' || s[0] == '@'))
+                        s = " " + s;
+                    // Excel cell length guard
+                    if (s.Length > ExcelMaxCellLength)
+                        s = s.Substring(0, ExcelMaxCellLength - 3) + "...";
                     cell.Value = s;
                     break;
-                case null:
-                    cell.Value = Blank.Value;
-                    break;
                 default:
-                    cell.Value = value.ToString();
+                    cell.Value = SafeString(value.ToString());
                     break;
             }
         }
 
-        private void ApplyDataCellStyle(IXLCell cell, ScheduleFieldMeta meta)
+        private void ApplyDataCellStyle(IXLCell cell, ScheduleFieldMeta meta, bool isOddRow)
         {
+            cell.Style.Font.FontSize = 10;
+            cell.Style.Alignment.Vertical   = XLAlignmentVerticalValues.Center;
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+
             switch (meta.Category)
             {
-                case FieldCategory.TypeParameter:
-                    cell.Style.Fill.BackgroundColor = ColorTypeParam;
-                    break;
                 case FieldCategory.Calculated:
                 case FieldCategory.ElementIdType:
-                    cell.Style.Fill.BackgroundColor = ColorCalculated;
-                    cell.Style.Font.Italic = true;
+                    cell.Style.Fill.BackgroundColor = XLColor.FromArgb(0xF0, 0xF0, 0xF0);
+                    cell.Style.Font.Italic          = true;
+                    cell.Style.Font.FontColor       = XLColor.FromArgb(0x70, 0x70, 0x70);
                     break;
-                // Instance: no fill
+
+                case FieldCategory.TypeParameter:
+                    cell.Style.Fill.BackgroundColor = isOddRow
+                        ? XLColor.FromArgb(0xDB, 0xEC, 0xF8)
+                        : XLColor.FromArgb(0xEB, 0xF5, 0xFD);
+                    break;
+
+                default: // Instance
+                    cell.Style.Fill.BackgroundColor = isOddRow
+                        ? XLColor.FromArgb(0xF2, 0xF6, 0xFB)
+                        : XLColor.White;
+                    break;
             }
         }
 
-        // ─── Protection ────────────────────────────────────────────────────────
+        // ─── Inline Legend ────────────────────────────────────────────────────
 
-        /// <summary>
-        /// In ClosedXML, all cells are locked=true by default when sheet protection is active.
-        /// We explicitly unlock only the editable cells (Instance and TypeParameter).
-        /// Hidden system columns A/B remain locked (default). Calculated columns remain locked.
-        /// </summary>
-        private void UnlockEditableCells(
-            IXLWorksheet ws,
+        /// <summary>Returns the next available row after the legend block.</summary>
+        private int WriteInlineLegend(
+            IXLWorksheet            ws,
             List<ScheduleFieldMeta> fields,
-            int dataRowCount)
+            int                     startRow)
         {
-            foreach (ScheduleFieldMeta meta in fields)
-            {
-                if (meta.IsReadOnly) continue; // Calculated, ElementIdType — stay locked
+            bool hasTypeParam = fields.Any(f => f.Category == FieldCategory.TypeParameter);
+            bool hasCalc      = fields.Any(f => f.Category == FieldCategory.Calculated
+                                             || f.Category == FieldCategory.ElementIdType);
 
-                int col = meta.ColumnIndex + DataColStart;
-                // Unlock data cells for this column (rows 2 to dataRowCount+1)
-                for (int r = 2; r <= dataRowCount + 1; r++)
-                    ws.Cell(r, col).Style.Protection.Locked = false;
-            }
-        }
+            int col1 = ColDataStart;
+            int col2 = ColDataStart + 1;
+            int col3 = ColDataStart + 2;
+            int lastCol = ColDataStart + Math.Max(fields.Count - 1, 3);
 
-        private void ApplySheetProtection(IXLWorksheet ws)
-        {
-            ws.Protect()
-              .AllowElement(XLSheetProtectionElements.SelectLockedCells)
-              .AllowElement(XLSheetProtectionElements.SelectUnlockedCells)
-              .AllowElement(XLSheetProtectionElements.Sort)
-              .AllowElement(XLSheetProtectionElements.AutoFilter)
-              .AllowElement(XLSheetProtectionElements.FormatColumns)
-              .AllowElement(XLSheetProtectionElements.FormatRows);
-        }
+            // Section title
+            int r = startRow;
+            WriteSectionTitle(ws, r, col1, lastCol, "LEGEND");
+            r++;
 
-        private void ApplyAutoFilterAndFreeze(IXLWorksheet ws, int fieldCount)
-        {
-            // Freeze header row
-            ws.SheetView.FreezeRows(1);
+            // Header row for legend table
+            ws.Cell(r, col1).Value = "Column Type";
+            ws.Cell(r, col2).Value = "Color";
+            ws.Cell(r, col3).Value = "Import Behavior";
+            ws.Row(r).Style.Font.Bold = true;
+            ws.Row(r).Style.Font.FontSize = 9;
+            ws.Row(r).Style.Font.FontColor = XLColor.FromArgb(0x44, 0x44, 0x44);
+            r++;
 
-            // AutoFilter on visible header columns only
-            if (fieldCount > 0)
-            {
-                int lastCol = DataColStart + fieldCount - 1;
-                ws.Range(1, DataColStart, 1, lastCol).SetAutoFilter();
-            }
-        }
-
-        private void SetColumnWidths(IXLWorksheet ws, List<ScheduleFieldMeta> fields)
-        {
-            // Hidden columns — width doesn't matter but set minimal
-            ws.Column(ElementIdCol).Width = 0;
-            ws.Column(UniqueIdCol).Width  = 0;
-
-            foreach (ScheduleFieldMeta meta in fields)
-            {
-                int col = meta.ColumnIndex + DataColStart;
-                // Width based on display name length, clamped to a readable range
-                int width = Math.Max(14, Math.Min(meta.DisplayName.Length + 6, 45));
-                ws.Column(col).Width = width;
-            }
-        }
-
-        // ─── Legend sheet ──────────────────────────────────────────────────────
-
-        private void AddLegendSheet(XLWorkbook workbook)
-        {
-            IXLWorksheet ls = workbook.Worksheets.Add("Legend");
-
-            ls.Cell(1, 1).Value = "BA Schedule Exporter — Column Legend";
-            ls.Cell(1, 1).Style.Font.Bold = true;
-            ls.Cell(1, 1).Style.Font.FontSize = 13;
-            ls.Range(1, 1, 1, 4).Merge();
-
-            ls.Cell(2, 2).Value = "Column Type";
-            ls.Cell(2, 3).Value = "Fill Color";
-            ls.Cell(2, 4).Value = "Import Behavior";
-            ls.Row(2).Style.Font.Bold = true;
-
-            WriteLegendRow(ls, 3,
-                XLColor.White,
+            // Instance row
+            WriteLegendRow(ws, r, col1, col2, col3,
                 "Instance Parameter",
-                "(no fill)",
-                "Values are written back per element on import.");
+                XLColor.White,
+                "Value is written back to the element on import.",
+                border: true);
+            r++;
 
-            WriteLegendRow(ls, 4,
-                ColorTypeParam,
-                "Type Parameter",
-                "Blue",
-                "Values are written to the element TYPE, affecting ALL instances of that type. " +
-                "A warning dialog lists affected types and instance counts before import commits.");
+            // Type parameter row
+            if (hasTypeParam)
+            {
+                WriteLegendRow(ws, r, col1, col2, col3,
+                    "Type Parameter",
+                    XLColor.FromArgb(0xEB, 0xF5, 0xFD),
+                    "Value is written to the element TYPE — affects ALL instances of that type. "
+                    + "A warning dialog is shown before import commits.",
+                    border: true);
+                r++;
+            }
 
-            WriteLegendRow(ls, 5,
-                ColorCalculated,
-                "Calculated / Read-only",
-                "Gray / Italic",
-                "Column is locked. Values are derived or complex (formulas, counts, ElementId references). " +
-                "Any edits are ignored on import.");
+            // Calculated row
+            if (hasCalc)
+            {
+                WriteLegendRow(ws, r, col1, col2, col3,
+                    "Calculated / Reference",
+                    XLColor.FromArgb(0xF0, 0xF0, 0xF0),
+                    "Value is formula-derived or a reference (italic gray). "
+                    + "Any edits are ignored on import.",
+                    border: true);
+                r++;
+            }
 
-            ls.Column(1).Width = 3;
-            ls.Column(2).Width = 24;
-            ls.Column(3).Width = 14;
-            ls.Column(4).Width = 72;
-
-            ls.SheetView.FreezeRows(2);
+            return r;
         }
 
         private static void WriteLegendRow(
             IXLWorksheet ws,
-            int row,
-            XLColor swatchColor,
-            string typeName,
-            string colorLabel,
-            string description)
+            int          row,
+            int          col1,
+            int          col2,
+            int          col3,
+            string       label,
+            XLColor      swatchColor,
+            string       description,
+            bool         border)
         {
-            IXLCell swatch = ws.Cell(row, 1);
-            swatch.Style.Fill.BackgroundColor = swatchColor;
-            swatch.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            ws.Cell(row, col1).Value = label;
+            ws.Cell(row, col1).Style.Font.FontSize = 9;
+            ws.Cell(row, col1).Style.Font.Bold     = false;
 
-            ws.Cell(row, 2).Value = typeName;
-            ws.Cell(row, 2).Style.Font.Bold = true;
+            // Color swatch cell
+            ws.Cell(row, col2).Style.Fill.BackgroundColor = swatchColor;
+            ws.Cell(row, col2).Style.Border.OutsideBorder      = XLBorderStyleValues.Thin;
+            ws.Cell(row, col2).Style.Border.OutsideBorderColor = XLColor.FromArgb(0xAA, 0xAA, 0xAA);
 
-            ws.Cell(row, 3).Value = colorLabel;
-
-            ws.Cell(row, 4).Value = description;
-            ws.Cell(row, 4).Style.Alignment.WrapText = true;
+            ws.Cell(row, col3).Value = description;
+            ws.Cell(row, col3).Style.Font.FontSize       = 9;
+            ws.Cell(row, col3).Style.Font.FontColor      = XLColor.FromArgb(0x44, 0x44, 0x44);
+            ws.Cell(row, col3).Style.Alignment.WrapText  = true;
+            ws.Row(row).Height = 30;
         }
 
-        // ─── Utility ───────────────────────────────────────────────────────────
+        // ─── Export info block ────────────────────────────────────────────────
+
+        private void WriteExportInfoBlock(
+            IXLWorksheet          ws,
+            ScheduleExportContext context,
+            int                   startRow,
+            int                   fieldCount)
+        {
+            int col1    = ColDataStart;
+            int col2    = ColDataStart + 1;
+            int lastCol = ColDataStart + Math.Max(fieldCount - 1, 3);
+            int r       = startRow;
+
+            WriteSectionTitle(ws, r, col1, lastCol, "EXPORT INFORMATION");
+            r++;
+
+            WriteInfoRow(ws, r++, col1, col2, "Schedule",
+                context.ScheduleName ?? string.Empty);
+            WriteInfoRow(ws, r++, col1, col2, "Exported",
+                context.ExportedAt ?? string.Empty);
+            WriteInfoRow(ws, r++, col1, col2, "Elements",
+                context.TotalElements.ToString());
+            WriteInfoRow(ws, r++, col1, col2, "Filters",
+                context.FiltersDisplay);
+            WriteInfoRow(ws, r++, col1, col2, "Sort order",
+                context.SortDisplay);
+            WriteInfoRow(ws, r,   col1, col2, "Note",
+                "This file was exported by BA Schedule Exporter. "
+                + "Edit white/blue cells and re-import to write values back to Revit.");
+        }
+
+        private static void WriteInfoRow(
+            IXLWorksheet ws,
+            int          row,
+            int          keyCol,
+            int          valCol,
+            string       key,
+            string       value)
+        {
+            ws.Cell(row, keyCol).Value                        = key;
+            ws.Cell(row, keyCol).Style.Font.Bold              = true;
+            ws.Cell(row, keyCol).Style.Font.FontSize          = 9;
+            ws.Cell(row, keyCol).Style.Font.FontColor         = XLColor.FromArgb(0x44, 0x44, 0x44);
+
+            ws.Cell(row, valCol).Value                        = SafeString(value);
+            ws.Cell(row, valCol).Style.Font.FontSize          = 9;
+            ws.Cell(row, valCol).Style.Font.FontColor         = XLColor.FromArgb(0x22, 0x22, 0x22);
+            ws.Cell(row, valCol).Style.Alignment.WrapText     = true;
+            ws.Row(row).Height = 16;
+        }
+
+        // ─── Global formatting ────────────────────────────────────────────────
+
+        private void ApplyColumnWidths(IXLWorksheet ws, List<ScheduleFieldMeta> fields)
+        {
+            ws.Column(ColElementId).Width = 0;
+            ws.Column(ColUniqueId).Width  = 0;
+
+            foreach (ScheduleFieldMeta meta in fields)
+            {
+                int col   = meta.ColumnIndex + ColDataStart;
+                int width = Math.Max(12, Math.Min(meta.DisplayName.Length + 6, 42));
+                ws.Column(col).Width = width;
+            }
+        }
+
+        private void ApplyGlobalBorders(
+            IXLWorksheet ws,
+            int          fieldCount,
+            int          dataRowCount)
+        {
+            if (fieldCount == 0 || dataRowCount == 0) return;
+
+            int lastCol    = ColDataStart + fieldCount - 1;
+            int lastDataRow = RowDataFrom + dataRowCount - 1;
+
+            // Data range border: thin inner, thin outer
+            var dataRange = ws.Range(RowHeader, ColDataStart, lastDataRow, lastCol);
+            dataRange.Style.Border.InsideBorder      = XLBorderStyleValues.Hair;
+            dataRange.Style.Border.InsideBorderColor = XLColor.FromArgb(0xCC, 0xCC, 0xCC);
+            dataRange.Style.Border.OutsideBorder      = XLBorderStyleValues.Thin;
+            dataRange.Style.Border.OutsideBorderColor = XLColor.FromArgb(0x88, 0x88, 0x88);
+
+            // Heavier border under header + data type rows
+            ws.Range(RowDataType, ColDataStart, RowDataType, lastCol)
+              .Style.Border.BottomBorder      = XLBorderStyleValues.Medium;
+            ws.Range(RowDataType, ColDataStart, RowDataType, lastCol)
+              .Style.Border.BottomBorderColor = XLColor.FromArgb(0x88, 0x88, 0x88);
+        }
+
+        private void ApplyAutoFilterAndFreeze(IXLWorksheet ws, int fieldCount)
+        {
+            // Freeze first 2 rows (header + data type)
+            ws.SheetView.FreezeRows(2);
+
+            if (fieldCount > 0)
+            {
+                int lastCol = ColDataStart + fieldCount - 1;
+                ws.Range(RowHeader, ColDataStart, RowHeader, lastCol).SetAutoFilter();
+            }
+        }
+
+        // ─── Shared section title ──────────────────────────────────────────────
+
+        private static void WriteSectionTitle(
+            IXLWorksheet ws,
+            int          row,
+            int          fromCol,
+            int          toCol,
+            string       title)
+        {
+            ws.Cell(row, fromCol).Value = title;
+            ws.Cell(row, fromCol).Style.Font.Bold          = true;
+            ws.Cell(row, fromCol).Style.Font.FontSize      = 9;
+            ws.Cell(row, fromCol).Style.Font.FontColor     = XLColor.FromArgb(0x1F, 0x38, 0x64);
+            ws.Cell(row, fromCol).Style.Fill.BackgroundColor =
+                XLColor.FromArgb(0xD6, 0xDC, 0xE4);
+            ws.Range(row, fromCol, row, toCol)
+              .Style.Fill.BackgroundColor = XLColor.FromArgb(0xD6, 0xDC, 0xE4);
+            ws.Row(row).Height = 16;
+        }
+
+        // ─── Utilities ────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Guards against null and formula injection.
+        /// Strings starting with = + - @ are prefixed with a space.
+        /// Values longer than Excel's 32 767 char limit are truncated.
+        /// </summary>
+        private static string SafeString(string s)
+        {
+            if (s == null) return string.Empty;
+            if (s.Length > 0 && (s[0] == '=' || s[0] == '+' || s[0] == '-' || s[0] == '@'))
+                s = " " + s;
+            return s.Length > ExcelMaxCellLength
+                ? s.Substring(0, ExcelMaxCellLength - 3) + "..."
+                : s;
+        }
 
         private static string SanitizeSheetName(string name)
         {
             if (string.IsNullOrWhiteSpace(name)) return "Schedule";
-            char[] invalid = { ':', '\\', '/', '?', '*', '[', ']' };
-            foreach (char c in invalid)
+            foreach (char c in new[] { ':', '\\', '/', '?', '*', '[', ']' })
                 name = name.Replace(c, '_');
             return name.Length > 31 ? name.Substring(0, 31) : name;
         }

@@ -8,9 +8,6 @@ namespace BA.Core.ViewFilters
 {
     public static class ParameterFilterGenerationService
     {
-        // Does not open its own Transaction, the caller wraps this call the
-        // same way ApplyOverridesToTemplate already wraps ApplyFilterOverrides.
-        // Returns the number of filters created or updated.
         public static int GenerateAndApply(Document doc, ElementId templateId, ParameterColorRule rule)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
@@ -32,11 +29,6 @@ namespace BA.Core.ViewFilters
                 string rawName = $"BA_{rule.CategoryName}_{rule.ParameterName}_{bucket.Label}";
                 string filterName = SanitizeFilterName(rawName);
 
-                // A filter with this exact name is treated as stale and
-                // recreated rather than reused, since the underlying rule
-                // definition may have changed since it was last generated.
-                // Reusing it silently would risk leaving old rule logic
-                // behind under a name that no longer describes it.
                 var existing = new FilteredElementCollector(doc)
                     .OfClass(typeof(ParameterFilterElement))
                     .Cast<ParameterFilterElement>()
@@ -56,11 +48,10 @@ namespace BA.Core.ViewFilters
                 assignments.Add(new FilterColorAssignment(
                     created.Id,
                     bucket.R, bucket.G, bucket.B,
-                    bucket.R, bucket.G, bucket.B));
+                    bucket.R, bucket.G, bucket.B,
+                    bucket.FillPatternId)); // <- NEW, carries the bucket's chosen pattern through to the override
             }
 
-            // Reuses the existing override application path rather than
-            // duplicating fill and line color logic here.
             ViewFilterColorManagerService.ApplyFilterOverrides(doc, templateId, assignments);
 
             return assignments.Count;

@@ -1,4 +1,4 @@
-﻿// FILE: BA_Tools/Application/Ribbon/ViewsPanelFactory.cs
+﻿// FILE: BA_Tools/Application/Ribbon/UtilitiesPanelFactory.cs
 using Autodesk.Revit.UI;
 using BA.App.Settings;
 using BA.Classification;
@@ -23,12 +23,10 @@ namespace BA.BAApplication.Ribbon
 {
     internal static class UtilitiesPanelFactory
     {
-        private static UIApplication _uiApp;
-        private static Autodesk.Revit.ApplicationServices.Application _revit;
         public static void Build(RibbonPanel panel, UIApplication uiApp, Autodesk.Revit.ApplicationServices.Application revit)
         {
-            _uiApp = uiApp ?? throw new ArgumentNullException(nameof(uiApp));
-            _revit = revit ?? throw new ArgumentNullException(nameof(revit));
+            if (uiApp is null) throw new ArgumentNullException(nameof(uiApp));
+            if (revit is null) throw new ArgumentNullException(nameof(revit));
             Build(panel);
         }
         internal static void Build(RibbonPanel panel)
@@ -36,7 +34,7 @@ namespace BA.BAApplication.Ribbon
             #region Copy
             var pdCopy = panel.AddPulldownButton<Cmd_ScheduleSync>(
                 "Copy", "\nCopy",
-                "¨Coping tools",
+                "Copying tools",
                 IconResources.Copy16, IconResources.Copy32);
 
             pdCopy.AddPushButton<Cmd_ScheduleSync>(
@@ -72,7 +70,7 @@ namespace BA.BAApplication.Ribbon
                 IconResources.ExpIExc16, IconResources.ExpIExc32);
 
             pdpdExp.AddPushButton<ExportScheduleCommand>(
-                "ExportToExcel", "Expor\nSchedule",
+                "ExportToExcel", "Export\nSchedule",
                 "Export the selected schedule to an Excel file.",
                 IconResources.ExpExc16, IconResources.ExpExc32);
 
@@ -81,7 +79,7 @@ namespace BA.BAApplication.Ribbon
                 "Import the selected schedule from an Excel file.",
                 IconResources.ImpExc16, IconResources.ImpExc32);
             #endregion
-            
+
             #region Sheet Date+Revision
             panel.AddPushButton<Cmd_SheetDateAndRevision>(
                 "SheetDateRevision", "Sheet\nDate + Rev",
@@ -93,14 +91,18 @@ namespace BA.BAApplication.Ribbon
                 "Settings", "Project\nSettings",
                 "General Plugin Settings",
                 IconResources.SettingsP16, IconResources.SettingsP32);
-          
+
             panel.AddPushButton<Cmd_GetVolume>(
                 "GetVolume", "Get\nVolume",
-                "Get the volume of selected elements.",
+                "For categories where Volume is not a native built-in parameter, calculates and writes the element volume into a prepared parameter.",
                 IconResources.GetVolume_16, IconResources.GetVolume_32);
 
-
-
+            // TODO: IconResources.SettingsP16/32 reused as a placeholder — swap for a
+            // dedicated update/refresh icon when one is added to IconResources.
+            panel.AddPushButton<Cmd_CheckForUpdates>(
+                "CheckForUpdates", "Check for\nUpdates",
+                "Check GitHub for a newer BA Tools release and update now if one is available.",
+                IconResources.SettingsP16, IconResources.SettingsP32);
         }
     }
 }

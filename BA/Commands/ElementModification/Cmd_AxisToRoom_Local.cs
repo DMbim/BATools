@@ -1,5 +1,6 @@
 ﻿using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
 using BA.Core.Rooms;
@@ -38,6 +39,16 @@ namespace BA.Commands.Rooms
                 return Result.Cancelled;
             }
 
+            var diag = new System.Text.StringBuilder();
+            foreach (var r in refs)
+            {
+                var linkedId = r.LinkedElementId;
+                var el = doc.GetElement(r);
+                diag.AppendLine($"ElementId={r.ElementId.Value}  LinkedElementId={(linkedId != ElementId.InvalidElementId ? linkedId.Value.ToString() : "none")}  ResolvedType={el?.GetType().Name ?? "null"}");
+
+            }
+
+   
             var rooms = AxisToRoomService.GetLocalRoomsFromRoomTags(doc, refs);
             if (rooms.Count == 0)
             {

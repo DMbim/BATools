@@ -62,26 +62,36 @@ namespace BA_Tools.ScheduleExporter.Commands
                 }
 
                 string outputPath = vm.OutputFilePath;
-
+                // Read schedule data (all Revit API calls here, on the command thread)
                 var reader = new ScheduleReaderService(doc);
-                var (fields, rows) = reader.ReadSchedule(targetSchedule);
+                var (fields, rows, context) = reader.ReadSchedule(targetSchedule);
 
+                if (!rows.Any())
+                {
+                    TaskDialog.Show("BA Schedule Exporter",
+                        $"Schedule '{targetSchedule.Name}' contains no data rows.");
+                    return Result.Cancelled;
+                }
+
+                // Export to Excel — no Revit API from this point
                 var exporter = new ExcelExportService();
-                exporter.Export(outputPath, targetSchedule.Name, fields, rows);
+                exporter.Export(vm.OutputFilePath, fields, rows, context);
 
                 var td = new TaskDialog("BA Schedule Exporter")
                 {
                     MainInstruction = "Export complete.",
-                    MainContent = $"{rows.Count} row(s) written to:\n{outputPath}",
+                    MainContent = $"{rows.Count} row(s) exported to:\n{vm.OutputFilePath}",
                     CommonButtons = TaskDialogCommonButtons.No,
                     DefaultButton = TaskDialogResult.No
                 };
-                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Open file",
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Open file",
                     "Open the exported Excel workbook now.");
 
                 if (td.Show() == TaskDialogResult.CommandLink1)
                     System.Diagnostics.Process.Start(
-                        new System.Diagnostics.ProcessStartInfo(outputPath) { UseShellExecute = true });
+                        new System.Diagnostics.ProcessStartInfo(vm.OutputFilePath)
+                        { UseShellExecute = true });
 
                 return Result.Succeeded;
             }
@@ -174,7 +184,8 @@ namespace BA_Tools.ScheduleExporter.Commands
 
                 try
                 {
-                    var (f, _) = reader.ReadSchedule(targetSchedule);
+                    // var (f, _) = reader.ReadSchedule(targetSchedule);
+                    var (f, _, _) = reader.ReadSchedule(targetSchedule);
                     fields = f;
                 }
                 catch (NotSupportedException ex)

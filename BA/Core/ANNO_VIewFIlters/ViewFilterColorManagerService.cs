@@ -23,12 +23,6 @@ namespace BA.Core.ViewFilters
                 .Select(v => new ViewTemplateInfo(v.Id, v.Name, v.ViewType.ToString()))
                 .ToArray();
 
-            System.Diagnostics.Debug.WriteLine($"Found {templ.Length} view templates:");
-            foreach (var template in templ)
-            {
-                System.Diagnostics.Debug.WriteLine($"- Id: {template.Id}, Name: {template.Name}, ViewType: {template.ViewType}");
-            }
-
             return templ;
         }
 
@@ -93,13 +87,18 @@ namespace BA.Core.ViewFilters
 
                 var ogs = SafeOgs(() => template.GetFilterOverrides(a.FilterId));
 
+                // Resolves to the assignment's own pattern if one was chosen,
+                // otherwise falls back to solid, identical to prior behavior
+                // when PatternId is left at its default of null. // <- NEW
+                var patternId = ResolvePatternId(a.PatternId, solidFillPatternId);
+
                 if (a.ProjR.HasValue && a.ProjG.HasValue && a.ProjB.HasValue)
                 {
                     var projColor = new Color(a.ProjR.Value, a.ProjG.Value, a.ProjB.Value);
                     ogs.SetProjectionLineColor(projColor);
                     ogs.SetSurfaceForegroundPatternColor(projColor);
-                    if (solidFillPatternId != null)
-                        ogs.SetSurfaceForegroundPatternId(solidFillPatternId);
+                    if (patternId != null)
+                        ogs.SetSurfaceForegroundPatternId(patternId);
                 }
 
                 if (a.CutR.HasValue && a.CutG.HasValue && a.CutB.HasValue)
@@ -107,8 +106,8 @@ namespace BA.Core.ViewFilters
                     var cutColor = new Color(a.CutR.Value, a.CutG.Value, a.CutB.Value);
                     ogs.SetCutLineColor(cutColor);
                     ogs.SetCutForegroundPatternColor(cutColor);
-                    if (solidFillPatternId != null)
-                        ogs.SetCutForegroundPatternId(solidFillPatternId);
+                    if (patternId != null)
+                        ogs.SetCutForegroundPatternId(patternId);
                 }
 
                 template.SetFilterOverrides(a.FilterId, ogs);
@@ -120,12 +119,6 @@ namespace BA.Core.ViewFilters
             }
         }
 
-        // Applies rule based colors directly to a selection in the active
-        // view, bypassing ParameterFilterElement entirely. Each element's
-        // actual parameter value is resolved against the rule's buckets via
-        // ParameterEnumerationService.TryMatchBucket, elements of the wrong
-        // category or with no matching bucket are counted and skipped, not
-        // treated as an error. // <- NEW
         public static (int Applied, int SkippedCategory, int SkippedNoMatch) ApplySelectionOverrides(
             Document doc, View view, ICollection<ElementId> selectedIds, ParameterColorRule rule)
         {
@@ -171,10 +164,11 @@ namespace BA.Core.ViewFilters
                 ogs.SetSurfaceForegroundPatternColor(color);
                 ogs.SetCutForegroundPatternColor(color);
 
-                if (solidFillPatternId != null)
+                var patternId = ResolvePatternId(bucket.FillPatternId, solidFillPatternId); // <- NEW
+                if (patternId != null)
                 {
-                    ogs.SetSurfaceForegroundPatternId(solidFillPatternId);
-                    ogs.SetCutForegroundPatternId(solidFillPatternId);
+                    ogs.SetSurfaceForegroundPatternId(patternId);
+                    ogs.SetCutForegroundPatternId(patternId);
                 }
 
                 view.SetElementOverrides(id, ogs);
@@ -182,6 +176,15 @@ namespace BA.Core.ViewFilters
             }
 
             return (applied, skippedCategory, skippedNoMatch);
+        }
+
+        // Null or InvalidElementId on the bucket/assignment means "use
+        // solid", matching prior default behavior exactly. // <- NEW
+        private static ElementId ResolvePatternId(ElementId requested, ElementId solidFallback)
+        {
+            if (requested != null && requested != ElementId.InvalidElementId)
+                return requested;
+            return solidFallback;
         }
 
         private static ElementId GetSolidFillPatternId(Document doc)
@@ -239,4 +242,14 @@ namespace BA.Core.ViewFilters
             }
         }
     }
+
+    // FilterColorAssignment gains an optional PatternId, defaulted to null
+    // so existing callers (the Assign Colors tab) keep compiling unchanged
+    // and keep defaulting to solid fill. // <- CHANGED
+    public sealed record FilterColorAssignment(
+        ElementId FilterId,
+        byte? CutR, byte? CutG, byte? CutB,
+        byte? ProjR, byte? ProjG, byte? ProjB,
+        ElementId PatternId = null
+    );
 }

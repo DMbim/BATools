@@ -14,9 +14,8 @@ namespace BA.Core.ViewFilters
         byte? ProjR, byte? ProjG, byte? ProjB
     );
 
-    public sealed record FilterColorAssignment(
-        ElementId FilterId,
-        byte? CutR, byte? CutG, byte? CutB,
-        byte? ProjR, byte? ProjG, byte? ProjB
-    );
+    // FilterColorAssignment removed from this file. It now lives at the
+    // bottom of ViewFilterColorManagerService.cs, alongside the
+    // ResolvePatternId logic it's tightly coupled to, since it gained the
+    // optional PatternId field. Keeping one definition, not two. // <- CHANGED
 }

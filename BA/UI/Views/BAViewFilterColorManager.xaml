@@ -488,6 +488,19 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
 
+                                    <DataGridTemplateColumn Header="Pattern" Width="120" IsReadOnly="True">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <ComboBox Style="{StaticResource BaDarkComboBox}"
+                      ItemsSource="{Binding DataContext.Patterns,
+                                    RelativeSource={RelativeSource AncestorType=Window}}"
+                      SelectedItem="{Binding SelectedPattern}"
+                      DisplayMemberPath="Name"
+                      Height="26"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
                                     <DataGridTextColumn Header="Label" Binding="{Binding Label}" Width="*"/>
                                     <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="140"/>
                                     <DataGridTextColumn Header="Range Min" Binding="{Binding RangeMin}" Width="90"/>

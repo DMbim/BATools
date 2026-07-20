@@ -15,15 +15,14 @@ namespace BA.Core.Ledger
     ///
     /// 2. Parameter not bound anywhere in the project at all -- there is, by definition, no
     ///    existing binding anywhere in this document to copy a group from. Looked up by GUID
-    ///    via the existing BA.Core.SharedParamUtils (reused rather than duplicated), using
-    ///    whatever Application.SharedParametersFilename currently points to, and bound fresh
-    ///    with a fallback default group (GroupTypeId.Data). Change FallbackGroupForNewBindings
-    ///    if you want a different default.
+    ///    via BA.Core.SharedParamUtils, using whatever Application.SharedParametersFilename
+    ///    currently points to, and bound fresh with a fallback default group (GroupTypeId.Data).
     ///
-    /// Corrected from an earlier draft that used BuiltInParameterGroup and
-    /// InternalDefinition.GetSharedParameterGUID(), neither of which exist in this Revit 2026
-    /// SDK: BuiltInParameterGroup has been fully replaced by ForgeTypeId/GroupTypeId, and bound
-    /// shared parameter Definitions are cast directly to ExternalDefinition instead.
+    /// EnsureParameterBound now reports WHY it failed via failureReason, since "GUID not found
+    /// in file" and "Insert rejected by Revit" are different problems with different fixes on
+    /// the user's end (missing/mismatched shared parameter file vs. a name collision with an
+    /// existing non-shared parameter of the same name in the target family). Collapsing both
+    /// into one generic message made this undiagnosable from the sync dialog alone.
     ///
     /// Runs silently, no user-facing notification, per explicit instruction. Must be called
     /// from within an already-open Transaction on doc; this service does not open its own.
@@ -35,13 +34,16 @@ namespace BA.Core.Ledger
         /// <summary>
         /// Ensures the shared parameter identified by parameterGuid is bound to category in
         /// doc. Returns true if it's now bound (whether it already was, was widened, or was
-        /// newly created), false if it genuinely could not be resolved (not found anywhere in
-        /// the document's bindings, and not found in the shared parameter file either).
+        /// newly created). Returns false if it genuinely could not be resolved; failureReason
+        /// is populated with a specific, user-actionable explanation in that case.
         /// </summary>
-        public static bool EnsureParameterBound(Document doc, Category category, Guid parameterGuid)
+        public static bool EnsureParameterBound(Document doc, Category category, Guid parameterGuid, out string failureReason)
         {
+            failureReason = null;
+
             if (doc == null || category == null || parameterGuid == Guid.Empty)
             {
+                failureReason = "Invalid document, category, or parameter GUID passed to EnsureParameterBound.";
                 return false;
             }
 
@@ -61,6 +63,7 @@ namespace BA.Core.Ledger
 
                     if (!(iterator.Current is ElementBinding existingBinding))
                     {
+                        failureReason = $"Parameter '{definition.Name}' is bound in this document under a non-element binding type, which this service does not handle.";
                         return false;
                     }
 
@@ -77,7 +80,8 @@ namespace BA.Core.Ledger
 
                     if (!reInserted)
                     {
-                        AppLogger.LogInfo($"ParameterBindingFixupService: ReInsert failed widening binding for GUID {parameterGuid} to category '{category.Name}'.");
+                        failureReason = $"Revit rejected widening the existing binding for '{definition.Name}' to include category '{category.Name}'.";
+                        AppLogger.LogInfo($"ParameterBindingFixupService: {failureReason}");
                         return false;
                     }
 
@@ -87,17 +91,20 @@ namespace BA.Core.Ledger
                 }
 
                 // Not bound anywhere in this document at all.
-                return CreateFreshBinding(doc, category, parameterGuid);
+                return CreateFreshBinding(doc, category, parameterGuid, out failureReason);
             }
             catch (Exception ex)
             {
+                failureReason = $"Unexpected error resolving binding: {ex.Message}";
                 AppLogger.LogError($"ParameterBindingFixupService.EnsureParameterBound failed for GUID {parameterGuid} / category '{category?.Name}'", ex);
                 return false;
             }
         }
 
-        private static bool CreateFreshBinding(Document doc, Category category, Guid parameterGuid)
+        private static bool CreateFreshBinding(Document doc, Category category, Guid parameterGuid, out string failureReason)
         {
+            failureReason = null;
+
             // Reuses the project's existing shared-parameter-file lookup utility rather than
             // duplicating file-opening/searching logic here. Passing null for
             // sharedParamFilePath and defName means: use whatever Application.
@@ -107,6 +114,7 @@ namespace BA.Core.Ledger
 
             if (externalDefinition == null)
             {
+                failureReason = "This parameter's GUID was not found in the shared parameter file currently loaded in this Revit session (File > Options > Shared Parameters). Either the file is out of date, or a different file is configured than the one used when the parameter was originally created.";
                 AppLogger.LogInfo($"ParameterBindingFixupService: GUID {parameterGuid} not found in the current shared parameter file (or no shared parameter file configured).");
                 return false;
             }
@@ -120,7 +128,8 @@ namespace BA.Core.Ledger
 
             if (!inserted)
             {
-                AppLogger.LogInfo($"ParameterBindingFixupService: Insert failed creating new binding for '{externalDefinition.Name}' ({parameterGuid}) on category '{category.Name}'.");
+                failureReason = $"Revit rejected creating a binding for '{externalDefinition.Name}' on category '{category.Name}'. The most common cause is a name collision: a parameter named '{externalDefinition.Name}' already exists in this document (often a family-local Type Parameter that isn't marked Shared) and Revit will not bind a shared parameter under an already-occupied name.";
+                AppLogger.LogInfo($"ParameterBindingFixupService: {failureReason}");
                 return false;
             }
 

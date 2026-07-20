@@ -236,11 +236,6 @@ namespace BA.Core.ViewFilters
             return result;
         }
 
-        // Resolves the parameter on the given element, using the same
-        // instance versus type logic as enumeration and discovery, then
-        // finds which bucket in the rule matches its actual value. Used by
-        // ApplySelectionOverrides to color a selection directly rather than
-        // through a ParameterFilterElement. // <- NEW
         public static bool TryMatchBucket(Document doc, Element element, ParameterColorRule rule, out ColorBucket matchedBucket)
         {
             matchedBucket = null;
@@ -274,17 +269,27 @@ namespace BA.Core.ViewFilters
 
                 double numeric = rule.StorageType == StorageType.Double ? p.AsDouble() : p.AsInteger();
 
-                // Inclusive on both ends. A value sitting exactly on a shared
-                // boundary between two adjacent buckets matches whichever
-                // bucket appears first in the list, this is a real ambiguity
-                // in manually entered breakpoints, not something silently
-                // resolved here.
                 matchedBucket = rule.Buckets.FirstOrDefault(b =>
                     b.RangeMin.HasValue && b.RangeMax.HasValue &&
                     numeric >= b.RangeMin.Value && numeric <= b.RangeMax.Value);
 
                 return matchedBucket != null;
             }
+        }
+
+        // New. Every FillPatternElement in the document, regardless of
+        // drafting or model target. Callers, not this method, decide how to
+        // present a "use solid" default option. // <- NEW
+        public static List<FillPatternInfo> GetAvailableFillPatterns(Document doc)
+        {
+            if (doc == null) throw new ArgumentNullException(nameof(doc));
+
+            return new FilteredElementCollector(doc)
+                .OfClass(typeof(FillPatternElement))
+                .Cast<FillPatternElement>()
+                .Select(f => new FillPatternInfo(f.Id, f.Name))
+                .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         private static string GetDisplayValue(Parameter p)

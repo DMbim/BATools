@@ -20,24 +20,31 @@ namespace BA.Core.Parameters
             {
                 var def = it.Key;
                 if (def == null) continue;
-
                 if (it.Current is not ElementBinding binding) continue;
 
                 var catNames = new List<string>();
                 var catIds = new List<long>();
-
                 foreach (Category c in binding.Categories)
                 {
                     if (c == null) continue;
                     catNames.Add(c.Name);
                     catIds.Add(c.Id.Value); // Revit 2026
                 }
-
                 catNames.Sort(StringComparer.OrdinalIgnoreCase);
                 catIds.Sort();
 
-                var isShared = def is ExternalDefinition;
-                var guid = isShared ? ((ExternalDefinition)def).GUID.ToString() : "";
+                bool isShared = false;
+                string guid = "";
+                if (def is InternalDefinition internalDef)
+                {
+                    ElementId sharedParamElemId = internalDef.Id;
+                    isShared = sharedParamElemId != ElementId.InvalidElementId;
+                    if (isShared)
+                    {
+                        var spElem = doc.GetElement(sharedParamElemId) as SharedParameterElement;
+                        guid = spElem != null ? spElem.GuidValue.ToString() : "";
+                    }
+                }
 
                 var instanceOrType = binding is InstanceBinding ? "Instance" : "Type";
 

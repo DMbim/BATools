@@ -14,24 +14,26 @@ namespace BA.Core.ViewFilters
 
     public sealed record ParameterInfo(ElementId Id, string Name, StorageType StorageType, bool IsInstance);
 
+    // New. Represents a fill pattern selectable per bucket. // <- NEW
+    public sealed record FillPatternInfo(ElementId Id, string Name);
+
     public sealed class ColorBucket
     {
-        // Display label shown in the UI and used in filter/legend naming.
         public string Label { get; set; } = string.Empty;
 
-        // Used for ValueBucket only. Raw string form of the discrete value,
-        // parsed against the parameter's actual StorageType when the filter
-        // rule is built, not assumed to be a string parameter.
         public string Value { get; set; } = string.Empty;
 
-        // Used for RangeBucket only. Both must be set for a range bucket,
-        // these are the manual breakpoints the user entered, never computed.
         public double? RangeMin { get; set; }
         public double? RangeMax { get; set; }
 
         public byte R { get; set; }
         public byte G { get; set; }
         public byte B { get; set; }
+
+        // Null or ElementId.InvalidElementId means solid fill, the existing
+        // default behavior. Any other id is resolved against the document's
+        // real FillPatternElement collection at apply time. // <- NEW
+        public ElementId FillPatternId { get; set; }
     }
 
     public sealed class ParameterColorRule
