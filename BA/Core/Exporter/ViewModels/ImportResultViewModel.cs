@@ -12,10 +12,10 @@ namespace BA_Tools.ScheduleExporter.ViewModels
     /// </summary>
     public partial class ImportResultViewModel : ObservableObject
     {
-        public int  SuccessCount { get; }
-        public int  FailureCount { get; }
-        public int  SkippedCount { get; }
-        public bool HasErrors    => FailureCount > 0;
+        public int SuccessCount { get; }
+        public int FailureCount { get; }
+        public int SkippedCount { get; }
+        public bool HasErrors => FailureCount > 0;
 
         public string SummaryMessage { get; }
 
@@ -30,7 +30,7 @@ namespace BA_Tools.ScheduleExporter.ViewModels
             SuccessCount = result.SuccessCount;
             FailureCount = result.FailureCount;
             SkippedCount = result.SkippedCount;
-            Errors       = new ObservableCollection<WriteError>(result.Errors);
+            Errors = new ObservableCollection<WriteError>(result.Errors);
 
             SummaryMessage = FailureCount == 0
                 ? $"Import complete. {SuccessCount} parameter value(s) written successfully."

@@ -59,27 +59,73 @@ namespace BA.Commands.Rooms
                 return Result.Cancelled;
             }
 
-            var famName = settings.PlaceDimensionVariant ? "BA_Axis_Dim" : "BA_Axis";
-            var symbol = FamilySymbolUtils.FindDetailSymbol(doc, famName);
-            if (symbol == null)
-            {
-                TaskDialog.Show("Axis To Room", $"Detail family '{famName}' is not loaded in this project.");
-                return Result.Failed;
-            }
+            double offsetX = UnitUtils.ConvertToInternalUnits(settings.DimensionOffsetXMm, UnitTypeId.Millimeters);
+            double offsetY = UnitUtils.ConvertToInternalUnits(settings.DimensionOffsetYMm, UnitTypeId.Millimeters);
 
             int placed = 0;
+            int dimensioned = 0;
+
             using (var t = new Transaction(doc, "BA \u2013 Axis To Room (Link)"))
             {
                 t.Start();
-                foreach (var r in linkedRooms)
+                try
                 {
-                    var inst = DetailPlacer.PlaceInLocalRoomCenterSized(doc, doc.ActiveView, symbol, r, xParamName: "x", yParamName: "y");
-                    if (inst != null) placed++;
+                    // <- CHANGED: symbol lookup moved INSIDE the transaction. It previously ran
+                    // before t.Start(), which threw InvalidOperationException from
+                    // FindDetailSymbol's doc.IsModifiable check whenever BA_Axis wasn't already
+                    // loaded in the document -- Local never had this bug since its lookup was
+                    // always inside its transaction; Link now matches that correct pattern.
+                    // Also now points at the single unified "BA_Axis" family (was "BA_Axis_Dim"
+                    // vs "BA_Axis" depending on settings.PlaceDimensionVariant).
+                    var symbol = FamilySymbolUtils.FindDetailSymbol(
+                        doc,
+                        familyName: "BA_Axis",
+                        symbolName: null,
+                        loadIfMissing: true,
+                        familyFileNameOrRelativePath: "BA_Axis.rfa",
+                        activateIfFound: true);
+
+                    if (symbol == null)
+                    {
+                        t.RollBack();
+                        TaskDialog.Show("Axis To Room", "Detail family 'BA_Axis' could not be found/loaded.");
+                        return Result.Failed;
+                    }
+
+                    foreach (var r in linkedRooms)
+                    {
+                        var inst = DetailPlacer.PlaceInLinkedRoomCenterSized(
+                            doc, doc.ActiveView, symbol, r, link,
+                            out var roomMin, out var roomMax,
+                            xParamName: "x", yParamName: "y");
+
+                        if (inst == null) continue;
+                        placed++;
+
+                        if (settings.PlaceDimensionVariant)
+                        {
+                            AxisDimensionService.CreateAxisDimensions(
+                                doc, doc.ActiveView, inst, roomMin, roomMax, offsetX, offsetY);
+                            dimensioned++;
+                        }
+                    }
+
+                    t.Commit();
                 }
-                t.Commit();
+                catch (Exception ex)
+                {
+                    // Same whole-run rollback design as Local -- see its comment.
+                    t.RollBack();
+                    TaskDialog.Show("Axis To Room", $"Failed while placing/dimensioning axes: {ex.Message}");
+                    return Result.Failed;
+                }
             }
 
-            TaskDialog.Show("Axis To Room", $"Placed: {placed}");
+            var summary = $"Placed: {placed}";
+            if (settings.PlaceDimensionVariant)
+                summary += $"\nDimensioned: {dimensioned}";
+
+            TaskDialog.Show("Axis To Room", summary);
             return Result.Succeeded;
         }
     }

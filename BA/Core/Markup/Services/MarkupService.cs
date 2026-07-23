@@ -313,9 +313,13 @@ namespace BA.Markup.Services
                 (bb.Min.Y + bb.Max.Y) / 2.0,
                 bb.Min.Z);
 
-        // <- CHANGED: renamed from BuildCurveLoopFromBoundingBox and now returns IList<Curve>.
-        // RevisionCloud.Create requires a flat IList<Curve>, not IList<CurveLoop>.
-        // The four boundary lines are passed directly without wrapping in a CurveLoop.
+        // <- CHANGED: winding direction reversed (was p0->p1->p2->p3, now p0->p3->p2->p1).
+        // RevisionCloud.Create is sensitive to curve loop winding direction -- the previous
+        // counter-clockwise order produced inward-bulging (inverted) cloud scallops. This
+        // reversal is based on the observed symptom, not a memorized API guarantee -- confirm
+        // it actually renders correctly after rebuilding; if it's still inverted, the real fix
+        // is elsewhere (e.g. view orientation, or RevisionCloud.Create expecting the opposite
+        // convention than assumed here).
         private static IList<Curve> BuildCurvesFromBoundingBox(BoundingBoxXYZ bb)
         {
             double x0 = bb.Min.X, y0 = bb.Min.Y;
@@ -329,16 +333,16 @@ namespace BA.Markup.Services
 
             return new List<Curve>
             {
-                Line.CreateBound(p0, p1),
-                Line.CreateBound(p1, p2),
-                Line.CreateBound(p2, p3),
-                Line.CreateBound(p3, p0)
+                Line.CreateBound(p0, p3),
+                Line.CreateBound(p3, p2),
+                Line.CreateBound(p2, p1),
+                Line.CreateBound(p1, p0)
             };
         }
 
-        // <- CHANGED: kept as a separate method returning IList<CurveLoop>
-        // for any future FilledRegion.Create usage which does require CurveLoop.
-        // Not currently called but retained so it is available without reconstruction.
+        // <- CHANGED: winding reversed to match BuildCurvesFromBoundingBox above, for
+        // consistency -- this method isn't currently called, but would hit the same
+        // inverted-bump issue if wired up later without this.
         private static IList<CurveLoop> BuildCurveLoopFromBoundingBox(BoundingBoxXYZ bb)
         {
             double x0 = bb.Min.X, y0 = bb.Min.Y;
@@ -352,10 +356,10 @@ namespace BA.Markup.Services
 
             var loop = CurveLoop.Create(new List<Curve>
             {
-                Line.CreateBound(p0, p1),
-                Line.CreateBound(p1, p2),
-                Line.CreateBound(p2, p3),
-                Line.CreateBound(p3, p0)
+                Line.CreateBound(p0, p3),
+                Line.CreateBound(p3, p2),
+                Line.CreateBound(p2, p1),
+                Line.CreateBound(p1, p0)
             });
 
             return new List<CurveLoop> { loop };

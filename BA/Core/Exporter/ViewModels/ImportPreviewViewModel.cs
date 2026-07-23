@@ -18,18 +18,18 @@ namespace BA_Tools.ScheduleExporter.ViewModels
 
         // ─── Summary stats ────────────────────────────────────────────────────
 
-        public int TotalRows          => CompareResult.TotalRows;
-        public int ChangedRowCount    => CompareResult.ChangedRowCount;
-        public int UnchangedRowCount  => CompareResult.UnchangedRowCount;
-        public int SkippedCount       => CompareResult.SkippedCount;
-        public int DeletedCount       => CompareResult.DeletedElementIds.Count;
-        public int InvalidCount       => CompareResult.InvalidValueCount;
+        public int TotalRows => CompareResult.TotalRows;
+        public int ChangedRowCount => CompareResult.ChangedRowCount;
+        public int UnchangedRowCount => CompareResult.UnchangedRowCount;
+        public int SkippedCount => CompareResult.SkippedCount;
+        public int DeletedCount => CompareResult.DeletedElementIds.Count;
+        public int InvalidCount => CompareResult.InvalidValueCount;
 
-        public bool HasChanges             => ChangedRowCount > 0;
-        public bool HasNoChanges           => !HasChanges;
+        public bool HasChanges => ChangedRowCount > 0;
+        public bool HasNoChanges => !HasChanges;
         public bool HasTypeParameterWarnings => TypeParameterWarnings.Any();
-        public bool HasDeletedElements     => CompareResult.DeletedElementIds.Any();
-        public bool HasConflicts           => TypeParameterWarnings.Any(w => w.HasConflict);
+        public bool HasDeletedElements => CompareResult.DeletedElementIds.Any();
+        public bool HasConflicts => TypeParameterWarnings.Any(w => w.HasConflict);
 
         public bool CanConfirm => HasChanges; // Nothing to write if no changes
 
@@ -80,13 +80,13 @@ namespace BA_Tools.ScheduleExporter.ViewModels
     /// </summary>
     public partial class TypeParameterWarningViewModel : ObservableObject
     {
-        public string ParameterName       { get; }
-        public string CurrentValue        { get; }
-        public string NewValue            { get; }
-        public string ElementTypeName     { get; }
-        public int    AffectedInstanceCount { get; }
-        public bool   HasConflict         { get; }
-        public string InstanceLabel       { get; }
+        public string ParameterName { get; }
+        public string CurrentValue { get; }
+        public string NewValue { get; }
+        public string ElementTypeName { get; }
+        public int AffectedInstanceCount { get; }
+        public bool HasConflict { get; }
+        public string InstanceLabel { get; }
 
         /// <summary>Formatted summary of conflicting values, shown in red when HasConflict is true.</summary>
         public string ConflictSummary { get; }
@@ -99,12 +99,12 @@ namespace BA_Tools.ScheduleExporter.ViewModels
 
         public TypeParameterWarningViewModel(TypeParameterWarning warning)
         {
-            ParameterName         = warning.ParameterName;
-            CurrentValue          = warning.CurrentValue;
-            NewValue              = warning.NewValue;
-            ElementTypeName       = warning.ElementTypeName;
+            ParameterName = warning.ParameterName;
+            CurrentValue = warning.CurrentValue;
+            NewValue = warning.NewValue;
+            ElementTypeName = warning.ElementTypeName;
             AffectedInstanceCount = warning.AffectedInstanceCount;
-            HasConflict           = warning.HasConflict;
+            HasConflict = warning.HasConflict;
 
             InstanceLabel = AffectedInstanceCount == 1
                 ? "1 instance in model"
@@ -115,12 +115,12 @@ namespace BA_Tools.ScheduleExporter.ViewModels
                 int n = warning.ConflictingValues.Count;
                 string preview = string.Join(", ", warning.ConflictingValues.Take(3));
                 if (n > 3) preview += $", ... ({n - 3} more)";
-                ConflictSummary  = $"CONFLICT: {n} different values found for this type — {preview}. Last-write-wins will apply.";
+                ConflictSummary = $"CONFLICT: {n} different values found for this type — {preview}. Last-write-wins will apply.";
                 ValueChangeLabel = $"\"{CurrentValue}\" → [conflict — last-write-wins: \"{warning.ConflictingValues.Last()}\"]";
             }
             else
             {
-                ConflictSummary  = null;
+                ConflictSummary = null;
                 ValueChangeLabel = $"\"{CurrentValue}\" → \"{NewValue}\"";
             }
         }

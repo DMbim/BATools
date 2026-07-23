@@ -1,5 +1,6 @@
 ﻿using Autodesk.Revit.UI;
 using BA.Commands;
+using BA.Commands.CurveToElement;
 using BA.Commands.Management;
 using BA.IssueReporter.Commands;
 using BA.Ribbon;
@@ -90,6 +91,10 @@ namespace BA.BAApplication.Ribbon
                 IconResources.ZoomE16, IconResources.ZoomE32);
             #endregion
 
+            panel.AddPushButton<CurveToElementCommand> (
+                "CurveToElement", "Curve\nTo Element",
+                "Convert curves to elements.",
+                IconResources.ZoomE16, IconResources.ZoomE32);
 
         }
     }

@@ -1,0 +1,203 @@
+﻿<!-- File: BA/UI/CurveToElement/CurveToElementWindow.xaml -->
+<!-- Action: CREATE NEW -->
+
+<Window x:Class="BA.UI.CurveToElement.CurveToElementWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:BA.ViewModels.CurveToElement"
+        xmlns:conv="clr-namespace:BA.Core.CurveToElement.Converters"
+        xmlns:models="clr-namespace:BA.Core.CurveToElement.Models"
+        Title="Curve to Element - Generate Walls"
+        Width="820" Height="680"
+        MinWidth="640" MinHeight="480"
+        Style="{DynamicResource BaWindow}"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Style="{StaticResource BaSectionTitleText}"
+                   Text="Configure a wall type and placement for each detected line style, then click Generate."
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,12" />
+
+        <!-- Per-group settings panels -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Groups}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:CurveTypeGroupViewModel}">
+                        <Border Style="{StaticResource BaDarkPanelBorder}" Margin="0,0,0,12">
+                            <StackPanel>
+
+                                <!-- Header -->
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Style="{StaticResource BaSectionTitleText}"
+                                               Text="{Binding StyleName}" />
+                                    <TextBlock Grid.Column="1"
+                                               Style="{StaticResource BaMutedTextDark}"
+                                               VerticalAlignment="Center"
+                                               Text="{Binding CurveCount, StringFormat='{}{0} curve(s)'}" />
+                                </Grid>
+
+                                <!-- Wall type + base level -->
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Style="{StaticResource BaLabelText}" Text="Wall Type" Margin="0,0,0,4" />
+                                        <ComboBox Style="{StaticResource BaDarkComboBox}"
+                                                  ItemsSource="{Binding AvailableWallTypes}"
+                                                  DisplayMemberPath="Name"
+                                                  SelectedItem="{Binding SelectedWallType}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Style="{StaticResource BaLabelText}" Text="Base Level" Margin="0,0,0,4" />
+                                        <ComboBox Style="{StaticResource BaDarkComboBox}"
+                                                  ItemsSource="{Binding AvailableLevels}"
+                                                  DisplayMemberPath="Name"
+                                                  SelectedItem="{Binding SelectedBaseLevel}" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Base offset + location line -->
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Style="{StaticResource BaLabelText}" Text="Base Offset" Margin="0,0,0,4" />
+                                        <TextBox Style="{StaticResource BaDarkTextBox}"
+                                                 Text="{Binding BaseOffsetText, UpdateSourceTrigger=PropertyChanged}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Style="{StaticResource BaLabelText}" Text="Location Line" Margin="0,0,0,4" />
+                                        <ComboBox Style="{StaticResource BaDarkComboBox}"
+                                                  ItemsSource="{x:Static vm:CurveTypeGroupViewModel.AvailableLocationLines}"
+                                                  SelectedItem="{Binding SelectedLocationLine}" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Preview readout -->
+                                <TextBlock Margin="0,0,0,8" TextWrapping="Wrap">
+                                    <Run Text="Total width: " />
+                                    <Run Text="{Binding TotalWidthDisplay, Mode=OneWay}" FontWeight="SemiBold" />
+                                    <Run Text="  |  Selected line offset from centerline: " />
+                                    <Run Text="{Binding SelectedLocationLineOffsetDisplay, Mode=OneWay}" FontWeight="SemiBold" />
+                                </TextBlock>
+                                <TextBlock Style="{StaticResource BaMutedTextDark}"
+                                           FontStyle="Italic"
+                                           TextWrapping="Wrap"
+                                           Margin="0,-4,0,8"
+                                           Visibility="{Binding IsPreviewSupported, Converter={conv:BooleanToVisibilityInverseConverter}}"
+                                           Text="{Binding PreviewUnsupportedReason}" />
+
+                                <!-- Height mode -->
+                                <StackPanel Margin="0,0,0,8">
+                                    <TextBlock Style="{StaticResource BaLabelText}" Text="Height" Margin="0,0,0,4" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                        <RadioButton Content="Unconnected Height"
+                                                     GroupName="{Binding GroupId}"
+                                                     IsChecked="{Binding HeightMode, Converter={conv:EnumToBooleanConverter}, ConverterParameter={x:Static models:WallHeightMode.Unconnected}}"
+                                                     Foreground="{DynamicResource Brush.WindowFg}"
+                                                     Margin="0,0,16,0" />
+                                        <RadioButton Content="Up To Level"
+                                                     GroupName="{Binding GroupId}"
+                                                     IsChecked="{Binding HeightMode, Converter={conv:EnumToBooleanConverter}, ConverterParameter={x:Static models:WallHeightMode.UpToLevel}}"
+                                                     Foreground="{DynamicResource Brush.WindowFg}" />
+                                    </StackPanel>
+
+                                    <StackPanel Visibility="{Binding IsUpToLevelHeightMode, Converter={conv:BooleanToVisibilityInverseConverter}}">
+                                        <TextBlock Style="{StaticResource BaLabelText}" Text="Unconnected Height" Margin="0,0,0,4" />
+                                        <TextBox Style="{StaticResource BaDarkTextBox}"
+                                                 Text="{Binding UnconnectedHeightText, UpdateSourceTrigger=PropertyChanged}" />
+                                    </StackPanel>
+
+                                    <Grid Visibility="{Binding IsUnconnectedHeightMode, Converter={conv:BooleanToVisibilityInverseConverter}}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Style="{StaticResource BaLabelText}" Text="Top Level" Margin="0,0,0,4" />
+                                            <ComboBox Style="{StaticResource BaDarkComboBox}"
+                                                      ItemsSource="{Binding AvailableLevels}"
+                                                      DisplayMemberPath="Name"
+                                                      SelectedItem="{Binding SelectedTopLevel}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Style="{StaticResource BaLabelText}" Text="Top Offset" Margin="0,0,0,4" />
+                                            <TextBox Style="{StaticResource BaDarkTextBox}"
+                                                     Text="{Binding TopOffsetText, UpdateSourceTrigger=PropertyChanged}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- Flip / join / structural -->
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox Content="Flip Side"
+                                              Style="{StaticResource BaDarkPanelCheckBox}"
+                                              IsChecked="{Binding FlipSide}"
+                                              IsEnabled="{Binding HasOpenChain}"
+                                              Margin="0,0,16,0"
+                                              ToolTip="Only applies to open (non-closed) curve chains. Closed loops determine orientation automatically." />
+                                    <CheckBox Content="Allow End Joins"
+                                              Style="{StaticResource BaDarkPanelCheckBox}"
+                                              IsChecked="{Binding AllowEndJoins}"
+                                              Margin="0,0,16,0" />
+                                    <CheckBox Content="Structural"
+                                              Style="{StaticResource BaDarkPanelCheckBox}"
+                                              IsChecked="{Binding StructuralUsage}" />
+                                </StackPanel>
+
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Status -->
+        <TextBlock Grid.Row="2"
+                   Style="{StaticResource BaMutedTextDark}"
+                   Margin="0,8,0,0"
+                   Text="{Binding StatusMessage}" />
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Cancel"
+                    Style="{StaticResource BaSecondaryButton}"
+                    Command="{Binding CancelCommand}"
+                    Width="90" Margin="0,0,8,0" />
+            <Button Content="Generate"
+                    Style="{StaticResource BaPrimaryButton}"
+                    Command="{Binding GenerateCommand}"
+                    Width="110" />
+        </StackPanel>
+    </Grid>
+</Window>

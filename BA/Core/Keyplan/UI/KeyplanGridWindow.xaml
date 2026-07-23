@@ -7,7 +7,7 @@
         mc:Ignorable="d"
         Title="Keyplan Grid Generator"
         Width="1520"
-        Height="1160"
+        Height="1000"
         MinWidth="1320"
         MinHeight="800"
         WindowStartupLocation="CenterOwner"
@@ -186,7 +186,7 @@
                         <StackPanel>
                             <TextBlock Text="1. General"
                                        Style="{StaticResource BaSectionTitleText}" />
-                            <TextBlock Text="View, template, and filled-region destination settings."
+                            <TextBlock Text="These views will be created, Edit is not required. View, template, and filled-region destination settings."
                                        Style="{StaticResource PanelCaptionText}" />
 
                             <TextBlock Text="Source View" Style="{StaticResource PanelLabelText}" />

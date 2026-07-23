@@ -305,9 +305,10 @@ namespace BA.UI.KeyplanGrid
         // Initialisation
         // -------------------------------------------------------------------------
 
-        public void LoadInitialPreview(CurveLoop sourceOuterLoop)
+        public void LoadInitialPreview(Document doc, CurveLoop sourceOuterLoop, Level level)
         {
             _sourceOuterLoop = sourceOuterLoop ?? throw new ArgumentNullException(nameof(sourceOuterLoop));
+            level = level ?? throw new ArgumentNullException(nameof(level));
             RebuildSplitCollections();
             RebuildPreview();
         }
@@ -749,8 +750,21 @@ namespace BA.UI.KeyplanGrid
             {
                 tx.Start();
 
-                // 1. Clear stale parameter values from a previous session.
+                if (!KeyplanZoneParameterWriter.EnsureZoneParameterBound(doc, out string bindError))
+                {
+                    StatusText = "Zone parameter binding failed: " + bindError;
+                    tx.RollBack();
+                    ActiveZoneSession = null;
+                    RebuildPreview();
+                    ZoneWriteResult failed = new ZoneWriteResult();
+                    failed.Errors.Add(bindError);
+                    return failed;
+                }
+
+                doc.Regenerate(); // make the fresh binding visible to LookupParameter below
+
                 KeyplanZoneParameterWriter.ClearZoneLabels(doc, allFilledRegionUniqueIds);
+                writeResult = KeyplanZoneParameterWriter.WriteAssignments(doc, assignments);
 
                 // 2. Delete previously-created zone tags before creating new ones.
                 DeleteExistingZoneTags(doc, LastGenerationResult.CreatedItems);

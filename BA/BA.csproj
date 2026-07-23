@@ -68,6 +68,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <None Remove="Application\Resources\Icons16\A2r_16.png" />
 	  <None Remove="Application\Resources\Icons16\ArAnno_16.png" />
 	  <None Remove="Application\Resources\Icons16\areas_16.png" />
 	  <None Remove="Application\Resources\Icons16\ause16.png" />
@@ -95,6 +96,8 @@
 	  <None Remove="Application\Resources\Icons16\DimOveride_OverrideDimension16.png" />
 	  <None Remove="Application\Resources\Icons16\DimOveride_OverrideDimensionSegment16.png" />
 	  <None Remove="Application\Resources\Icons16\DimOverride16.png" />
+	  <None Remove="Application\Resources\Icons16\Dim_16.png" />
+	  <None Remove="Application\Resources\Icons16\E2r_16.png" />
 	  <None Remove="Application\Resources\Icons16\ElementToRoom16.png" />
 	  <None Remove="Application\Resources\Icons16\ElementToRoom_link16.png" />
 	  <None Remove="Application\Resources\Icons16\ElementToRoom_local16.png" />
@@ -137,6 +140,7 @@
 	  <None Remove="Application\Resources\Icons16\Standards16.png" />
 	  <None Remove="Application\Resources\Icons16\Sub16.png" />
 	  <None Remove="Application\Resources\Icons16\SubmitIssue_16.png" />
+	  <None Remove="Application\Resources\Icons16\Tag16.png" />
 	  <None Remove="Application\Resources\Icons16\Temp16.png" />
 	  <None Remove="Application\Resources\Icons16\TextHub16.png" />
 	  <None Remove="Application\Resources\Icons16\TRA_16.png" />
@@ -150,6 +154,7 @@
 	  <None Remove="Application\Resources\Icons16\ZoomL16.png" />
 	  <None Remove="Application\Resources\Icons16\ZoomLo16.png" />
 	  <None Remove="Application\Resources\Icons16\ZoomtoRoom16.png" />
+	  <None Remove="Application\Resources\Icons32\A2r_32.png" />
 	  <None Remove="Application\Resources\Icons32\ArAnnoStt_32.png" />
 	  <None Remove="Application\Resources\Icons32\ArAnnoSt_32.bak.png" />
 	  <None Remove="Application\Resources\Icons32\ArAnnoSt_32.png" />
@@ -181,6 +186,8 @@
 	  <None Remove="Application\Resources\Icons32\DimOveride_OverrideDimension32.png" />
 	  <None Remove="Application\Resources\Icons32\DimOveride_OverrideDimensionSegment32.png" />
 	  <None Remove="Application\Resources\Icons32\DimOverride32.png" />
+	  <None Remove="Application\Resources\Icons32\Dim_32.png" />
+	  <None Remove="Application\Resources\Icons32\E2r_32.png" />
 	  <None Remove="Application\Resources\Icons32\ElementToRoom32.png" />
 	  <None Remove="Application\Resources\Icons32\ElementToRoom_link32.png" />
 	  <None Remove="Application\Resources\Icons32\ElementToRoom_local32.png" />
@@ -303,6 +310,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Resource Include="Application\Resources\Icons16\A2r_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\ArAnno_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -382,6 +392,12 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\DimOverride16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\Dim_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\E2r_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\ElementToRoom16.png">
@@ -507,6 +523,9 @@
 	  <Resource Include="Application\Resources\Icons16\SubmitIssue_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\Tag16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\Temp16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -544,6 +563,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\ZoomtoRoom16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\A2r_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\ArAnno_32.png">
@@ -625,6 +647,12 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\DimOverride32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\Dim_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\E2r_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\ElementToRoom32.png">

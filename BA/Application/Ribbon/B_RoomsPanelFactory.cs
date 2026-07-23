@@ -11,11 +11,23 @@ namespace BA.BAApplication.Ribbon
     {
         internal static void Build(RibbonPanel panel)
         {
-            #region Room Number to Element
-            var pdE2R = panel.AddPulldownButton<Cmd_ElementToRoom_Link>(
+            // Room Number to Element / Axis to Room / Finishes stacked together as three
+            // pulldowns in one column instead of three separate full-height pulldowns.
+            // Each still keeps its own dropdown of sub-items, added below exactly as before.
+            var (pdE2R, pdAxis, pdFin) = panel.AddStackedPulldownButtons(
                 "ElementToRoom", "RoomNum.\n-> Element",
                 "Copy a room parameter value to elements spatially located inside that room.",
-                IconResources.ElementToRoom16, IconResources.ElementToRoom32);
+                IconResources.ElementToRoom16, IconResources.ElementToRoom32,
+
+                "AxisToRoom", "Axis\n-> Room",
+                "Place BA_Axis detail items into rooms selected by room tags.",
+                IconResources.AxisToRoom16, IconResources.AxisToRoom32,
+
+                "FinishToRoom", "Finishes",
+                "Transfer hosted finish element parameters up to their containing room.",
+                IconResources.Fi16, IconResources.Fi32);
+
+            #region Room Number to Element
             pdE2R.AddPushButton<Cmd_ElementToRoom_Link>(
                 "ElementToRoomLink", "From Linked\nModel+++",
                 "Write room data to host-model elements from rooms in a linked model.",
@@ -27,13 +39,10 @@ namespace BA.BAApplication.Ribbon
             pdE2R.AddPushButton<Cmd_ElementToRoom_Settings>(
                 "ElementToRoomSettings", "Settings",
                 "Show or hide the Element \u2192 Room settings panel (category, parameters, link instance).",
-                IconResources.ElementToRoomLink16, IconResources.ElementToRoomLink32);
+                IconResources.E2r_16, IconResources.E2r_32);
             #endregion
+
             #region Axis to Room
-            var pdAxis = panel.AddPulldownButton<Cmd_AxisToRoom_Link>(
-                "AxisToRoom", "Axis\n-> Room",
-                "Place BA_Axis detail items into rooms selected by room tags.",
-                IconResources.AxisToRoom16, IconResources.AxisToRoom32);
             pdAxis.AddPushButton<Cmd_AxisToRoom_Link>(
                 "AxisToRoomLink", "From Linked\nModel+++",
                 "Resolve rooms from a linked model via selected room tags.",
@@ -44,24 +53,19 @@ namespace BA.BAApplication.Ribbon
                 IconResources.AxisToRoomLocal16, IconResources.AxisToRoomLocal32);
             pdAxis.AddPushButton<Cmd_AxisToRoom_Settings>(
                 "AxisToRoomSettings", "Settings",
-                "Configure the Revit link and BA_Axis/BA_Axis_Dim placement used by Axis \u2192 Room.",
-                IconResources.AxisToRoomLocal16, IconResources.AxisToRoomLocal32);
+                "Configure the Revit link and BA_Axis placement used by Axis \u2192 Room.",
+                IconResources.A2r_16, IconResources.A2r_32);
             panel.AddPushButton<Cmd_RayBounceCeiling>(
                 "RayBounceCeiling", "Element\n->Ceiling",
                 "Detect the ceiling above each selected element using ray casting.",
                 IconResources.RayBounce16, IconResources.RayBounce32);
             #endregion
-            #region Finishes
-            var pdFin = panel.AddPulldownButton<Cmd_FinishToRoom>(
-                "FinishToRoom", "Finishes",
-                "Transfer hosted finish element parameters up to their containing room.",
-                IconResources.Fi16, IconResources.Fi32);
 
+            #region Finishes
             pdFin.AddPushButton<Cmd_FinishToRoom>(
                 "FinishToRoomLocal", "Finish?\nToRoom",
                 "Extracts finish codes in a room and writes the value to room.",
                 IconResources.Fi16, IconResources.Fi32);
-
             pdFin.AddPushButton<ApplyFinishesByRoomsCommand>(
                 "ApplyFinishesByRooms", "Apply Finishes",
                 "Apply finish parameters to room-boundary elements based on room data.",

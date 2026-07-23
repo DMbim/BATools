@@ -23,6 +23,8 @@ namespace BA.BAApplication
         private TelemetryService _telemetryService;
         private PostableCommandInterceptor _commandInterceptor;
         private FamilyVersioningDocumentHook _familyVersioningHook;
+        private BA.Core.Export.Infrastructure.ExportScheduler _exportScheduler;
+
         public override void OnStartup()
         {
             const string tabName = "BA_Tools";
@@ -35,9 +37,13 @@ namespace BA.BAApplication
                 ImportCadWarningGuard.Register(Application);
                 FamilyImportWarningGuardV2.Register(Application);
                 Application.ControlledApplication.DocumentSynchronizingWithCentral += OnDocumentSynchronizingWithCentral;
+                Application.ControlledApplication.DocumentSynchronizedWithCentral += OnDocumentSynchronizedWithCentral;
                 PluginSettingsBootstrap.ApplySavedSettingsToRuntime();
                 OverheadToggleController.Initialize(Application);
                 SelectionManagerActivator.Instance.Initialize(Application);
+
+                _exportScheduler = new BA.Core.Export.Infrastructure.ExportScheduler();
+                Application.Idling += _exportScheduler.OnIdling;
 
                 RibbonPanel panelAnnotation = Application.CreatePanel("Graphics\nAnnotation", tabName);
                 RibbonPanel panelRooms = Application.CreatePanel("Rooms", tabName);
@@ -54,7 +60,7 @@ namespace BA.BAApplication
                 RoomsPanelFactory.Build(panelRooms);
                 FamiliesPanelFactory.Build(panelFamilies);
                 ProjectPanelFactory.Build(panelProject);
-                UtilitiesPanelFactory.Build(panelUtilities);
+                ;
 
                 AppLogger.LogInfo("BATools startup completed successfully.");
             }
@@ -119,7 +125,11 @@ namespace BA.BAApplication
                 FamilyImportWarningGuardV2.Unregister(Application);
                 BA.Updates.UpdateService.Unregister(Application);
                 Application.ControlledApplication.DocumentSynchronizingWithCentral -= OnDocumentSynchronizingWithCentral;
-
+                Application.ControlledApplication.DocumentSynchronizedWithCentral -= OnDocumentSynchronizedWithCentral;
+                if (_exportScheduler != null)
+                {
+                    Application.Idling -= _exportScheduler.OnIdling;
+                }
             }
             catch (Exception ex)
             {
@@ -128,6 +138,8 @@ namespace BA.BAApplication
         }
         private void OnDocumentSynchronizingWithCentral(object sender, DocumentSynchronizingWithCentralEventArgs e)
         {
+            BA.Core.Export.Infrastructure.SynchronizeGuard.IsSynchronizing = true;
+
             try
             {
                 bool shouldProceed = BA.Core.Ledger.LedgerSyncService.Run(
@@ -140,12 +152,19 @@ namespace BA.BAApplication
                 {
                     TaskDialog.Show("Ledger Sync Conflict", cancelReason);
                     e.Cancel();
+                    BA.Core.Export.Infrastructure.SynchronizeGuard.IsSynchronizing = false;
                 }
             }
             catch (Exception ex)
             {
                 AppLogger.LogError("OnDocumentSynchronizingWithCentral: unhandled failure applying ledger", ex);
+                BA.Core.Export.Infrastructure.SynchronizeGuard.IsSynchronizing = false;
             }
+        }
+
+        private void OnDocumentSynchronizedWithCentral(object sender, DocumentSynchronizedWithCentralEventArgs e)
+        {
+            BA.Core.Export.Infrastructure.SynchronizeGuard.IsSynchronizing = false;
         }
 
         private static BA.Core.Ledger.LedgerSyncService.LedgerConflictResolution ResolveLedgerConflicts(

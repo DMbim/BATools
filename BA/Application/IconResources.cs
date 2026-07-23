@@ -145,5 +145,9 @@ namespace BA.BAApplication
         public const string FamilyVer_32 = "/BA;component/Application/Resources/Icons32/FamilyVer_32.png";
         public const string FamilyParVer_16 = "/BA;component/Application/Resources/Icons16/FamilyParVer_16.png";
         public const string FamilyParVer_32 = "/BA;component/Application/Resources/Icons32/FamilyParVer_32.png";
+        public const string A2r_16 = "/BA;component/Application/Resources/Icons16/A2r_16.png";
+        public const string A2r_32 = "/BA;component/Application/Resources/Icons32/A2r_32.png";
+        public const string E2r_16 = "/BA;component/Application/Resources/Icons16/E2r_16.png";
+        public const string E2r_32 = "/BA;component/Application/Resources/Icons32/E2r_32.png";
     }
 }

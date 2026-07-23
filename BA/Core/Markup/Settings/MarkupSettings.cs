@@ -21,9 +21,12 @@ namespace BA.Markup.Settings
         public string FamilySearchRoot { get; set; } =
             @"S:\CAD\Autodesk Revit\BA_Families\BA_Families_v26\BATools";
 
+        // <- CHANGED: added missing ".txt" extension. Confirmed against the actual file
+        // on disk (BA_SharedParametersWIP2.txt) -- the old default pointed at a path that
+        // never existed, which is why "Shared parameter file not found" always fired.
         /// <summary>Fallback shared-parameter file path.</summary>
         public string SharedParameterFilePath { get; set; } =
-            @"S:\CAD\Autodesk Revit\BA_Resources\BA_Shared parameters\BA_SharedParametersWIP2";
+            @"S:\CAD\Autodesk Revit\BA_Resources\BA_Shared parameters\BA_SharedParametersWIP2.txt";
 
         /// <summary>Fixed horizontal tag offset from the top-right corner of the markup, in millimetres.</summary>
         public double TagOffsetXMm { get; set; } = 200.0;

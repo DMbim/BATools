@@ -282,7 +282,6 @@ namespace BA.UI.KeyplanGrid
                     _vm.GetHorizontalSplitSnapshot(),
                     _vm.GetCellEditsSnapshot());
 
-                // Store result on the ViewModel so the zone label session can use it.
                 _vm.SetLastGenerationResult(result);
 
                 _vm.StatusText =
@@ -301,6 +300,14 @@ namespace BA.UI.KeyplanGrid
                         string.Join("\n• ", result.RegionRejectReasons.Take(take));
                 }
 
+                bool canLabel = result.CreatedFilledRegions > 0;
+
+                string nextStep = canLabel
+                    ? "\n\nZone labelling starts when you close this dialog: click the " +
+                      "regions in the order you want them numbered. Click a labelled " +
+                      "region again to remove it. Finish with 'Commit Labels'."
+                    : string.Empty;
+
                 MessageBox.Show(
                     $"Keyplan generated into view:\n{result.TargetViewName}\n\n" +
                     $"Scale factor:   {options.GlobalScaleFactor:0.############}\n" +
@@ -309,13 +316,28 @@ namespace BA.UI.KeyplanGrid
                     $"Grid lines:     {result.CreatedGridLines}\n" +
                     $"Outline curves: {result.CreatedOutlineCurves}\n" +
                     $"Skipped:        {result.Skipped}" +
-                    rejectPreview,
+                    rejectPreview +
+                    nextStep,
                     "Keyplan Grid",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
 
-                // Update zone button availability now that a result exists.
+                // Auto-start the zone label session so the user can begin clicking
+                // regions immediately after dismissing the summary dialog.
+                string sessionError = string.Empty;
+                if (canLabel && _vm.BeginZoneLabelSession(out sessionError))
+                {
+                    PreviewCanvas.ZoneLabelPickModeActive = true;
+                }
+                else if (canLabel)
+                {
+                    // Session failed to start for a non-obvious reason — surface it
+                    // but don't block; user can still start manually.
+                    _vm.StatusText = "Zone session did not auto-start: " + sessionError;
+                }
+
                 UpdateZoneButtonVisibility();
+                RenderPreview();
             }
             catch (Exception ex)
             {

@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Linq;
-using System.Windows.Input;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -9,7 +7,6 @@ using BA.Settings;
 using BA.UI.Helpers;
 using BA.UI.Sheets;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
-
 namespace BA.Commands.Management
 {
     [Transaction(TransactionMode.Manual)]
@@ -20,47 +17,30 @@ namespace BA.Commands.Management
             var uiapp = commandData.Application;
             var uidoc = uiapp.ActiveUIDocument;
             var doc = uidoc?.Document;
-
             if (doc == null)
             {
                 message = "No active document.";
                 return Result.Failed;
             }
-
             try
             {
                 // Load BA settings (auto-migrates from old bimBA paths via AppSettingsBase)
                 var settings = DateToolSettings.LoadWithMigration();
 
-                // SHIFT => setup
-                if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
-                {
-                    var setup = new DateSetupWindow(commandData, settings);
-                    RevitWindowHelper.SetOwnerToRevit(setup, uiapp);
-
-                    if (setup.ShowDialog() == true)
-                    {
-                        settings.Save();
-                        return Result.Succeeded;
-                    }
-
-                    return Result.Cancelled;
-                }
-
-                // Normal run requires configured settings
+                // Normal run requires configured settings -- Shift-to-configure removed,
+                // use the Settings button on the Sheet Date + Rev pulldown instead.
                 if (string.IsNullOrWhiteSpace(settings.SelectedFormat) ||
                     string.IsNullOrWhiteSpace(settings.SelectedDateParam) ||
                     string.IsNullOrWhiteSpace(settings.SelectedRevParam))
                 {
                     TaskDialog.Show("BA",
-                        "No saved settings found.\nHold Shift while launching the command to configure it first.");
+                        "No saved settings found. Use the Settings button on the Sheet Date + Rev pulldown to configure it first.");
                     return Result.Cancelled;
                 }
 
                 // UI: choose sheets + what to update
                 var dlg = new DateSheetsWindow(commandData, settings);
                 RevitWindowHelper.SetOwnerToRevit(dlg, uiapp);
-
                 if (dlg.ShowDialog() != true)
                     return Result.Cancelled;
 
@@ -73,22 +53,18 @@ namespace BA.Commands.Management
 
                 // Apply updates
                 SheetUpdateReport report;
-
-                using (var t = new Transaction(doc, "BA – Update Sheet Date/Revision"))
+                using (var t = new Transaction(doc, "BA \u2013 Update Sheet Date/Revision"))
                 {
                     t.Start();
-
                     SheetUpdateService.Apply(doc, selectedRows, settings, out report);
-
                     t.Commit();
                 }
-
-                TaskDialog.Show("BA – Sheet Update", report.ToDialogText());
+                TaskDialog.Show("BA \u2013 Sheet Update", report.ToDialogText());
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("BA – Error", ex.ToString());
+                TaskDialog.Show("BA \u2013 Error", ex.ToString());
                 return Result.Failed;
             }
         }

@@ -22,7 +22,7 @@ namespace BA.KeyplanGrid
                 UIDocument uiDoc = uiApp.ActiveUIDocument;
                 Document doc = uiDoc.Document;
 
-                KeyplanLevelPickerWindow levelPicker = new KeyplanLevelPickerWindow(doc)
+                KeyplanLevelPickerWindow levelPicker = new KeyplanLevelPickerWindow(uiDoc)
                 {
                     WindowStartupLocation = WindowStartupLocation.CenterScreen
                 };
@@ -30,21 +30,27 @@ namespace BA.KeyplanGrid
                 bool? pickerResult = levelPicker.ShowDialog();
 
                 if (pickerResult != true || levelPicker.SelectedOption == null)
-                    return Result.Cancelled;
+                {
+                    // IMPORTANT: return Succeeded, not Cancelled. The user may have
+                    // created views, boundary lines, or Area elements while the
+                    // picker was open (setup workflow). Result.Cancelled would make
+                    // Revit roll back ALL transactions committed during this
+                    // command, silently deleting that work.
+                    return Result.Succeeded;
+                }
 
                 KeyplanLevelOption selected = levelPicker.SelectedOption;
 
                 CurveLoop outerLoop = selected.OuterLoop;
                 if (outerLoop == null)
                 {
-                    // Should not happen — picker only allows IsReady options — but guard anyway.
                     TaskDialog.Show("Keyplan Grid", "Selected level has no resolvable area boundary.");
-                    return Result.Cancelled;
+                    return Result.Succeeded;
                 }
 
                 KeyplanGridViewModel vm = KeyplanGridViewModel.CreateDefault();
                 vm.SourceViewName = selected.SourceView?.Name ?? string.Empty;
-                vm.LoadInitialPreview(outerLoop);
+                vm.LoadInitialPreview(doc, outerLoop, selected.Level);
 
                 KeyplanGridWindow window = new KeyplanGridWindow(doc, vm)
                 {
@@ -53,17 +59,12 @@ namespace BA.KeyplanGrid
 
                 window.ShowDialog();
 
-                // Return Succeeded if the user generated anything so that
-                // Revit keeps the committed filled-region transactions.
-                // Result.Cancelled would cause Revit to roll them back.
-                return vm.LastGenerationResult != null
-                    ? Result.Succeeded
-                    : Result.Cancelled;
+                return Result.Succeeded;
             }
             catch (Exception ex)
             {
                 message = ex.ToString();
-                Autodesk.Revit.UI.TaskDialog.Show("Keyplan Grid - Error", ex.ToString());
+                TaskDialog.Show("Keyplan Grid - Error", ex.ToString());
                 return Result.Failed;
             }
         }

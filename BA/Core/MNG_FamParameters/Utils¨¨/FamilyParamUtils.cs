@@ -9,7 +9,7 @@ using System.Text;
 
 namespace BA.Core
 {
-    public static class FamilyParamUtils
+    public static partial class FamilyParamUtils // <- CHANGED: added 'partial' to match the second declaration
     {
         // ---------------- Find ----------------
 

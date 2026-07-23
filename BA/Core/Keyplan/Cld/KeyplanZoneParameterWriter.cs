@@ -88,7 +88,82 @@ namespace BA.UI.KeyplanGrid
         // -------------------------------------------------------------------------
         // Private
         // -------------------------------------------------------------------------
+        public static bool EnsureZoneParameterBound(Document doc, out string error)
+        {
+            error = string.Empty;
 
+            if (doc == null) throw new ArgumentNullException(nameof(doc));
+
+            // Already bound? Check the binding map by definition name.
+            DefinitionBindingMapIterator it = doc.ParameterBindings.ForwardIterator();
+            while (it.MoveNext())
+            {
+                if (it.Key is Definition existing &&
+                    string.Equals(existing.Name, ZoneParameterName, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            Autodesk.Revit.ApplicationServices.Application app = doc.Application;
+
+            DefinitionFile defFile;
+            try
+            {
+                defFile = app.OpenSharedParameterFile();
+            }
+            catch (Exception ex)
+            {
+                error = "Could not open the shared parameter file: " + ex.Message;
+                return false;
+            }
+
+            if (defFile == null)
+            {
+                error = "No shared parameter file is configured in Revit " +
+                        "(Manage > Shared Parameters). Point Revit at the BA shared " +
+                        "parameter file and try again.";
+                return false;
+            }
+
+            ExternalDefinition definition = defFile.Groups
+                .SelectMany(g => g.Definitions)
+                .OfType<ExternalDefinition>()
+                .FirstOrDefault(d => string.Equals(d.Name, ZoneParameterName, StringComparison.Ordinal));
+
+            if (definition == null)
+            {
+                error = $"The shared parameter '{ZoneParameterName}' was not found in the " +
+                        $"configured shared parameter file ('{defFile.Filename}'). " +
+                        "Add it to the BA shared parameter file (Text type) first.";
+                return false;
+            }
+
+            Category detailItems = doc.Settings.Categories.get_Item(BuiltInCategory.OST_DetailComponents);
+            if (detailItems == null)
+            {
+                error = "Detail Items category not found in this document.";
+                return false;
+            }
+
+            CategorySet categories = app.Create.NewCategorySet();
+            categories.Insert(detailItems);
+
+            InstanceBinding binding = app.Create.NewInstanceBinding(categories);
+
+            bool inserted = doc.ParameterBindings.Insert(definition, binding, GroupTypeId.IdentityData);
+
+            if (!inserted)
+                inserted = doc.ParameterBindings.ReInsert(definition, binding, GroupTypeId.IdentityData);
+
+            if (!inserted)
+            {
+                error = $"Failed to bind '{ZoneParameterName}' to the Detail Items category.";
+                return false;
+            }
+
+            return true;
+        }
         private static void WriteOne(
             Document doc,
             KeyplanZoneAssignment assignment,

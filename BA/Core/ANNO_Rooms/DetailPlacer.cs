@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using View = Autodesk.Revit.DB.View;
@@ -19,9 +19,33 @@ namespace BA.Core.Rooms
             string xParamName = "x",
             string yParamName = "y",
             double paddingInternal = 0.0)
+            => PlaceInLocalRoomCenterSized(doc, view, symbol, room, out _, out _, xParamName, yParamName, paddingInternal);
+
+        /// <summary>
+        /// Same as above, but also returns the room's host-XY bounding box (min/max) that was
+        /// used to size and position the instance -- callers that need to build additional
+        /// geometry off the same room extents (e.g. dimension lines) should use this overload
+        /// instead of recomputing the bounding box themselves.
+        /// </summary>
+        public static FamilyInstance? PlaceInLocalRoomCenterSized(
+            Document doc,
+            View view,
+            FamilySymbol symbol,
+            Room room,
+            out XYZ roomMin,
+            out XYZ roomMax,
+            string xParamName = "x",
+            string yParamName = "y",
+            double paddingInternal = 0.0)
         {
+            roomMin = XYZ.Zero;
+            roomMax = XYZ.Zero;
+
             if (!TryGetRoomBoxInHostXY(room, link: null, view, out var min, out var max, out var center))
                 return null;
+
+            roomMin = min;
+            roomMax = max;
 
             var inst = doc.Create.NewFamilyInstance(center, symbol, view);
             if (inst == null) return null;
@@ -43,11 +67,34 @@ namespace BA.Core.Rooms
             string xParamName = "x",
             string yParamName = "y",
             double paddingInternal = 0.0)
+            => PlaceInLinkedRoomCenterSized(hostDoc, view, symbol, linkedRoom, linkInstance, out _, out _, xParamName, yParamName, paddingInternal);
+
+        /// <summary>
+        /// Same as above, but also returns the room's host-XY bounding box (min/max).
+        /// See the local-room overload's remarks -- same reasoning applies here.
+        /// </summary>
+        public static FamilyInstance? PlaceInLinkedRoomCenterSized(
+            Document hostDoc,
+            View view,
+            FamilySymbol symbol,
+            Room linkedRoom,
+            RevitLinkInstance linkInstance,
+            out XYZ roomMin,
+            out XYZ roomMax,
+            string xParamName = "x",
+            string yParamName = "y",
+            double paddingInternal = 0.0)
         {
+            roomMin = XYZ.Zero;
+            roomMax = XYZ.Zero;
+
             if (linkInstance == null) return null;
 
             if (!TryGetRoomBoxInHostXY(linkedRoom, linkInstance, view, out var min, out var max, out var center))
                 return null;
+
+            roomMin = min;
+            roomMax = max;
 
             var inst = hostDoc.Create.NewFamilyInstance(center, symbol, view);
             if (inst == null) return null;
@@ -118,7 +165,6 @@ namespace BA.Core.Rooms
             var minT = tr.OfPoint(bb.Min);
             var maxT = tr.OfPoint(bb.Max);
 
-            // Use host view Z so we're not using linked level elevations (and not using random bb.Z)
             var z = GetHostViewZ(hostView);
 
             minHost = new XYZ(minT.X, minT.Y, z);
@@ -134,11 +180,9 @@ namespace BA.Core.Rooms
 
         private static double GetHostViewZ(View view)
         {
-            // Plan views: safest is GenLevel elevation
             if (view is ViewPlan vp && vp.GenLevel != null)
                 return vp.GenLevel.Elevation;
 
-            // If view has a sketch plane, use it
             try
             {
                 if (view.SketchPlane != null)
@@ -146,7 +190,6 @@ namespace BA.Core.Rooms
             }
             catch { /* ignore */ }
 
-            // Fallback: view origin
             try
             {
                 return view.Origin.Z;

@@ -41,9 +41,9 @@ namespace BA.Markup.Commands
             var refreshEvent = ExternalEvent.Create(refreshHandler);
 
             MarkupViewModel? viewModel = null;
-            viewModel = new MarkupViewModel(         // <- CHANGED: now calls the single correct
-                currentUser,                         //    4-parameter constructor; second (dead)
-                currentDate,                         //    constructor has been deleted from the VM.
+            viewModel = new MarkupViewModel(
+                currentUser,
+                currentDate,
                 revisions,
                 refreshRevisionsCallback: () =>
                 {
@@ -71,7 +71,7 @@ namespace BA.Markup.Commands
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("BA Markup — Selection Error", ex.Message);
+                TaskDialog.Show("BA Markup \u2014 Selection Error", DescribeError(ex));
                 return Result.Failed;
             }
 
@@ -82,7 +82,7 @@ namespace BA.Markup.Commands
             }
 
             var service = new MarkupService(uiDoc, settings);
-            using var tx = new Transaction(doc, "BA — Place Markup");
+            using var tx = new Transaction(doc, "BA \u2014 Place Markup");
             try
             {
                 tx.Start();
@@ -98,7 +98,7 @@ namespace BA.Markup.Commands
             {
                 if (tx.GetStatus() == TransactionStatus.Started)
                     tx.RollBack();
-                TaskDialog.Show("BA Markup — Placement Error", ex.Message);
+                TaskDialog.Show("BA Markup \u2014 Placement Error", DescribeError(ex));
                 return Result.Failed;
             }
 
@@ -106,12 +106,29 @@ namespace BA.Markup.Commands
         }
 
         // ------------------------------------------------------------------ //
+        //  ERROR FORMATTING
+        // ------------------------------------------------------------------ //
+        // <- NEW: Exception.Message alone drops the path for FileNotFoundException --
+        // it's stored separately in .FileName and has to be appended explicitly, or a
+        // message like "Shared parameter file not found." tells you nothing about WHICH
+        // path was actually checked. This is exactly what made the earlier bug report
+        // (missing .txt extension in MarkupSettings' default) hard to diagnose from the
+        // dialog alone.
+        private static string DescribeError(Exception ex)
+        {
+            if (ex is System.IO.FileNotFoundException fnf && !string.IsNullOrWhiteSpace(fnf.FileName))
+                return $"{ex.Message}\n\nPath checked:\n{fnf.FileName}";
+
+            return ex.Message;
+        }
+
+        // ------------------------------------------------------------------ //
         //  PICK LOGIC
         // ------------------------------------------------------------------ //
         private static BoundingBoxXYZ? PickBoundingBox(
             UIDocument uiDoc,
-            MarkupSettings settings)                  // <- CHANGED: removed unused input/activeView
-        {                                             //    parameters; PickBox needs neither.
+            MarkupSettings settings)
+        {
             var service = new MarkupService(uiDoc, settings);
 
             var pickedBox = uiDoc.Selection.PickBox(
@@ -138,7 +155,7 @@ namespace BA.Markup.Commands
                     result.Add(new RevisionItem
                     {
                         ElementId = (int)id.Value,
-                        DisplayName = $"{rev.SequenceNumber} — {rev.Description} ({rev.RevisionDate})"
+                        DisplayName = $"{rev.SequenceNumber} \u2014 {rev.Description} ({rev.RevisionDate})"
                     });
                 }
             }

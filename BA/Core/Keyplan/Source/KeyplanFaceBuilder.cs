@@ -99,7 +99,7 @@ namespace BA.UI.KeyplanGrid
                     continue;
 
                 if (signedArea < 0.0)
-                    cleaned.Reverse();
+                    continue; // Outer face of the planar arrangement (opposite winding) — discard.
 
                 string sig = KeyplanGeometryKeyService.MakePolygonKey(cleaned);
                 bool exists = faces.Any(x => KeyplanGeometryKeyService.MakePolygonKey(x) == sig);
@@ -254,6 +254,7 @@ namespace BA.UI.KeyplanGrid
             HashSet<string> usedDirected)
         {
             List<XYZ> loop = new List<XYZ>();
+            List<string> addedThisTrace = new List<string>();
             HalfEdge current = startEdge;
             int guard = 0;
 
@@ -265,22 +266,33 @@ namespace BA.UI.KeyplanGrid
                     if (current.FromKey == startEdge.FromKey && current.ToKey == startEdge.ToKey)
                         break;
 
+                    RollBack(usedDirected, addedThisTrace);
                     return null;
                 }
 
                 usedDirected.Add(dirKey);
+                addedThisTrace.Add(dirKey);
 
                 if (!vertices.TryGetValue(current.FromKey, out XYZ fromPt))
+                {
+                    RollBack(usedDirected, addedThisTrace);
                     return null;
+                }
 
                 loop.Add(fromPt);
 
                 if (!outgoing.TryGetValue(current.ToKey, out List<HalfEdge> nextList) || nextList.Count == 0)
+                {
+                    RollBack(usedDirected, addedThisTrace);
                     return null;
+                }
 
                 int twinIndex = nextList.FindIndex(x => x.ToKey == current.FromKey);
                 if (twinIndex < 0)
+                {
+                    RollBack(usedDirected, addedThisTrace);
                     return null;
+                }
 
                 int nextIndex = twinIndex - 1;
                 if (nextIndex < 0)
@@ -293,6 +305,12 @@ namespace BA.UI.KeyplanGrid
             }
 
             return loop;
+        }
+
+        private static void RollBack(HashSet<string> usedDirected, List<string> addedThisTrace)
+        {
+            foreach (string key in addedThisTrace)
+                usedDirected.Remove(key);
         }
 
         private static void AddHalfEdge(

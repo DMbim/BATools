@@ -1,8 +1,10 @@
 ﻿// FILE: BA_Tools/Application/Ribbon/UtilitiesPanelFactory.cs
 using Autodesk.Revit.UI;
 using BA.App.Settings;
+using BA.BIM.Commands.Anno;
 using BA.Classification;
 using BA.Commands;
+using BA.Commands.Export;
 using BA.Commands.Management;
 using BA.Commands.Standards;
 using BA.Commands.Views.ScopeBoxes;
@@ -11,6 +13,7 @@ using BA.Markup.Commands;
 using BA.Ribbon;
 using BA.RoomClassification;
 using BA.Subcategories.Commands;
+using BA.UI.Commands.Management;
 using BA.UI.Helpers;
 using BA.UI.Parameters;
 using BA.UI.Settings;
@@ -63,11 +66,16 @@ namespace BA.BAApplication.Ribbon
                 "Import room program data (type, department, function, code, group) from an Excel matrix.",
                 IconResources.ClsRoom16, IconResources.ClsRoom32);
             #endregion
-            #region Excel
-            var pdpdExp = panel.AddPulldownButton<ExportScheduleCommand>(
+
+            #region Excel / Sheet Date+Revision (stacked)
+            var (pdpdExp, pdSheetDateRev) = panel.AddStackedPulldownButtons(
                 "Export/ImportToExcel", "Export/Import\nSchedule",
                 "Export the selected schedule to an Excel file.",
-                IconResources.ExpIExc16, IconResources.ExpIExc32);
+                IconResources.ExpIExc16, IconResources.ExpIExc32,
+
+                "SheetDateRevisionPulldown", "Sheet\nDate + Rev",
+                "Update the Issue Date and/or Revision on selected sheets.",
+                IconResources.SheetRevision16, IconResources.SheetRevision32);
 
             pdpdExp.AddPushButton<ExportScheduleCommand>(
                 "ExportToExcel", "Export\nSchedule",
@@ -78,31 +86,49 @@ namespace BA.BAApplication.Ribbon
                 "ImportToExcel", "Import\nSchedule",
                 "Import the selected schedule from an Excel file.",
                 IconResources.ImpExc16, IconResources.ImpExc32);
-            #endregion
 
-            #region Sheet Date+Revision
-            panel.AddPushButton<Cmd_SheetDateAndRevision>(
-                "SheetDateRevision", "Sheet\nDate + Rev",
+            pdSheetDateRev.AddPushButton<Cmd_SheetDateAndRevision>(
+                "SheetDateRevision", "Update\nSheets",
                 "Update the Issue Date and/or Revision on selected sheets.",
+                IconResources.SheetRevision16, IconResources.SheetRevision32);
+
+            pdSheetDateRev.AddPushButton<Cmd_SheetDateAndRevision_Settings>(
+                "SheetDateRevisionSettings", "Settings",
+                "Configure the date parameter, revision parameter, and date format used by Sheet Date + Rev.",
                 IconResources.SheetRevision16, IconResources.SheetRevision32);
             #endregion
 
-            panel.AddPushButton<BA.UI.Commands.Management.Cmd_Settings>(
+            var (settings, updates) = panel.AddStackedButtons<Cmd_Settings, Cmd_CheckForUpdates>(
                 "Settings", "Project\nSettings",
-                "General Plugin Settings",
-                IconResources.SettingsP16, IconResources.SettingsP32);
-
-            panel.AddPushButton<Cmd_GetVolume>(
-                "GetVolume", "Get\nVolume",
-                "For categories where Volume is not a native built-in parameter, calculates and writes the element volume into a prepared parameter.",
-                IconResources.GetVolume_16, IconResources.GetVolume_32);
-
-            // TODO: IconResources.SettingsP16/32 reused as a placeholder — swap for a
-            // dedicated update/refresh icon when one is added to IconResources.
-            panel.AddPushButton<Cmd_CheckForUpdates>(
                 "CheckForUpdates", "Check for\nUpdates",
-                "Check GitHub for a newer BA Tools release and update now if one is available.",
-                IconResources.SettingsP16, IconResources.SettingsP32);
+                IconResources.ArAnno16, IconResources.ArAnno16,
+                "General Plugin Settings",
+                "Check GitHub for a newer BA Tools release and update now if one is available.");
+
+            // Icons borrowed from SheetRevision as a placeholder, this feature
+            // doesn't have its own icon asset yet, swap these out once it does.
+            var pdExport = panel.AddPulldownButton<OpenExportSettingsCommand>(
+                "Export", "PDF/DWG\nExport",
+                "Export sheets to PDF or DWG with custom naming and scheduling.",
+                IconResources.SheetRevision16, IconResources.SheetRevision32);
+
+            pdExport.AddPushButton<OpenExportSettingsCommand>(
+                "OpenExportSettings", "Export\nSettings",
+                "Configure PDF and DWG export jobs: naming, sheet sets, schedule.",
+                IconResources.SheetRevision16, IconResources.SheetRevision32);
+
+            pdExport.AddPushButton<RunExportJobCommand>(
+                "RunExportJobs", "Run\nExports Now",
+                "Run every configured export job for this document immediately.",
+                IconResources.SheetRevision16, IconResources.SheetRevision32);
+
+            // Hold off wiring these two until the revision-parameter question above
+            // is settled, they may not be needed at all.
+            // pdExport.AddPushButton<BumpRevisionCommand>(...)
+            // pdExport.AddPushButton<BindRevisionParameterCommand>(...)
+
+            // Cmd_GetVolume MOVED to FamiliesPanelFactory (Family + Content tab), merged
+            // with "Family from Geometry" -- pending that file to complete correctly.
         }
     }
 }
