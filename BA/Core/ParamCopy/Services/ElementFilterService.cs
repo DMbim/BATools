@@ -22,20 +22,7 @@ namespace BATools.ParamCopy.Services
             if (settings == null) throw new ArgumentNullException(nameof(settings));
 
             IEnumerable<Element> elements = CollectByCategory(doc, settings.CategoryName);
-
-            // Apply each filter set — sets with no valid rules are skipped entirely
-            // rather than treating them as pass-all, which was the original bug.
-            foreach (var set in settings.FilterSets)
-            {
-                var activeRules = set.Rules
-                    .Where(r => !string.IsNullOrWhiteSpace(r.ParameterName))
-                    .ToList();
-
-                if (activeRules.Count == 0)
-                    continue; // <- CHANGED: skip empty sets rather than pass-all
-
-                elements = elements.Where(e => EvaluateSet(e, set, activeRules));
-            }
+            elements = ApplyFilterSets(elements, settings.FilterSets);
 
             var displayParams = settings.DisplayParameterNames
                 .Where(p => !string.IsNullOrWhiteSpace(p))
@@ -59,6 +46,76 @@ namespace BATools.ParamCopy.Services
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Returns the distinct, sorted set of instance parameter names present
+        /// on elements of the given category. If filterSets is null, the current
+        /// FilterSets are NOT applied (used for the filter-rule ParameterName
+        /// dropdown itself, which cannot depend on the filter it defines). If
+        /// filterSets is provided, it is applied first (used for Display Params,
+        /// Pairing Parameter, and Mapping column dropdowns, which reflect only
+        /// the elements that will actually be in play).
+        /// </summary>
+        public static List<string> CollectParameterNames(
+            Document doc,
+            string categoryName,
+            IReadOnlyList<ParamFilterSet>? filterSets = null)
+        {
+            if (doc == null) throw new ArgumentNullException(nameof(doc));
+
+            IEnumerable<Element> elements = CollectByCategory(doc, categoryName);
+
+            if (filterSets != null)
+                elements = ApplyFilterSets(elements, filterSets);
+
+            var names = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var e in elements)
+            {
+                // Element.Parameters is instance-only by design — this must stay
+                // in sync with LookupParameter, which is what ParamCopyEngine
+                // actually writes through. Type parameters are intentionally
+                // excluded; see conversation notes if that scope changes.
+                foreach (Parameter p in e.Parameters)
+                {
+                    string? n = p.Definition?.Name;
+                    if (!string.IsNullOrWhiteSpace(n))
+                        names.Add(n);
+                }
+            }
+
+            return names.ToList();
+        }
+
+        /// <summary>
+        /// Returns the sorted names of Model-type categories that have at least
+        /// one instance in the active document. Uses a per-category existence
+        /// probe (FirstElementId) rather than a full document scan, so this
+        /// stays cheap even on large workshared models.
+        /// </summary>
+        public static List<string> CollectCategoryNamesInDocument(Document doc)
+        {
+            if (doc == null) throw new ArgumentNullException(nameof(doc));
+
+            var names = new List<string>();
+
+            foreach (Category cat in doc.Settings.Categories)
+            {
+                if (cat.CategoryType != CategoryType.Model)
+                    continue;
+
+                ElementId firstId = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(new ElementCategoryFilter(cat.Id))
+                    .FirstElementId();
+
+                if (firstId != null && firstId != ElementId.InvalidElementId)
+                    names.Add(cat.Name);
+            }
+
+            names.Sort(StringComparer.OrdinalIgnoreCase);
+            return names;
         }
 
         // ── Category collector ────────────────────────────────────────────────
@@ -92,9 +149,31 @@ namespace BATools.ParamCopy.Services
         // ── Filter set evaluation ─────────────────────────────────────────────
 
         /// <summary>
-        /// Evaluates a set using only the pre-filtered active rules.
-        /// Passing activeRules avoids re-filtering inside the per-element loop.
+        /// Applies every filter set in sequence (AND across sets). Sets with no
+        /// valid rules are skipped entirely rather than treated as pass-all —
+        /// this must stay identical to the logic Collect() previously had inline,
+        /// now shared with CollectParameterNames() so there is one filter-matching
+        /// implementation instead of two.
         /// </summary>
+        private static IEnumerable<Element> ApplyFilterSets(
+            IEnumerable<Element> elements,
+            IReadOnlyList<ParamFilterSet> filterSets)
+        {
+            foreach (var set in filterSets)
+            {
+                var activeRules = set.Rules
+                    .Where(r => !string.IsNullOrWhiteSpace(r.ParameterName))
+                    .ToList();
+
+                if (activeRules.Count == 0)
+                    continue;
+
+                elements = elements.Where(e => EvaluateSet(e, set, activeRules));
+            }
+
+            return elements;
+        }
+
         private static bool EvaluateSet(
             Element e,
             ParamFilterSet set,

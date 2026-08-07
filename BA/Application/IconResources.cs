@@ -27,6 +27,8 @@ namespace BA.BAApplication
         public const string Standards32 = "/BA;component/Application/Resources/Icons32/Standards32.png";
         public const string ColourPalette16 = "/BA;component/Application/Resources/Icons16/ColourPalette16.png";
         public const string ColourPalette32 = "/BA;component/Application/Resources/Icons32/ColourPalette32.png";
+        public const string superS16 = "/BA;component/Application/Resources/Icons16/superS16.png";
+        public const string superS32 = "/BA;component/Application/Resources/Icons32/superS32.png";
         //BIM
 
         public const string BIM16 = "/BA;component/Application/Resources/Icons16/BIM16.png";
@@ -149,5 +151,15 @@ namespace BA.BAApplication
         public const string A2r_32 = "/BA;component/Application/Resources/Icons32/A2r_32.png";
         public const string E2r_16 = "/BA;component/Application/Resources/Icons16/E2r_16.png";
         public const string E2r_32 = "/BA;component/Application/Resources/Icons32/E2r_32.png";
+        public const string LWall_16 = "/BA;component/Application/Resources/Icons16/LWall_16.png";
+        public const string LWall_32 = "/BA;component/Application/Resources/Icons32/LWall_32.png";
+        public const string PDF16 = "/BA;component/Application/Resources/Icons16/PDF16.png";
+        public const string PDF32 = "/BA;component/Application/Resources/Icons32/PDF32.png";
+        public const string Sub16 = "/BA;component/Application/Resources/Icons16/Sub16.png";
+        public const string Sub32 = "/BA;component/Application/Resources/Icons32/Sub32.png";
+        public const string RoomCl_16 = "/BA;component/Application/Resources/Icons16/RoomCl_16.png";
+        public const string RoomCl_32 = "/BA;component/Application/Resources/Icons32/RoomCl_32.png";
+        public const string tags16 = "/BA;component/Application/Resources/Icons16/tags16.png";
+        public const string ta16 = "/BA;component/Application/Resources/Icons16/ta16.png";
     }
 }

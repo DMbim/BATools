@@ -1,5 +1,5 @@
 ﻿<!-- File: BA/UI/CurveToElement/CurveToElementWindow.xaml -->
-<!-- Action: CREATE NEW -->
+<!-- Action: REPLACE (full file) -->
 
 <Window x:Class="BA.UI.CurveToElement.CurveToElementWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -26,6 +26,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -188,8 +189,16 @@
                    Margin="0,8,0,0"
                    Text="{Binding StatusMessage}" />
 
+        <!-- Global option: delete source lines after wall creation -->
+        <CheckBox Grid.Row="3"
+                  Content="Delete original detail lines after creating walls"
+                  Style="{StaticResource BaDarkPanelCheckBox}"
+                  IsChecked="{Binding DeleteSourceLinesAfterCreation}"
+                  Margin="0,8,0,0"
+                  ToolTip="Applies to every group above. A group's source lines are only deleted if every curve in that group successfully produced a wall - if any curve in a group fails, that group's lines are left in place." />
+
         <!-- Buttons -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="Cancel"
                     Style="{StaticResource BaSecondaryButton}"
                     Command="{Binding CancelCommand}"

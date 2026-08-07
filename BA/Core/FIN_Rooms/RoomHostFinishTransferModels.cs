@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using Autodesk.Revit.DB;
+using System;
+using System.Collections.Generic;
 
 namespace BA.Core.Rooms
 {
@@ -27,5 +29,32 @@ namespace BA.Core.Rooms
         public int RoomsProcessed { get; set; }
         public int ValuesWritten { get; set; }
         public int Skipped { get; set; }
+    }
+
+    /// <summary>
+    /// Immutable row for the room picker list in RoomHostFinishTransferWindow.
+    /// Deliberately not shared with BA.UI.Core.Finishes.RoomPickRow to avoid
+    /// a cross-module dependency between the Finishes and Rooms features.
+    /// Selection state is tracked externally by the window (HashSet of ElementId),
+    /// not on this object, so no INotifyPropertyChanged is needed here.
+    /// </summary>
+    public sealed class RoomPickRow
+    {
+        public ElementId RoomId { get; }
+        public string Number { get; }
+        public string Name { get; }
+        public string LevelName { get; }
+        public double AreaSqFt { get; }
+
+        public string Display => $"{Number} - {Name} ({LevelName})";
+
+        public RoomPickRow(ElementId roomId, string number, string name, string levelName, double areaSqFt)
+        {
+            RoomId = roomId ?? throw new ArgumentNullException(nameof(roomId));
+            Number = number ?? "";
+            Name = name ?? "";
+            LevelName = levelName ?? "";
+            AreaSqFt = areaSqFt;
+        }
     }
 }

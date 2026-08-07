@@ -30,6 +30,9 @@ namespace BA.UI.Views
                 Vm.EnsureTemplatesLoaded();
                 Vm.EnsureParameterCategoriesLoaded();
                 Vm.EnsureFillPatternsLoaded();
+                Vm.EnsureSchemesLoaded();
+                Vm.EnsureFilterGroupsLoaded();
+
             };
             Closed += (_, __) =>
             {

@@ -22,22 +22,60 @@ namespace BATools.ParamCopy.ViewModels
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "BATools", "ParamCopy.json");
 
+        // ── Categories (shared) ──────────────────────────────────────────────
+
+        /// <summary>
+        /// Model-type category names present in the active document. Shared
+        /// between the Source and Dest category dropdowns; loaded once on
+        /// construction.
+        /// </summary>
+        public ObservableCollection<string> AvailableCategories { get; } = new();
+
         // ── Source ────────────────────────────────────────────────────────────
 
         private string _sourceCategoryName = string.Empty;
         public string SourceCategoryName
         {
             get => _sourceCategoryName;
-            set => SetProperty(ref _sourceCategoryName, value);
+            set
+            {
+                if (SetProperty(ref _sourceCategoryName, value))
+                    LoadSourceCategoryParameters();
+            }
         }
 
-        // Comma-separated parameter names entered by the user
-        private string _sourceDisplayParams = string.Empty;
-        public string SourceDisplayParams
+        /// <summary>
+        /// Instance parameter names for the current Source category, ignoring
+        /// FilterSets. Backs the Source filter-rule ParameterName dropdowns.
+        /// </summary>
+        public ObservableCollection<string> SourceCategoryParameterNames { get; } = new();
+
+        /// <summary>
+        /// Instance parameter names for elements matching the current Source
+        /// category + FilterSets. Backs Source Display Params, the Mapping
+        /// grid's Source column, and feeds PairingParameterCandidates.
+        /// Refreshed on Reload Source.
+        /// </summary>
+        public ObservableCollection<string> SourceMatchedParameterNames { get; } = new();
+
+        /// <summary>Checkbox entries for the Source Display Params multi-select.</summary>
+        public ObservableCollection<CheckableParam> SourceDisplayParamOptions { get; } = new();
+
+        private string _sourceDisplayParamsSummary = "None selected";
+        public string SourceDisplayParamsSummary
         {
-            get => _sourceDisplayParams;
-            set => SetProperty(ref _sourceDisplayParams, value);
+            get => _sourceDisplayParamsSummary;
+            private set => SetProperty(ref _sourceDisplayParamsSummary, value);
         }
+
+        /// <summary>
+        /// Display param names carried over from a loaded settings file before
+        /// the matched-parameter list has been populated by a Reload. Applied
+        /// (and cleared) the first time RebuildSourceDisplayParamOptions runs,
+        /// so saved selections are never silently dropped just because the
+        /// user hasn't clicked Reload yet.
+        /// </summary>
+        private List<string> _pendingSourceDisplayParamNames = new();
 
         /// <summary>Fired after source reload with the current display param names.</summary>
         public event Action<IReadOnlyList<string>>? SourceColumnsChanged;
@@ -54,15 +92,38 @@ namespace BATools.ParamCopy.ViewModels
         public string DestCategoryName
         {
             get => _destCategoryName;
-            set => SetProperty(ref _destCategoryName, value);
+            set
+            {
+                if (SetProperty(ref _destCategoryName, value))
+                    LoadDestCategoryParameters();
+            }
         }
 
-        private string _destDisplayParams = string.Empty;
-        public string DestDisplayParams
+        /// <summary>
+        /// Instance parameter names for the current Dest category, ignoring
+        /// FilterSets. Backs the Dest filter-rule ParameterName dropdowns.
+        /// </summary>
+        public ObservableCollection<string> DestCategoryParameterNames { get; } = new();
+
+        /// <summary>
+        /// Instance parameter names for elements matching the current Dest
+        /// category + FilterSets. Backs Dest Display Params, the Mapping
+        /// grid's Dest column, and feeds PairingParameterCandidates.
+        /// Refreshed on Reload Dest.
+        /// </summary>
+        public ObservableCollection<string> DestMatchedParameterNames { get; } = new();
+
+        /// <summary>Checkbox entries for the Dest Display Params multi-select.</summary>
+        public ObservableCollection<CheckableParam> DestDisplayParamOptions { get; } = new();
+
+        private string _destDisplayParamsSummary = "None selected";
+        public string DestDisplayParamsSummary
         {
-            get => _destDisplayParams;
-            set => SetProperty(ref _destDisplayParams, value);
+            get => _destDisplayParamsSummary;
+            private set => SetProperty(ref _destDisplayParamsSummary, value);
         }
+
+        private List<string> _pendingDestDisplayParamNames = new();
 
         public ObservableCollection<FilterSet> DestFilterSets { get; } = new();
         public ObservableCollection<ElementListItem> DestElements { get; } = new();
@@ -82,6 +143,16 @@ namespace BATools.ParamCopy.ViewModels
             get => _pairingParameterName;
             set => SetProperty(ref _pairingParameterName, value);
         }
+
+        /// <summary>
+        /// Candidate parameter names for pairing: the intersection of Source
+        /// and Dest matched-parameter lists once both have been reloaded, or
+        /// whichever side is populated if only one has. A previously-set
+        /// PairingParameterName that falls outside the current candidates is
+        /// appended rather than dropped, so an existing selection is never
+        /// silently lost while the other side hasn't been reloaded yet.
+        /// </summary>
+        public ObservableCollection<string> PairingParameterCandidates { get; } = new();
 
         public IEnumerable<PairingMode> PairingModes { get; }
             = Enum.GetValues<PairingMode>();
@@ -156,40 +227,81 @@ namespace BATools.ParamCopy.ViewModels
 
         public ParamCopyViewModel(UIApplication uiApp)
         {
-            _invoker    = new ParamCopyExternalInvoker(uiApp);
+            _invoker = new ParamCopyExternalInvoker(uiApp);
             _dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
 
-            ReloadSourceCommand        = new RelayCommand(ReloadSource);
-            ReloadDestCommand          = new RelayCommand(ReloadDest);
-            AddSourceFilterSetCommand  = new RelayCommand(() => SourceFilterSets.Add(new FilterSet()));
-            AddDestFilterSetCommand    = new RelayCommand(() => DestFilterSets.Add(new FilterSet()));
-            PairSelectedCommand        = new RelayCommand(PairSelected,
+            ReloadSourceCommand = new RelayCommand(ReloadSource);
+            ReloadDestCommand = new RelayCommand(ReloadDest);
+            AddSourceFilterSetCommand = new RelayCommand(() => SourceFilterSets.Add(new FilterSet()));
+            AddDestFilterSetCommand = new RelayCommand(() => DestFilterSets.Add(new FilterSet()));
+            PairSelectedCommand = new RelayCommand(PairSelected,
                 () => SelectedSourceItem != null && SelectedDestItem != null);
-            AutoPairCommand            = new RelayCommand(AutoPair,
+            AutoPairCommand = new RelayCommand(AutoPair,
                 () => !string.IsNullOrWhiteSpace(PairingParameterName));
-            RemovePairCommand          = new RelayCommand(
+            RemovePairCommand = new RelayCommand(
                 () => { if (SelectedPair != null) Pairs.Remove(SelectedPair); },
                 () => SelectedPair != null);
-            ClearPairsCommand          = new RelayCommand(() => Pairs.Clear());
-            AddMappingCommand          = new RelayCommand(() => Mappings.Add(new ParamMapping()));
-            RemoveMappingCommand       = new RelayCommand(
+            ClearPairsCommand = new RelayCommand(() => Pairs.Clear());
+            AddMappingCommand = new RelayCommand(() => Mappings.Add(new ParamMapping()));
+            RemoveMappingCommand = new RelayCommand(
                 () => { if (SelectedMapping != null) Mappings.Remove(SelectedMapping); },
                 () => SelectedMapping != null);
-            RunCopyCommand             = new RelayCommand(RunCopy,
+            RunCopyCommand = new RelayCommand(RunCopy,
                 () => Pairs.Count > 0 && Mappings.Count > 0);
-            SaveSettingsCommand        = new RelayCommand(SaveSettings);
-            LoadSettingsCommand        = new RelayCommand(LoadSettings);
+            SaveSettingsCommand = new RelayCommand(SaveSettings);
+            LoadSettingsCommand = new RelayCommand(LoadSettings);
 
+            LoadCategories();
             LoadSettings();
+        }
+
+        // ── Categories ────────────────────────────────────────────────────────
+
+        private void LoadCategories()
+        {
+            _invoker.LoadCategories(names =>
+            {
+                AvailableCategories.Clear();
+                foreach (var n in names) AvailableCategories.Add(n);
+            });
+        }
+
+        private void LoadSourceCategoryParameters()
+        {
+            SourceCategoryParameterNames.Clear();
+
+            if (string.IsNullOrWhiteSpace(SourceCategoryName))
+                return;
+
+            _invoker.LoadSourceCategoryParameters(SourceCategoryName, names =>
+            {
+                SourceCategoryParameterNames.Clear();
+                foreach (var n in names) SourceCategoryParameterNames.Add(n);
+            });
+        }
+
+        private void LoadDestCategoryParameters()
+        {
+            DestCategoryParameterNames.Clear();
+
+            if (string.IsNullOrWhiteSpace(DestCategoryName))
+                return;
+
+            _invoker.LoadDestCategoryParameters(DestCategoryName, names =>
+            {
+                DestCategoryParameterNames.Clear();
+                foreach (var n in names) DestCategoryParameterNames.Add(n);
+            });
         }
 
         // ── Reload ────────────────────────────────────────────────────────────
 
         private void ReloadSource()
         {
-            IsLoading  = true;
+            IsLoading = true;
             StatusText = "Loading source elements...";
             var srcSettings = BuildSourceSettings();
+
             _invoker.ReloadSource(srcSettings, items =>
             {
                 SourceElements.Clear();
@@ -198,13 +310,23 @@ namespace BATools.ParamCopy.ViewModels
                 IsLoading = false;
                 SourceColumnsChanged?.Invoke(srcSettings.DisplayParameterNames);
             });
+
+            _invoker.LoadSourceMatchedParameters(
+                srcSettings.CategoryName, srcSettings.FilterSets, names =>
+                {
+                    SourceMatchedParameterNames.Clear();
+                    foreach (var n in names) SourceMatchedParameterNames.Add(n);
+                    RebuildSourceDisplayParamOptions();
+                    RecomputePairingCandidates();
+                });
         }
 
         private void ReloadDest()
         {
-            IsLoading  = true;
+            IsLoading = true;
             StatusText = "Loading dest elements...";
             var dstSettings = BuildDestSettings();
+
             _invoker.ReloadDest(dstSettings, items =>
             {
                 DestElements.Clear();
@@ -213,6 +335,137 @@ namespace BATools.ParamCopy.ViewModels
                 IsLoading = false;
                 DestColumnsChanged?.Invoke(dstSettings.DisplayParameterNames);
             });
+
+            _invoker.LoadDestMatchedParameters(
+                dstSettings.CategoryName, dstSettings.FilterSets, names =>
+                {
+                    DestMatchedParameterNames.Clear();
+                    foreach (var n in names) DestMatchedParameterNames.Add(n);
+                    RebuildDestDisplayParamOptions();
+                    RecomputePairingCandidates();
+                });
+        }
+
+        // ── Display Params (checkbox multi-select) ───────────────────────────
+
+        private void RebuildSourceDisplayParamOptions()
+        {
+            var keepSelected = SourceDisplayParamOptions
+                .Where(p => p.IsSelected)
+                .Select(p => p.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var pending in _pendingSourceDisplayParamNames)
+                keepSelected.Add(pending);
+            _pendingSourceDisplayParamNames.Clear();
+
+            foreach (var item in SourceDisplayParamOptions)
+                item.SelectionChanged -= OnSourceDisplayParamSelectionChanged;
+            SourceDisplayParamOptions.Clear();
+
+            // Union: current matched params, plus any previously-selected
+            // names not currently matched — never silently drop a selection.
+            var allNames = new SortedSet<string>(SourceMatchedParameterNames, StringComparer.OrdinalIgnoreCase);
+            foreach (var extra in keepSelected)
+                allNames.Add(extra);
+
+            foreach (var name in allNames)
+            {
+                var item = new CheckableParam(name, keepSelected.Contains(name));
+                item.SelectionChanged += OnSourceDisplayParamSelectionChanged;
+                SourceDisplayParamOptions.Add(item);
+            }
+
+            UpdateSourceDisplayParamsSummary();
+        }
+
+        private void RebuildDestDisplayParamOptions()
+        {
+            var keepSelected = DestDisplayParamOptions
+                .Where(p => p.IsSelected)
+                .Select(p => p.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var pending in _pendingDestDisplayParamNames)
+                keepSelected.Add(pending);
+            _pendingDestDisplayParamNames.Clear();
+
+            foreach (var item in DestDisplayParamOptions)
+                item.SelectionChanged -= OnDestDisplayParamSelectionChanged;
+            DestDisplayParamOptions.Clear();
+
+            var allNames = new SortedSet<string>(DestMatchedParameterNames, StringComparer.OrdinalIgnoreCase);
+            foreach (var extra in keepSelected)
+                allNames.Add(extra);
+
+            foreach (var name in allNames)
+            {
+                var item = new CheckableParam(name, keepSelected.Contains(name));
+                item.SelectionChanged += OnDestDisplayParamSelectionChanged;
+                DestDisplayParamOptions.Add(item);
+            }
+
+            UpdateDestDisplayParamsSummary();
+        }
+
+        private void OnSourceDisplayParamSelectionChanged() => UpdateSourceDisplayParamsSummary();
+        private void OnDestDisplayParamSelectionChanged() => UpdateDestDisplayParamsSummary();
+
+        private void UpdateSourceDisplayParamsSummary()
+        {
+            var selected = SourceDisplayParamOptions.Where(p => p.IsSelected).ToList();
+            SourceDisplayParamsSummary = selected.Count switch
+            {
+                0 => "None selected",
+                <= 2 => string.Join(", ", selected.Select(p => p.Name)),
+                _ => $"{selected.Count} selected"
+            };
+        }
+
+        private void UpdateDestDisplayParamsSummary()
+        {
+            var selected = DestDisplayParamOptions.Where(p => p.IsSelected).ToList();
+            DestDisplayParamsSummary = selected.Count switch
+            {
+                0 => "None selected",
+                <= 2 => string.Join(", ", selected.Select(p => p.Name)),
+                _ => $"{selected.Count} selected"
+            };
+        }
+
+        // ── Pairing candidates ────────────────────────────────────────────────
+
+        private void RecomputePairingCandidates()
+        {
+            bool srcHas = SourceMatchedParameterNames.Count > 0;
+            bool dstHas = DestMatchedParameterNames.Count > 0;
+
+            IEnumerable<string> result;
+            if (srcHas && dstHas)
+                result = SourceMatchedParameterNames.Intersect(
+                    DestMatchedParameterNames, StringComparer.OrdinalIgnoreCase);
+            else if (srcHas)
+                result = SourceMatchedParameterNames;
+            else if (dstHas)
+                result = DestMatchedParameterNames;
+            else
+                result = Enumerable.Empty<string>();
+
+            var sorted = result
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            PairingParameterCandidates.Clear();
+            foreach (var name in sorted)
+                PairingParameterCandidates.Add(name);
+
+            // Don't silently drop an already-set pairing parameter just
+            // because the other side hasn't been (re)loaded yet.
+            if (!string.IsNullOrEmpty(PairingParameterName) &&
+                !PairingParameterCandidates.Contains(PairingParameterName, StringComparer.OrdinalIgnoreCase))
+            {
+                PairingParameterCandidates.Add(PairingParameterName);
+            }
         }
 
         // ── Pairing ───────────────────────────────────────────────────────────
@@ -300,10 +553,10 @@ namespace BATools.ParamCopy.ViewModels
             {
                 var s = new ParamCopySettings
                 {
-                    Source               = BuildSourceSettings(),
-                    Dest                 = BuildDestSettings(),
-                    Mappings             = Mappings.ToList(),
-                    PairingMode          = PairingMode,
+                    Source = BuildSourceSettings(),
+                    Dest = BuildDestSettings(),
+                    Mappings = Mappings.ToList(),
+                    PairingMode = PairingMode,
                     PairingParameterName = PairingParameterName
                 };
 
@@ -332,20 +585,33 @@ namespace BATools.ParamCopy.ViewModels
                     File.ReadAllText(SettingsPath));
                 if (s == null) return;
 
+                // Stash desired display params before assigning CategoryName —
+                // the checkbox lists don't exist yet (no Reload has run), so
+                // these are applied once RebuildSourceDisplayParamOptions runs.
+                _pendingSourceDisplayParamNames = s.Source.DisplayParameterNames.ToList();
+                _pendingDestDisplayParamNames = s.Dest.DisplayParameterNames.ToList();
+
                 SourceCategoryName = s.Source.CategoryName;
-                SourceDisplayParams = string.Join(", ", s.Source.DisplayParameterNames);
                 SourceFilterSets.Clear();
                 foreach (var fs in s.Source.FilterSets) SourceFilterSets.Add(fs);
+
                 DestCategoryName = s.Dest.CategoryName;
-                DestDisplayParams = string.Join(", ", s.Dest.DisplayParameterNames);
                 DestFilterSets.Clear();
                 foreach (var fs in s.Dest.FilterSets) DestFilterSets.Add(fs);
+
+                // Reflect pending selections immediately, even before Reload —
+                // matched-parameter lists are empty at this point, so the union
+                // logic in RebuildSourceDisplayParamOptions falls back to
+                // showing just the pending names as checked.
+                RebuildSourceDisplayParamOptions();
+                RebuildDestDisplayParamOptions();
 
                 Mappings.Clear();
                 foreach (var m in s.Mappings) Mappings.Add(m);
 
-                PairingMode          = s.PairingMode;
+                PairingMode = s.PairingMode;
                 PairingParameterName = s.PairingParameterName;
+                RecomputePairingCandidates();
 
                 StatusText = "Settings loaded.";
             }
@@ -361,29 +627,20 @@ namespace BATools.ParamCopy.ViewModels
         {
             CategoryName = SourceCategoryName,
             FilterSets = SourceFilterSets.ToList(),
-            DisplayParameterNames = ParseDisplayParams(SourceDisplayParams)
+            DisplayParameterNames = SourceDisplayParamOptions
+                .Where(p => p.IsSelected)
+                .Select(p => p.Name)
+                .ToList()
         };
 
         private ListSettings BuildDestSettings() => new()
         {
             CategoryName = DestCategoryName,
             FilterSets = DestFilterSets.ToList(),
-            DisplayParameterNames = ParseDisplayParams(DestDisplayParams)
+            DisplayParameterNames = DestDisplayParamOptions
+                .Where(p => p.IsSelected)
+                .Select(p => p.Name)
+                .ToList()
         };
-
-        /// <summary>
-        /// Splits a comma-separated parameter name string into a clean list.
-        /// </summary>
-        private static List<string> ParseDisplayParams(string raw)
-        {
-            if (string.IsNullOrWhiteSpace(raw))
-                return new List<string>();
-
-            return raw
-                .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Select(s => s.Trim())
-                .Where(s => !string.IsNullOrEmpty(s))
-                .ToList();
-        }
     }
 }

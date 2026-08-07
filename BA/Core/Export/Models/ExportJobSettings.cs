@@ -4,10 +4,24 @@ using System.Collections.Generic;
 namespace BA.Core.Export.Models
 {
     /// <summary>
-    /// Plain data settings for a single export job. PDF and DWG jobs are
-    /// fully independent, each has its own sheet set, naming template,
-    /// schedule and output folder. Persisted to JSON, not Revit-bound,
-    /// so this stays a plain class rather than an observable one for now.
+    /// Sheets and Views are genuinely different sources, not a flag on the
+    /// same picker: sheets have SheetNumber/SheetName, views have
+    /// ViewName/ViewType, and Revision only makes sense for sheets. A job
+    /// is one or the other, not both at once.
+    /// </summary>
+    public enum ExportSourceMode
+    {
+        Sheets,
+        Views
+    }
+
+    /// <summary>
+    /// Plain data settings for a single export job. A job covers one
+    /// sheet set, naming template, schedule and output folder, exported to
+    /// any combination of the enabled formats (PDF and/or DWG) in one run,
+    /// rather than one format locking the whole job at creation. Persisted
+    /// to JSON, not Revit-bound, so this stays a plain class rather than
+    /// an observable one for now.
     /// </summary>
     public class ExportJobSettings
     {
@@ -15,19 +29,45 @@ namespace BA.Core.Export.Models
 
         public string JobName { get; set; } = string.Empty;
 
-        public ExportFormat Format { get; set; } = ExportFormat.Pdf;
+        public bool ExportPdf { get; set; } = true;
+        public bool ExportDwg { get; set; }
 
         public bool Enabled { get; set; } = true;
 
-        /// <summary>
-        /// Name of the Revit ViewSheetSet that defines which sheets belong
-        /// to this job. Must match an existing named set in the document
-        /// (Manage tab > View Sheet Set, saved from the Print dialog).
-        /// </summary>
-        public string SheetSetName { get; set; } = string.Empty;
+        public ExportSourceMode SourceMode { get; set; } = ExportSourceMode.Sheets;
 
         /// <summary>
-        /// Filename template, extension appended automatically based on Format.
+        /// When true, ignores SelectedSheetNumbers/SelectedViewUniqueIds
+        /// entirely and exports whatever view or sheet is active in Revit
+        /// at the moment the job runs instead. In Sheets mode the active
+        /// view must actually be a sheet, in Views mode it must not be, a
+        /// mismatch is reported as an error rather than silently falling
+        /// back to the configured selection.
+        /// </summary>
+        public bool UseActiveViewOrSheet { get; set; }
+
+        /// <summary>
+        /// Sheet numbers chosen via the in-app sheet picker (BA.Views.Export.SheetPickerWindow),
+        /// resolved against the live document by ExportJobRunner at export time, not a
+        /// Revit ViewSheetSet. A sheet number here that no longer exists (renamed or
+        /// deleted) is skipped and reported, it does not fail the whole job. Only
+        /// relevant when SourceMode is Sheets.
+        /// </summary>
+        public List<string> SelectedSheetNumbers { get; set; } = new List<string>();
+
+        /// <summary>
+        /// UniqueIds of views chosen via the view picker, resolved against
+        /// the live document at export time. UniqueId rather than Name,
+        /// views don't have a sheet-number-equivalent stable identifier
+        /// the way sheets do. Only relevant when SourceMode is Views.
+        /// </summary>
+        public List<string> SelectedViewUniqueIds { get; set; } = new List<string>();
+
+        /// <summary>
+        /// Filename template, extension appended automatically per format
+        /// at export time, not stored here. In Sheets mode, tokens include
+        /// {SheetNumber}/{SheetName}/{Revision}. In Views mode, those throw
+        /// a clear error if used, {ViewName}/{ViewType} are the equivalents.
         /// Example: "{ProjectNumber}_{SheetNumber}_{SheetName}_Rev{Revision}_{Date}"
         /// </summary>
         public string NamingTemplate { get; set; } = "{SheetNumber}_{SheetName}_Rev{Revision}_{Date}";
@@ -47,11 +87,17 @@ namespace BA.Core.Export.Models
         public string OutputFolderTemplate { get; set; } = string.Empty;
 
         /// <summary>
-        /// For DWG: name of a predefined export setup saved in the document
-        /// (Manage tab, Additional Settings, Export Setups DWG/DXF). Required
-        /// for DWG jobs. For PDF: unused until pass 2 confirms the current API shape.
+        /// Custom DWG export settings, applied directly, no dependency on a
+        /// predefined setup existing in the document. Only relevant when
+        /// ExportDwg is true.
         /// </summary>
-        public string ExportSetupName { get; set; } = string.Empty;
+        public DwgSettings DwgSettings { get; set; } = new DwgSettings();
+
+        /// <summary>
+        /// Custom PDF export settings, applied directly. Only relevant when
+        /// ExportPdf is true.
+        /// </summary>
+        public PdfSettings PdfSettings { get; set; } = new PdfSettings();
 
         public bool ScheduleEnabled { get; set; }
 

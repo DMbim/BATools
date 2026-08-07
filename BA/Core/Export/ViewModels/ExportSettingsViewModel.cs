@@ -18,8 +18,30 @@ namespace BA.ViewModels.Export
         public ExportJobEditorViewModel SelectedJob
         {
             get => _selectedJob;
-            set => SetProperty(ref _selectedJob, value);
+            set
+            {
+                if (SetProperty(ref _selectedJob, value))
+                {
+                    OnPropertyChanged(nameof(HasSelectedJob));
+                    OnPropertyChanged(nameof(NoJobSelected));
+                }
+            }
         }
+
+        /// <summary>
+        /// Drives the empty state placeholder in ExportSettingsWindow. With
+        /// no job selected, the editor panel's DataContext is null and
+        /// every bound control shows stale or blank values that look
+        /// broken but are not, this makes the state explicit instead.
+        /// </summary>
+        public bool HasSelectedJob => SelectedJob != null;
+
+        /// <summary>
+        /// Plain inverse of HasSelectedJob, kept as its own property rather
+        /// than introducing a generic inverse-boolean-to-visibility
+        /// converter for this one binding.
+        /// </summary>
+        public bool NoJobSelected => SelectedJob == null;
 
         public string StatusMessage
         {
@@ -33,19 +55,19 @@ namespace BA.ViewModels.Export
             private set => SetProperty(ref _isBusy, value);
         }
 
-        public BA.Core.Mvvm.RelayCommand AddPdfJobCommand { get; }
-        public BA.Core.Mvvm.RelayCommand AddDwgJobCommand { get; }
+        public BA.Core.Mvvm.RelayCommand AddJobCommand { get; }
         public BA.Core.Mvvm.RelayCommand RemoveSelectedJobCommand { get; }
         public BA.Core.Mvvm.RelayCommand SaveAllCommand { get; }
+        public BA.Core.Mvvm.RelayCommand CloseCommand { get; }
 
         public Action RequestClose { get; set; }
 
         public ExportSettingsViewModel()
         {
-            AddPdfJobCommand = new BA.Core.Mvvm.RelayCommand(_ => AddJob(ExportFormat.Pdf));
-            AddDwgJobCommand = new BA.Core.Mvvm.RelayCommand(_ => AddJob(ExportFormat.Dwg));
+            AddJobCommand = new BA.Core.Mvvm.RelayCommand(_ => AddJob());
             RemoveSelectedJobCommand = new BA.Core.Mvvm.RelayCommand(_ => RemoveSelectedJob(), _ => SelectedJob != null);
             SaveAllCommand = new BA.Core.Mvvm.RelayCommand(_ => SaveAll());
+            CloseCommand = new BA.Core.Mvvm.RelayCommand(_ => RequestClose?.Invoke());
 
             LoadAll();
         }
@@ -59,12 +81,15 @@ namespace BA.ViewModels.Export
 
             ExportUiBridge.Submit(request, response =>
             {
+                IsBusy = false;
+
                 if (!response.Success || response.LoadedSettings == null)
                 {
-                    IsBusy = false;
                     StatusMessage = $"Failed to load settings: {response.ErrorMessage}";
                     return;
                 }
+
+                StatusMessage = "Ready.";
 
                 Jobs.Clear();
 
@@ -72,52 +97,22 @@ namespace BA.ViewModels.Export
                 {
                     Jobs.Add(new ExportJobEditorViewModel(jobModel));
                 }
-
-                LoadPickerLists();
             });
         }
 
-        private void LoadPickerLists()
+        private void AddJob()
         {
-            var sheetSetsRequest = new ExportUiRequest { Action = ExportUiAction.GetSheetSetNames };
-
-            ExportUiBridge.Submit(sheetSetsRequest, sheetSetsResponse =>
-            {
-                if (sheetSetsResponse.Success)
-                {
-                    foreach (var job in Jobs)
-                    {
-                        job.LoadAvailableSheetSets(sheetSetsResponse.StringList);
-                    }
-                }
-
-                var dwgSetupsRequest = new ExportUiRequest { Action = ExportUiAction.GetDwgExportSetupNames };
-
-                ExportUiBridge.Submit(dwgSetupsRequest, dwgSetupsResponse =>
-                {
-                    IsBusy = false;
-                    StatusMessage = "Ready.";
-
-                    if (dwgSetupsResponse.Success)
-                    {
-                        foreach (var job in Jobs)
-                        {
-                            job.LoadAvailableDwgExportSetups(dwgSetupsResponse.StringList);
-                        }
-                    }
-                });
-            });
-        }
-
-        private void AddJob(ExportFormat format)
-        {
+            // A new job defaults to PDF enabled, DWG off, the user ticks
+            // additional formats in the editor. No predefined setup lookup
+            // needed anymore, DwgSettings/PdfSettings on the new
+            // ExportJobSettings already carry sensible defaults.
             var newModel = new ExportJobSettings
             {
-                JobName = format == ExportFormat.Pdf ? "New PDF Job" : "New DWG Job",
-                Format = format
+                JobName = "New Export Job"
             };
 
             var editor = new ExportJobEditorViewModel(newModel);
+
             Jobs.Add(editor);
             SelectedJob = editor;
         }

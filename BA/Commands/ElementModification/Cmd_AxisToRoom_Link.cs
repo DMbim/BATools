@@ -46,6 +46,10 @@ namespace BA.Commands.Rooms
                     ObjectType.Element,
                     new RoomTagSelectionFilter(),
                     "Select Room Tags (tagging linked rooms)");
+                refs = uidoc.Selection.PickObjects(
+                    ObjectType.Element,
+                    new RoomSelectionFilter(),
+                    "Select Rooms (tagging linked rooms)");
             }
             catch
             {

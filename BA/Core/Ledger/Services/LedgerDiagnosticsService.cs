@@ -43,6 +43,13 @@ namespace BA.Core.Ledger
         /// every call, this is not cached or authoritative.
         /// </summary>
         public string ResolvedLedgerFilePath { get; set; }
+
+        /// <summary>
+        /// Whether Type Data Ledger sync is currently turned on for this central. Per-central,
+        /// stored via LedgerEnabledService; defaults to false (off) for a central that has
+        /// never had this explicitly set.
+        /// </summary>
+        public bool LedgerEnabled { get; set; }
     }
 
     /// <summary>
@@ -63,6 +70,7 @@ namespace BA.Core.Ledger
             result.CurrentCentralIdentifier = CentralIdentifierService.GetIdentifier(doc);
             result.CurrentProjectSetName = ProjectSetService.GetProjectSetName(doc);
             result.ResolvedLedgerFilePath = LedgerFileService.ResolveLedgerPathForDocument(doc);
+            result.LedgerEnabled = LedgerEnabledService.IsEnabled(doc);
 
             // Categories actually used by loaded families in this document, not the full
             // system category list. This is what a filter checkbox list should show, since
@@ -85,8 +93,8 @@ namespace BA.Core.Ledger
             catch (Exception)
             {
                 // Ledger unreachable right now (locked or path invalid). Return what we have
-                // (category list, resolved path) rather than throwing out of a diagnostics
-                // refresh.
+                // (category list, resolved path, enabled flag) rather than throwing out of a
+                // diagnostics refresh.
                 return result;
             }
 

@@ -6,6 +6,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
+using BA.Settings.Rooms;
 
 namespace BATools.Rooms.Commands
 {
@@ -13,18 +14,15 @@ namespace BATools.Rooms.Commands
     [Regeneration(RegenerationOption.Manual)]
     public class TransferAreaValuesToRoomsCommand : IExternalCommand
     {
-        private const string ParamRoomNumber = "BA_Number";
-        private const string ParamAreaNumber = "BA_Number";
-        private const string ParamAreaType = "BA_Area_Type";
-        private const string ParamRoomAreaUp = "BA_Area_UP";
-        private const string ParamRoomAreaPp = "BA_Area_PP";
-        private const string AreaTypeUp = "UP";
-        private const string AreaTypePp = "PP";
-
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             UIDocument uidoc = commandData.Application.ActiveUIDocument;
             Document doc = uidoc.Document;
+
+            // Parameter names/values now come from AreaTransferSettings instead of
+            // hardcoded consts -- defaults match what was previously hardcoded, so
+            // behavior is unchanged until the Settings window is used to override them.
+            var settings = AreaTransferSettings.Load();
 
             // --- 1. Collect Rooms ---
             List<Room> rooms = new FilteredElementCollector(doc)
@@ -40,14 +38,14 @@ namespace BATools.Rooms.Commands
                 return Result.Cancelled;
             }
 
-            // --- 2. Build room lookup: BA_Number string -> Room ---
-            // Multiple rooms can share the same BA_Number (e.g. same apartment on multiple levels).
+            // --- 2. Build room lookup: RoomNumberParam string -> Room ---
+            // Multiple rooms can share the same key (e.g. same apartment on multiple levels).
             // We write to all matching rooms.
             var roomLookup = new Dictionary<string, List<Room>>(StringComparer.OrdinalIgnoreCase);
 
             foreach (Room room in rooms)
             {
-                string roomNumber = GetStringParam(room, ParamRoomNumber);
+                string roomNumber = GetStringParam(room, settings.RoomNumberParam);
                 if (string.IsNullOrWhiteSpace(roomNumber))
                     continue;
 
@@ -62,7 +60,7 @@ namespace BATools.Rooms.Commands
 
             if (roomLookup.Count == 0)
             {
-                TaskDialog.Show("Area Transfer", $"No rooms have a valid '{ParamRoomNumber}' parameter value.");
+                TaskDialog.Show("Area Transfer", $"No rooms have a valid '{settings.RoomNumberParam}' parameter value.");
                 return Result.Cancelled;
             }
 
@@ -81,32 +79,32 @@ namespace BATools.Rooms.Commands
             }
 
             // --- 4. Aggregate: roomKey -> (UP sum, PP sum) ---
-            // Key: room BA_Number string (prefix before first dot in area BA_Number)
+            // Key: room key string (prefix before first dot in area number param)
             var aggregated = new Dictionary<string, (double Up, double Pp)>(StringComparer.OrdinalIgnoreCase);
             var skippedAreas = new List<string>();
 
             foreach (Area area in areas)
             {
-                string areaNumber = GetStringParam(area, ParamAreaNumber);
-                string areaType = GetStringParam(area, ParamAreaType);
+                string areaNumber = GetStringParam(area, settings.AreaNumberParam);
+                string areaType = GetStringParam(area, settings.AreaTypeParam);
 
                 if (string.IsNullOrWhiteSpace(areaNumber))
                 {
-                    skippedAreas.Add($"Area id={area.Id.Value}: missing {ParamAreaNumber}");
+                    skippedAreas.Add($"Area id={area.Id.Value}: missing {settings.AreaNumberParam}");
                     continue;
                 }
 
                 if (string.IsNullOrWhiteSpace(areaType))
                 {
-                    skippedAreas.Add($"Area id={area.Id.Value} ({areaNumber}): missing {ParamAreaType}");
+                    skippedAreas.Add($"Area id={area.Id.Value} ({areaNumber}): missing {settings.AreaTypeParam}");
                     continue;
                 }
 
                 areaType = areaType.Trim();
 
                 // Only process UP and PP; silently skip other types
-                if (!areaType.Equals(AreaTypeUp, StringComparison.OrdinalIgnoreCase) &&
-                    !areaType.Equals(AreaTypePp, StringComparison.OrdinalIgnoreCase))
+                if (!areaType.Equals(settings.AreaTypeUpValue, StringComparison.OrdinalIgnoreCase) &&
+                    !areaType.Equals(settings.AreaTypePpValue, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -128,7 +126,7 @@ namespace BATools.Rooms.Commands
                 if (!aggregated.TryGetValue(roomKey, out (double Up, double Pp) sums))
                     sums = (0.0, 0.0);
 
-                if (areaType.Equals(AreaTypeUp, StringComparison.OrdinalIgnoreCase))
+                if (areaType.Equals(settings.AreaTypeUpValue, StringComparison.OrdinalIgnoreCase))
                     sums.Up += areaValue;
                 else
                     sums.Pp += areaValue;
@@ -155,14 +153,14 @@ namespace BATools.Rooms.Commands
                     if (!roomLookup.TryGetValue(roomKey, out List<Room> matchedRooms))
                     {
                         noMatchCount++;
-                        noMatchLog.Add($"Room key '{roomKey}': no room with this {ParamRoomNumber} found");
+                        noMatchLog.Add($"Room key '{roomKey}': no room with this {settings.RoomNumberParam} found");
                         continue;
                     }
 
                     foreach (Room room in matchedRooms)
                     {
-                        bool upOk = TrySetAreaParam(room, ParamRoomAreaUp, upSum, out string upError);
-                        bool ppOk = TrySetAreaParam(room, ParamRoomAreaPp, ppSum, out string ppError);
+                        bool upOk = TrySetAreaParam(room, settings.RoomAreaUpParam, upSum, out string upError);
+                        bool ppOk = TrySetAreaParam(room, settings.RoomAreaPpParam, ppSum, out string ppError);
 
                         if (!upOk || !ppOk)
                         {
@@ -187,7 +185,7 @@ namespace BATools.Rooms.Commands
             return Result.Succeeded;
         }
 
-        // Extracts the room key from an area BA_Number.
+        // Extracts the room key from an area number.
         // "1.2"  -> "1"
         // "1.12" -> "1"
         // "1"    -> "1"
@@ -286,7 +284,7 @@ namespace BATools.Rooms.Commands
             if (skippedAreas.Count > 0)
             {
                 sb.AppendLine();
-                sb.AppendLine("Skipped areas (missing BA_Number or BA_Area_Type):");
+                sb.AppendLine("Skipped areas (missing configured Area Number or Area Type parameter):");
                 foreach (string s in skippedAreas.Take(10))
                     sb.AppendLine("  " + s);
                 if (skippedAreas.Count > 10)

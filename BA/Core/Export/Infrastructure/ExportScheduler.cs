@@ -15,9 +15,11 @@ namespace BA.Core.Export.Infrastructure
     /// scheduled time falls within their CatchUpWindow. If Revit was not open
     /// during that window on a given day, the job is skipped entirely for
     /// that day, it never fires late, it waits for its next scheduled day.
-    /// Register once at add-in startup:
+    /// Register once at add-in startup. This codebase uses Nice3point's
+    /// ExternalApplication base class, OnStartup() takes no parameters,
+    /// everything routes through the Application property:
     ///   var scheduler = new ExportScheduler();
-    ///   uiControlledApplication.Idling += scheduler.OnIdling;
+    ///   Application.Idling += scheduler.OnIdling;
     /// and unsubscribe the same delegate in OnShutdown.
     /// </summary>
     public class ExportScheduler
@@ -81,12 +83,15 @@ namespace BA.Core.Export.Infrastructure
 
                 try
                 {
-                    var result = ExportJobRunner.RunJob(doc, job, now);
+                    var results = ExportJobRunner.RunJob(doc, job, now, uiDoc.ActiveView);
                     job.LastAutoRunDate = now.Date;
 
-                    AppLogger.LogInfo(result.HasJobLevelError
-                        ? $"Scheduled export job '{job.JobName}' failed: {result.JobLevelError}"
-                        : $"Scheduled export job '{job.JobName}' ran: {result.SuccessCount} succeeded, {result.FailureCount} failed.");
+                    foreach (var result in results)
+                    {
+                        AppLogger.LogInfo(result.HasJobLevelError
+                            ? $"Scheduled export job '{job.JobName}' ({result.Format}) failed: {result.JobLevelError}"
+                            : $"Scheduled export job '{job.JobName}' ({result.Format}) ran: {result.SuccessCount} succeeded, {result.FailureCount} failed.");
+                    }
                 }
                 catch (Exception ex)
                 {

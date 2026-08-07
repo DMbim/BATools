@@ -44,7 +44,6 @@ namespace BA.BIM.Commands.Anno
                 if (cfg == null || cfg.Mode == ArrangeMode.Cancel)
                     return Result.Cancelled;
 
-                // For guide line mode, acquire guide first (2 points in view plane)
                 GuideLine2D? guide = null;
                 if (cfg.Mode == ArrangeMode.SnapToGuideLine)
                 {
@@ -57,7 +56,6 @@ namespace BA.BIM.Commands.Anno
                         return Result.Cancelled;
                 }
 
-                // Build items
                 var items = new List<AnnoItem>();
                 foreach (var e in elems)
                 {
@@ -83,7 +81,6 @@ namespace BA.BIM.Commands.Anno
 
                     t.Commit();
 
-                    // Optional: show report for collision solver
                     if (cfg.Mode == ArrangeMode.ResolveCollisions)
                     {
                         TaskDialog.Show("BA - Arrange report",
@@ -93,6 +90,16 @@ namespace BA.BIM.Commands.Anno
                             $"Moved: {report.Moved}\n" +
                             $"Iterations: {report.Iterations}\n" +
                             $"Remaining collisions: {report.RemainingCollisions}");
+                    }
+                    else if (cfg.Mode == ArrangeMode.SpiralPack)
+                    {
+                        TaskDialog.Show("BA - Arrange report",
+                            $"Mode: {cfg.Mode}\n" +
+                            $"Elements: {report.Total}\n" +
+                            $"Initially colliding: {report.InitiallyColliding}\n" +
+                            $"Moved: {report.Moved}\n" +
+                            $"Could not find a clear spot: {report.CouldNotFindSpot}\n" +
+                            $"Failed to move (pinned/grouped/etc.): {report.FailedToMove}");
                     }
                 }
 
@@ -129,7 +136,6 @@ namespace BA.BIM.Commands.Anno
             if (!elem.ViewSpecific) return false;
             if (elem.Pinned) return false;
 
-            // sheet safety: don’t move stuff owned by another view
             if (elem.OwnerViewId != ElementId.InvalidElementId && elem.OwnerViewId != _viewId)
                 return false;
 

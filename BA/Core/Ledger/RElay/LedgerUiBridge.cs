@@ -9,11 +9,12 @@ namespace BA.Core.Ledger
 {
     /// <summary>
     /// Bridges the non-modal LedgerSettingsWindow (WPF thread) to the Revit API thread using
-    /// the standard ExternalEvent pattern. Three separate ExternalEvents: one read-only
-    /// (diagnostics refresh), and two write-capable (setting the manual central identifier,
-    /// and setting the manual project set override), each needing its own Transaction. Kept
-    /// separate rather than combining, so a write request can never accidentally piggyback on
-    /// a stale read-only Raise() or vice versa.
+    /// the standard ExternalEvent pattern. Four separate ExternalEvents: one read-only
+    /// (diagnostics refresh), and three write-capable (setting the manual central identifier,
+    /// setting the manual project set override, and setting the per-central Ledger
+    /// enabled/disabled flag), each needing its own Transaction. Kept separate rather than
+    /// combining, so a write request can never accidentally piggyback on a stale read-only
+    /// Raise() or vice versa.
     ///
     /// EnsureInitialized() MUST be called from a valid Revit API context (IExternalCommand.Execute)
     /// the first time, since ExternalEvent.Create() requires the Revit API thread.
@@ -28,6 +29,9 @@ namespace BA.Core.Ledger
 
         private static ExternalEvent _setProjectSetEvent;
         private static readonly SetProjectSetHandler SetProjectSetHandlerInstance = new SetProjectSetHandler();
+
+        private static ExternalEvent _setLedgerEnabledEvent;
+        private static readonly SetLedgerEnabledHandler SetLedgerEnabledHandlerInstance = new SetLedgerEnabledHandler();
 
         public static void EnsureInitialized()
         {
@@ -44,6 +48,11 @@ namespace BA.Core.Ledger
             if (_setProjectSetEvent == null)
             {
                 _setProjectSetEvent = ExternalEvent.Create(SetProjectSetHandlerInstance);
+            }
+
+            if (_setLedgerEnabledEvent == null)
+            {
+                _setLedgerEnabledEvent = ExternalEvent.Create(SetLedgerEnabledHandlerInstance);
             }
         }
 
@@ -136,6 +145,37 @@ namespace BA.Core.Ledger
             };
 
             _setProjectSetEvent.Raise();
+        }
+
+        /// <summary>
+        /// Sets the per-central Ledger sync enabled/disabled flag on the active document's
+        /// ProjectInformation element inside a real Transaction. onComplete(true) on success,
+        /// onComplete(false) if it failed (see the log for why).
+        /// </summary>
+        public static void RequestSetLedgerEnabled(bool enabled, Action<bool> onComplete)
+        {
+            if (_setLedgerEnabledEvent == null)
+            {
+                AppLogger.LogError("LedgerUiBridge.RequestSetLedgerEnabled: EnsureInitialized() was never called", null);
+                onComplete?.Invoke(false);
+                return;
+            }
+
+            Dispatcher callingDispatcher = Application.Current?.Dispatcher;
+            SetLedgerEnabledHandlerInstance.PendingEnabled = enabled;
+            SetLedgerEnabledHandlerInstance.PendingCallback = success =>
+            {
+                if (callingDispatcher != null)
+                {
+                    callingDispatcher.BeginInvoke(new Action(() => onComplete?.Invoke(success)));
+                }
+                else
+                {
+                    onComplete?.Invoke(success);
+                }
+            };
+
+            _setLedgerEnabledEvent.Raise();
         }
 
         private class RefreshHandler : IExternalEventHandler
@@ -245,6 +285,47 @@ namespace BA.Core.Ledger
             }
 
             public string GetName() => "BA Ledger Settings Set Project Set";
+        }
+
+        private class SetLedgerEnabledHandler : IExternalEventHandler
+        {
+            public bool PendingEnabled;
+            public Action<bool> PendingCallback;
+
+            public void Execute(UIApplication app)
+            {
+                bool enabled = PendingEnabled;
+                Action<bool> callback = PendingCallback;
+                PendingCallback = null;
+
+                Document doc = app.ActiveUIDocument?.Document;
+                if (doc == null)
+                {
+                    AppLogger.LogError("LedgerUiBridge.SetLedgerEnabledHandler.Execute: no active document", null);
+                    callback?.Invoke(false);
+                    return;
+                }
+
+                try
+                {
+                    using (var tx = new Transaction(doc, "Set Ledger Sync Enabled"))
+                    {
+                        tx.Start();
+                        LedgerEnabledService.SetEnabled(doc, enabled);
+                        tx.Commit();
+                    }
+
+                    AppLogger.LogInfo($"LedgerUiBridge.SetLedgerEnabledHandler: Ledger sync enabled set to '{enabled}' on '{doc.Title}'.");
+                    callback?.Invoke(true);
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogError("LedgerUiBridge.SetLedgerEnabledHandler.Execute failed", ex);
+                    callback?.Invoke(false);
+                }
+            }
+
+            public string GetName() => "BA Ledger Settings Set Sync Enabled";
         }
     }
 }

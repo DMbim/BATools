@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Arrange Annotations"
-        Width="440"
+        Width="400"
         SizeToContent="Height"
         WindowStartupLocation="Manual"
         ResizeMode="NoResize"
@@ -11,63 +11,56 @@
         Loaded="Window_Loaded">
 
     <Window.Resources>
-        <!-- Modernized Revit-Like GroupBox Style -->
+
         <Style TargetType="GroupBox">
-            <Setter Property="Margin" Value="0,0,0,10"/>
-            <Setter Property="Padding" Value="10"/>
-            <Setter Property="BorderBrush" Value="#D0D0D0"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="HeaderTemplate">
-                <Setter.Value>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding}" FontWeight="Bold" Foreground="#444444" Margin="4,0,4,4"/>
-                    </DataTemplate>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="Margin" Value="0,6,0,0"/>
+            <Setter Property="Padding" Value="8"/>
         </Style>
 
         <Style TargetType="RadioButton">
-            <Setter Property="Margin" Value="0,4,0,4"/>
+            <Setter Property="Margin" Value="0,3,0,3"/>
         </Style>
 
         <Style TargetType="TextBlock" x:Key="LabelStyle">
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Margin" Value="0,0,8,0"/>
-            <Setter Property="Foreground" Value="#333333"/>
+            <Setter Property="Width" Value="150"/>
         </Style>
 
         <Style TargetType="TextBox">
-            <Setter Property="Height" Value="22"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Padding" Value="2,0"/>
+            <Setter Property="Margin" Value="0,2,0,2"/>
+            <Setter Property="Width" Value="80"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
         </Style>
 
-        <Style TargetType="Slider">
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="8,0"/>
-        </Style>
-
-        <!-- Tooltip wrapping setup -->
         <Style TargetType="ToolTip">
-            <Setter Property="MaxWidth" Value="300"/>
-            <Setter Property="TextBlock.TextWrapping" Value="Wrap"/>
+            <Setter Property="MaxWidth" Value="320"/>
+            <Setter Property="Placement" Value="Mouse"/>
         </Style>
+
     </Window.Resources>
 
     <StackPanel Margin="12"
                 ToolTipService.InitialShowDelay="600"
                 ToolTipService.ShowDuration="12000">
 
-        <!-- ===== MODE SELECTION ===== -->
+        <!-- ===== MODE ===== -->
         <GroupBox Header="Mode">
             <StackPanel>
+
                 <RadioButton x:Name="RbResolveCollisions" GroupName="Mode"
                              Content="Resolve collisions (de-overlap)"
-                             Checked="ModeRadio_Checked" Tag="ResolveCollisions">
+                             Checked="ModeRadio_Checked" Tag="ResolveCollisions"
+                             ToolTipService.InitialShowDelay="600"
+                             ToolTipService.ShowDuration="12000">
                     <RadioButton.ToolTip>
-                        <ToolTip>
-                            <TextBlock>
-                                Detects overlapping annotation bounding boxes and pushes them apart using an iterative MTV (Minimum Translation Vector) physics simulation. Best for small clusters where you want minimum movement.
+                        <ToolTip Placement="Mouse">
+                            <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                Detects overlapping annotation bounding boxes and pushes them apart
+                                using an iterative MTV (Minimum Translation Vector) physics simulation.
+                                Best for small clusters of overlapping tags or symbols where you want
+                                minimum movement from current positions. May leave residual overlaps in
+                                dense clusters. See Spiral pack for a guaranteed collision free result.
                             </TextBlock>
                         </ToolTip>
                     </RadioButton.ToolTip>
@@ -77,57 +70,73 @@
                              Content="Snap to grid (host-aware)"
                              Checked="ModeRadio_Checked" Tag="SnapGrid">
                     <RadioButton.ToolTip>
-                        <ToolTip>
-                            <TextBlock>
-                                Arranges selected annotations into a uniform grid centered on their original positions. Grid topology grows automatically when elements travel too far.
+                        <ToolTip Placement="Mouse">
+                            <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                Arranges selected annotations into a uniform grid centered on their
+                                original positions. Grid topology (columns x rows) grows automatically
+                                when any element would need to travel further than Gap x Max Displacement
+                                Factor from its original position. Best for groups of same-size symbols
+                                (e.g. BA keyplan logos) that should read as an organized cluster.
                             </TextBlock>
                         </ToolTip>
                     </RadioButton.ToolTip>
                 </RadioButton>
 
                 <RadioButton x:Name="RbDistributeHorizontal" GroupName="Mode"
-                             Content="Distribute / align horizontal row"
+                             Content="Distribute and align horizontal row"
                              Checked="ModeRadio_Checked" Tag="DistributeHorizontal">
                     <RadioButton.ToolTip>
-                        <ToolTip>
-                            <TextBlock>
-                                Aligns annotations to a shared horizontal axis. Spacing between elements is preserved as-is.
+                        <ToolTip Placement="Mouse">
+                            <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                Aligns all selected annotations to a shared horizontal axis (the average
+                                vertical position of their centers). Horizontal spacing between elements
+                                is preserved as-is. Use this to line up a row of tags at slightly
+                                different heights.
                             </TextBlock>
                         </ToolTip>
                     </RadioButton.ToolTip>
                 </RadioButton>
 
                 <RadioButton x:Name="RbDistributeVertical" GroupName="Mode"
-                             Content="Distribute / align vertical column"
+                             Content="Distribute and align vertical column"
                              Checked="ModeRadio_Checked" Tag="DistributeVertical">
                     <RadioButton.ToolTip>
-                        <ToolTip>
-                            <TextBlock>
-                                Aligns annotations to a shared vertical axis. Spacing between elements is preserved as-is.
+                        <ToolTip Placement="Mouse">
+                            <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                Aligns all selected annotations to a shared vertical axis (the average
+                                horizontal position of their centers). Vertical spacing between elements
+                                is preserved as-is. Use this to line up a column of tags at slightly
+                                different horizontal positions.
                             </TextBlock>
                         </ToolTip>
                     </RadioButton.ToolTip>
                 </RadioButton>
 
                 <RadioButton x:Name="RbStackVertical" GroupName="Mode"
-                             Content="Stack list vertical"
+                             Content="Stack list. Vertical"
                              Checked="ModeRadio_Checked" Tag="StackListVertical">
                     <RadioButton.ToolTip>
-                        <ToolTip>
-                            <TextBlock>
-                                Stacks selected annotations into a vertical list, top to bottom, with a uniform gap between each bounding box.
+                        <ToolTip Placement="Mouse">
+                            <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                Stacks selected annotations into a vertical list, top to bottom, with a
+                                uniform gap between each element's bounding box. The top position is
+                                anchored at the topmost element in the selection. Horizontal positions
+                                are preserved per element.
                             </TextBlock>
                         </ToolTip>
                     </RadioButton.ToolTip>
                 </RadioButton>
 
                 <RadioButton x:Name="RbStackHorizontal" GroupName="Mode"
-                             Content="Stack list horizontal"
+                             Content="Stack list. Horizontal"
                              Checked="ModeRadio_Checked" Tag="StackListHorizontal">
                     <RadioButton.ToolTip>
-                        <ToolTip>
-                            <TextBlock>
-                                Stacks selected annotations into a horizontal list, left to right, with a uniform gap between each bounding box.
+                        <ToolTip Placement="Mouse">
+                            <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                Stacks selected annotations into a horizontal list, left to right, with
+                                a uniform gap between each element's bounding box. The left position is
+                                anchored at the leftmost element in the selection. Vertical positions
+                                are preserved per element.
                             </TextBlock>
                         </ToolTip>
                     </RadioButton.ToolTip>
@@ -137,179 +146,189 @@
                              Content="Snap to guide line (pick 2 points after Apply)"
                              Checked="ModeRadio_Checked" Tag="SnapToGuideLine">
                     <RadioButton.ToolTip>
-                        <ToolTip>
-                            <TextBlock>
-                                Snaps annotations perpendicular onto a selected line of your choosing after clicking Apply.
+                        <ToolTip Placement="Mouse">
+                            <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                After clicking Apply, you will be prompted to pick two points in the
+                                view that define a guide line. All selected annotations are then snapped
+                                perpendicular onto that line and distributed along it with a uniform gap.
+                                Useful for aligning tags to a wall centerline, grid line, or any
+                                arbitrary direction.
                             </TextBlock>
                         </ToolTip>
                     </RadioButton.ToolTip>
                 </RadioButton>
+
+                <RadioButton x:Name="RbSpiralPack" GroupName="Mode"
+                             Content="Spiral pack (collision free)"
+                             Checked="ModeRadio_Checked" Tag="SpiralPack">
+                    <RadioButton.ToolTip>
+                        <ToolTip Placement="Mouse">
+                            <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                Pushes each colliding element outward along an expanding square spiral
+                                around its original position until it lands in a spot fully clear of
+                                every other element, using Gap as the clearance. Guaranteed collision
+                                free result (bounded by a maximum search radius), but elements can end
+                                up further from their starting position than Resolve collisions would
+                                produce. Use this when Resolve collisions leaves residual overlaps in a
+                                dense cluster, or when Gap is set to a large value.
+                            </TextBlock>
+                        </ToolTip>
+                    </RadioButton.ToolTip>
+                </RadioButton>
+
             </StackPanel>
         </GroupBox>
 
-        <!-- ===== GLOBAL SPACING ===== -->
-        <GroupBox Header="Spacing">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="Gap (mm):" Style="{StaticResource LabelStyle}" Width="110">
+        <!-- ===== SPACING ===== -->
+        <GroupBox x:Name="GbSpacing" Header="Spacing">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Gap (mm):" Style="{StaticResource LabelStyle}">
                     <TextBlock.ToolTip>
-                        <ToolTip>
-                            <TextBlock>
-                                Minimum clear distance in millimetres between annotation bounding boxes after arrangement.
+                        <ToolTip Placement="Mouse">
+                            <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                Minimum clear distance in millimetres between annotation bounding boxes
+                                after arrangement. Applied as a margin inflate on each element before
+                                collision checks, so the actual visible gap between element edges will
+                                equal this value. Has no effect on Distribute modes, and is ignored by
+                                Resolve collisions while Auto margin is enabled below.
                             </TextBlock>
                         </ToolTip>
                     </TextBlock.ToolTip>
                 </TextBlock>
-                <TextBox Grid.Column="1" x:Name="TbGap" Text="6" Width="60" HorizontalAlignment="Left">
+                <TextBox x:Name="TbGap" Text="6">
                     <TextBox.ToolTip>
-                        <ToolTip>
-                            <TextBlock>
-                                Minimum clear distance in millimetres between bounding boxes.
+                        <ToolTip Placement="Mouse">
+                            <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                Minimum clear distance in millimetres between annotation bounding boxes.
                             </TextBlock>
                         </ToolTip>
                     </TextBox.ToolTip>
                 </TextBox>
-            </Grid>
+            </StackPanel>
         </GroupBox>
 
         <!-- ===== RESOLVE COLLISIONS SETTINGS ===== -->
-        <GroupBox x:Name="GbResolve" Header="Resolve Collisions Settings">
+        <GroupBox x:Name="GbResolve" Header="Resolve collisions settings">
             <StackPanel>
-                <!-- Iterations Slider + Input Row -->
-                <Grid Margin="0,0,0,8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="110"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="60"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Iterations (Passes):" Style="{StaticResource LabelStyle}">
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                    <TextBlock Text="Iterations:" Style="{StaticResource LabelStyle}">
                         <TextBlock.ToolTip>
-                            <ToolTip>
-                                <TextBlock>
-                                    Number of simulation passes. More iterations resolve complex clusters but take longer. 20-40 is typically sufficient.
+                            <ToolTip Placement="Mouse">
+                                <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                    Number of simulation passes. Each pass pushes all colliding pairs
+                                    apart by a damped MTV step. More iterations resolves complex clusters
+                                    more completely. 20 to40 is sufficient for most cases; increase to 80+
+                                    only for densely overlapping groups of 10+ elements.
                                 </TextBlock>
                             </ToolTip>
                         </TextBlock.ToolTip>
                     </TextBlock>
-                    <Slider Grid.Column="1" x:Name="SlIterations" Minimum="1" Maximum="120" Value="30" TickFrequency="1" IsSnapToTickEnabled="True"
-                            />
-                    <TextBox Grid.Column="2" x:Name="TbIterations" Text="30" HorizontalAlignment="Right" Width="50"/>
-                </Grid>
+                    <TextBox x:Name="TbIterations" Text="30">
+                        <TextBox.ToolTip>
+                            <ToolTip Placement="Mouse">
+                                <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                    Number of simulation passes (recommended: 20to40).
+                                </TextBlock>
+                            </ToolTip>
+                        </TextBox.ToolTip>
+                    </TextBox>
+                </StackPanel>
 
-                <!-- Damping Slider + Input Row -->
-                <Grid Margin="0,0,0,8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="110"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="60"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Damping (0 to 1):" Style="{StaticResource LabelStyle}">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                    <TextBlock Text="Damping (0to1):" Style="{StaticResource LabelStyle}">
                         <TextBlock.ToolTip>
-                            <ToolTip>
-                                <TextBlock>
-                                    Fraction of computed displacement applied per iteration. Lower values move elements slowly and smoothly; higher values converge faster but can overshoot.
+                            <ToolTip Placement="Mouse">
+                                <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                    Fraction of the computed MTV displacement applied per iteration.
+                                    Lower values (e.g. 0.3) move elements slowly but may need more
+                                    iterations. Higher values (e.g. 0.9) converge faster but can
+                                    overshoot in tight clusters. 0.6to0.8 is the stable range for
+                                    typical annotation groups.
                                 </TextBlock>
                             </ToolTip>
                         </TextBlock.ToolTip>
                     </TextBlock>
-                    <Slider Grid.Column="1" x:Name="SlDamping" Minimum="0.0" Maximum="1.0" Value="0.75" TickFrequency="0.05" IsSnapToTickEnabled="True"
-                            />
-                    <TextBox Grid.Column="2" x:Name="TbDamping" Text="0.75" HorizontalAlignment="Right" Width="50"/>
-                </Grid>
+                    <TextBox x:Name="TbDamping" Text="0.75">
+                        <TextBox.ToolTip>
+                            <ToolTip Placement="Mouse">
+                                <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                    Displacement fraction per iteration (0to1, recommended: 0.6to0.8).
+                                </TextBlock>
+                            </ToolTip>
+                        </TextBox.ToolTip>
+                    </TextBox>
+                </StackPanel>
 
-                <!-- Auto Margin Checkbox -->
                 <CheckBox x:Name="CbAutoMargin"
-                          Content="Auto margin (Adaptive 3% based on element size)"
+                          Content="Auto margin"
                           IsChecked="True"
                           Checked="CbAutoMargin_CheckedChanged"
                           Unchecked="CbAutoMargin_CheckedChanged"
-                          Margin="0,4,0,8">
+                          Margin="0,4,0,4">
                     <CheckBox.ToolTip>
-                        <ToolTip>
-                            <TextBlock>
-                                When enabled, the collision margin is computed automatically as 3% of the element's shortest bounding box dimension (minimum 1.5 mm).
+                        <ToolTip Placement="Mouse">
+                            <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                When enabled, the collision margin around each element is computed
+                                automatically as 3% of its shortest bounding box dimension (minimum
+                                1.5 mm), and the Gap field above is ignored. Disable to use Gap as a
+                                fixed margin applied to every element instead.
                             </TextBlock>
                         </ToolTip>
                     </CheckBox.ToolTip>
                 </CheckBox>
 
-                <!-- Fixed Margin Input Row -->
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="110"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Fixed margin (mm):" Style="{StaticResource LabelStyle}">
-                        <TextBlock.ToolTip>
-                            <ToolTip>
-                                <TextBlock>
-                                    Fixed clearance margin added around bounding boxes before collision detection. Only active when Auto margin is disabled.
-                                </TextBlock>
-                            </ToolTip>
-                        </TextBlock.ToolTip>
-                    </TextBlock>
-                    <TextBox Grid.Column="1" x:Name="TbFixedMargin" Text="2" IsEnabled="False" Width="60" HorizontalAlignment="Left">
-                        <TextBox.ToolTip>
-                            <ToolTip>
-                                <TextBlock>
-                                    Fixed margin in mm. Active only when Auto margin is disabled.
-                                </TextBlock>
-                            </ToolTip>
-                        </TextBox.ToolTip>
-                    </TextBox>
-                </Grid>
             </StackPanel>
         </GroupBox>
 
         <!-- ===== SNAP GRID SETTINGS ===== -->
-        <GroupBox x:Name="GbSnapGrid" Header="Snap to Grid Settings">
+        <GroupBox x:Name="GbSnapGrid" Header="Snap to grid settings">
             <StackPanel>
-                <Grid Margin="0,0,0,6">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="150"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Max displacement factor:" Style="{StaticResource LabelStyle}">
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                    <TextBlock Text="Max displacement factor:" Style="{StaticResource LabelStyle}">
                         <TextBlock.ToolTip>
-                            <ToolTip>
-                                <TextBlock>
-                                    Controls how far an element can travel before forcing the grid to grow. Max displacement = Gap x Factor.
+                            <ToolTip Placement="Mouse">
+                                <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                    Controls how far an element is allowed to travel from its original
+                                    position before the grid grows an extra column or row.
+                                    Max displacement = Gap x this factor. For example, with Gap = 6 mm
+                                    and factor = 3.0, any element that would need to move more than
+                                    18 mm triggers a grid expansion. Lower values keep elements closer
+                                    to origin but produce larger grids. Higher values allow more travel
+                                    and produce more compact grids.
                                 </TextBlock>
                             </ToolTip>
                         </TextBlock.ToolTip>
                     </TextBlock>
-                    <TextBox Grid.Column="1" x:Name="TbMaxDisplacementFactor" Text="3.0" Width="60" HorizontalAlignment="Left">
+                    <TextBox x:Name="TbMaxDisplacementFactor" Text="3.0">
                         <TextBox.ToolTip>
-                            <ToolTip>
-                                <TextBlock>
-                                    Max displacement = Gap x this factor. Recommended range: 2.0 to 5.0.
+                            <ToolTip Placement="Mouse">
+                                <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                    Max displacement = Gap x this factor. Lower = grid grows sooner,
+                                    elements stay closer to origin. Recommended: 2.0to5.0.
                                 </TextBlock>
                             </ToolTip>
                         </TextBox.ToolTip>
                     </TextBox>
-                </Grid>
+                </StackPanel>
 
-                <TextBlock TextWrapping="Wrap" FontStyle="Italic" Foreground="Gray" FontSize="11">
-                    Grid dimensions (cols x rows) expand automatically to keep elements near their original positions.
+                <TextBlock TextWrapping="Wrap" FontStyle="Italic"
+                           Foreground="Gray" FontSize="11" Margin="0,2,0,0">
+                    Grid topology (columns x rows) grows automatically to keep each element
+                    within Max Displacement of its original position.
                 </TextBlock>
+
             </StackPanel>
         </GroupBox>
 
-        <!-- ===== ACTION BUTTONS ===== -->
-        <Grid Margin="0,8,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <Button Grid.Column="1" x:Name="BtnApply" Content="Apply" Width="80" Height="24"
+        <!-- ===== BUTTONS ===== -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button x:Name="BtnApply" Content="Apply" Width="80"
                     Margin="0,0,8,0" Click="BtnApply_Click" IsDefault="True"/>
-            <Button Grid.Column="2" x:Name="BtnCancel" Content="Cancel" Width="80" Height="24"
+            <Button x:Name="BtnCancel" Content="Cancel" Width="80"
                     Click="BtnCancel_Click" IsCancel="True"/>
-        </Grid>
+        </StackPanel>
 
     </StackPanel>
 </Window>

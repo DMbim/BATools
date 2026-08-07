@@ -1,8 +1,8 @@
 ﻿// BA/Markup/Commands/PlaceMarkupCommand.cs
 using System;
 using System.Collections.Generic;
+using System.Windows;
 using System.Windows.Interop;
-using System.Windows.Threading;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -19,7 +19,10 @@ namespace BA.Markup.Commands
     [Regeneration(RegenerationOption.Manual)]
     public sealed class PlaceMarkupCommand : IExternalCommand
     {
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        public Result Execute(
+            ExternalCommandData commandData,
+            ref string message,
+            ElementSet elements)
         {
             var uiApp = commandData.Application;
             var uiDoc = uiApp.ActiveUIDocument;
@@ -35,31 +38,61 @@ namespace BA.Markup.Commands
             var settings = MarkupSettings.Load<MarkupSettings>();
             var currentUser = uiApp.Application.Username;
             var currentDate = DateTime.Now.ToString("yyyy-MM-dd");
-            var revisions = ReadRevisions(doc);
 
-            var refreshHandler = new RefreshRevisionsHandler();
-            var refreshEvent = ExternalEvent.Create(refreshHandler);
+            // All Revit API calls here are synchronous — we are inside Execute()
+            // on the Revit API thread. No ExternalEvent needed for modal windows.
 
-            MarkupViewModel? viewModel = null;
-            viewModel = new MarkupViewModel(
+            IReadOnlyList<RevisionItem> LoadRevisions()
+                => RevisionManagerHandler.ReadAllRevisions(doc);
+
+            RevisionItem SaveRevision(RevisionEditModel model)
+                => RevisionManagerHandler.SaveRevisionSync(doc, model);
+
+            RevisionItem CreateRevision(RevisionEditModel model)
+                => RevisionManagerHandler.CreateRevisionSync(doc, model);
+
+            var initialRevisions = LoadRevisions();
+
+            // <- NEW: active assignee suggestions for the Markup dialog's assignee picker.
+            //    Sourced from MarkupUserRegistryService, independent of the Ledger. Never
+            //    throws; GetActiveUsers already degrades to an empty list on any failure,
+            //    so the dialog still opens with free-text-only entry if this can't resolve.
+            IReadOnlyList<string> activeAssigneeUsers =
+                MarkupUserRegistryService.GetActiveUsers(doc, settings.MarkupCleanupRetentionMonths);
+
+            // ----------------------------------------------------------------
+            // MarkupWindow
+            // ----------------------------------------------------------------
+            MarkupWindow? markupWindow = null;
+            MarkupViewModel? markupViewModel = null;
+
+            markupViewModel = new MarkupViewModel(
                 currentUser,
                 currentDate,
-                revisions,
+                initialRevisions,
+                activeAssigneeUsers,
                 refreshRevisionsCallback: () =>
                 {
-                    refreshHandler.Prepare(viewModel!, Dispatcher.CurrentDispatcher);
-                    refreshEvent.Raise();
+                    OpenRevisionManager(
+                        uiApp.MainWindowHandle,   // <- CHANGED: pass handle, not WPF window
+                        markupViewModel!,
+                        LoadRevisions,
+                        SaveRevision,
+                        CreateRevision);
                 });
 
-            var window = new MarkupWindow(viewModel);
-            new WindowInteropHelper(window).Owner = uiApp.MainWindowHandle;
-            window.ShowDialog();
+            markupWindow = new MarkupWindow(markupViewModel);
+            new WindowInteropHelper(markupWindow).Owner = uiApp.MainWindowHandle;
+            markupWindow.ShowDialog();
 
-            if (!viewModel.Confirmed)
+            if (!markupViewModel.Confirmed)
                 return Result.Cancelled;
 
-            var input = viewModel.BuildModel();
+            var input = markupViewModel.BuildModel();
 
+            // ----------------------------------------------------------------
+            // Pick area
+            // ----------------------------------------------------------------
             BoundingBoxXYZ? boundingBox;
             try
             {
@@ -71,18 +104,22 @@ namespace BA.Markup.Commands
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("BA Markup \u2014 Selection Error", DescribeError(ex));
+                TaskDialog.Show("BA Markup — Selection Error", ex.Message);
                 return Result.Failed;
             }
 
             if (boundingBox == null)
             {
-                TaskDialog.Show("BA Markup", "Could not compute a bounding area from the selection.");
+                TaskDialog.Show("BA Markup",
+                    "Could not compute a bounding area from the selection.");
                 return Result.Failed;
             }
 
+            // ----------------------------------------------------------------
+            // Place markup or revision cloud in a single transaction
+            // ----------------------------------------------------------------
             var service = new MarkupService(uiDoc, settings);
-            using var tx = new Transaction(doc, "BA \u2014 Place Markup");
+            using var tx = new Transaction(doc, "BA — Place Markup");
             try
             {
                 tx.Start();
@@ -98,7 +135,7 @@ namespace BA.Markup.Commands
             {
                 if (tx.GetStatus() == TransactionStatus.Started)
                     tx.RollBack();
-                TaskDialog.Show("BA Markup \u2014 Placement Error", DescribeError(ex));
+                TaskDialog.Show("BA Markup — Placement Error", ex.Message);
                 return Result.Failed;
             }
 
@@ -106,31 +143,50 @@ namespace BA.Markup.Commands
         }
 
         // ------------------------------------------------------------------ //
-        //  ERROR FORMATTING
+        //  REVISION MANAGER WINDOW
         // ------------------------------------------------------------------ //
-        // <- NEW: Exception.Message alone drops the path for FileNotFoundException --
-        // it's stored separately in .FileName and has to be appended explicitly, or a
-        // message like "Shared parameter file not found." tells you nothing about WHICH
-        // path was actually checked. This is exactly what made the earlier bug report
-        // (missing .txt extension in MarkupSettings' default) hard to diagnose from the
-        // dialog alone.
-        private static string DescribeError(Exception ex)
-        {
-            if (ex is System.IO.FileNotFoundException fnf && !string.IsNullOrWhiteSpace(fnf.FileName))
-                return $"{ex.Message}\n\nPath checked:\n{fnf.FileName}";
 
-            return ex.Message;
+        private static void OpenRevisionManager(
+          IntPtr revitHandle,
+          MarkupViewModel markupViewModel,
+          Func<IReadOnlyList<RevisionItem>> loadRevisions,
+          Func<RevisionEditModel, RevisionItem> saveRevision,
+          Func<RevisionEditModel, RevisionItem> createRevision)
+        {
+            var managerViewModel = new RevisionManagerViewModel(
+                loadRevisions(),
+                loadRevisions,
+                saveRevision,
+                createRevision);
+
+            var managerWindow = new RevisionManagerWindow(managerViewModel);
+            new System.Windows.Interop.WindowInteropHelper(managerWindow).Owner = revitHandle;
+            managerWindow.ShowDialog();
+
+            if (managerViewModel.SelectedResult != null)
+            {
+                markupViewModel.UpdateRevisions(GetManagerRevisions(managerViewModel));
+                markupViewModel.SelectedRevision = managerViewModel.SelectedResult;
+            }
+        }
+
+        private static IReadOnlyList<RevisionItem> GetManagerRevisions(
+            RevisionManagerViewModel vm)
+        {
+            // <- CHANGED: RevisionView (ICollectionView) removed from ViewModel.
+            //    Use GetAllRevisions() which returns the master list directly.
+            return vm.GetAllRevisions();
         }
 
         // ------------------------------------------------------------------ //
         //  PICK LOGIC
         // ------------------------------------------------------------------ //
+
         private static BoundingBoxXYZ? PickBoundingBox(
             UIDocument uiDoc,
             MarkupSettings settings)
         {
             var service = new MarkupService(uiDoc, settings);
-
             var pickedBox = uiDoc.Selection.PickBox(
                 PickBoxStyle.Enclosing,
                 "Draw a rectangle around the area to mark up");
@@ -138,29 +194,6 @@ namespace BA.Markup.Commands
             if (pickedBox == null) return null;
 
             return service.GetBoundingBoxFromPoints(pickedBox.Min, pickedBox.Max);
-        }
-
-        // ------------------------------------------------------------------ //
-        //  REVISION READER
-        // ------------------------------------------------------------------ //
-        private static List<RevisionItem> ReadRevisions(Document doc)
-        {
-            var result = new List<RevisionItem>();
-            var ids = Revision.GetAllRevisionIds(doc);
-
-            foreach (var id in ids)
-            {
-                if (doc.GetElement(id) is Revision rev)
-                {
-                    result.Add(new RevisionItem
-                    {
-                        ElementId = (int)id.Value,
-                        DisplayName = $"{rev.SequenceNumber} \u2014 {rev.Description} ({rev.RevisionDate})"
-                    });
-                }
-            }
-
-            return result;
         }
     }
 }

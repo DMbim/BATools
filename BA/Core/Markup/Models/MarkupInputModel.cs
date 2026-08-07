@@ -70,16 +70,12 @@ namespace BA.Markup.Models
 
         /// <summary>Display name of the selected revision — used only for UI confirmation.</summary>
         public string RevisionDisplayName { get; init; } = string.Empty;
-    }
 
-    /// <summary>
-    /// Lightweight revision descriptor for the WPF ComboBox.
-    /// </summary>
-    public sealed class RevisionItem
-    {
-        public int ElementId { get; init; }
-        public string DisplayName { get; init; } = string.Empty;
-
-        public override string ToString() => DisplayName;
+        // <- NEW: value for BA_Tls_AssignedUser. Written by MarkupService as a plain
+        //    Revit username string. Sourced from the MarkupViewModel's assignee picker,
+        //    either selected from MarkupUserRegistryService.GetActiveUsers or typed as
+        //    free text for someone not yet in the registry. Empty string means unassigned,
+        //    not every markup requires an assignee.
+        public string AssignedUser { get; init; } = string.Empty;
     }
 }

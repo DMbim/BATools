@@ -10,11 +10,13 @@ namespace BA.Updates
     /// <summary>
     /// Split responsibility:
     ///  - Idling (once, at startup): throttled GitHub check, result cached in memory. No prompt.
-    ///  - DocumentClosing (last open document only): shows the prompt from the cached result.
+    ///  - DocumentClosing (last open document only): if the cached result has an update and it
+    ///    was not previously skipped, launches the installer window directly with no dialog.
     ///    No network I/O here, so nothing can stall Revit's shutdown.
     ///  - ForceCheckAsync / HandleForceCheckResult: manual "Check for Updates" ribbon command.
     ///    Split into fetch (safe to call from Task.Run off the UI thread) and display (must run
-    ///    on the UI thread) to avoid a UI-thread deadlock. See Cmd_CheckForUpdates.cs.
+    ///    on the UI thread) to avoid a UI-thread deadlock. See Cmd_CheckForUpdates.cs. This path
+    ///    only ever notifies, it never launches the installer itself.
     /// </summary>
     internal static class UpdateService
     {
@@ -67,9 +69,10 @@ namespace BA.Updates
         // Fires when a document is about to close. Only treated as "Revit is exiting" when it
         // is the LAST open document (Documents.Size == 1 at this point, since e.Document hasn't
         // finished closing yet). This is an approximation: a user closing their last document
-        // without also exiting Revit (landing on the home screen instead) will also trigger this.
-        // There is no perfectly precise "about to exit Revit" hook available here; this is the
-        // most reliable one that reliably supports showing a TaskDialog.
+        // without also exiting Revit (landing on the home screen instead) will also trigger this,
+        // and will see the installer window pop up over the home screen. The installer's own
+        // WaitPid logic still blocks on the real Revit process exit before touching any files,
+        // so this is cosmetically odd at worst, not unsafe.
         private static void OnDocumentClosing(object? sender, DocumentClosingEventArgs e)
         {
             try
@@ -81,14 +84,19 @@ namespace BA.Updates
                 if (fullApp.Documents.Size > 1)
                     return; // not the last open document
 
-                TryPromptFromCache();
+                TryAutoLaunchFromCache();
             }
             catch
             {
             }
         }
 
-        internal static void TryPromptFromCache()
+        /// <summary>
+        /// Called only from OnDocumentClosing. If the cached result has an update and that
+        /// exact version was not previously skipped via NotifyOnly's "Skip this version" link,
+        /// launches the installer window directly. No dialog is shown here.
+        /// </summary>
+        internal static void TryAutoLaunchFromCache()
         {
             if (_cachedResult == null || !_cachedResult.HasUpdate)
                 return;
@@ -100,7 +108,7 @@ namespace BA.Updates
                 return;
             }
 
-            UpdateCoordinator.PromptAndHandle(_cachedResult);
+            UpdateCoordinator.AutoLaunchOnClose(_cachedResult);
         }
 
         /// <summary>
@@ -123,6 +131,8 @@ namespace BA.Updates
         /// <summary>
         /// Shows the result of a forced check. Must be called on the Revit UI thread
         /// (calls TaskDialog / Revit API). Pass the value returned by ForceCheckAsync.
+        /// This path only ever notifies via UpdateCoordinator.NotifyOnly, it never launches
+        /// the installer directly regardless of what the person chooses in that dialog.
         /// </summary>
         public static void HandleForceCheckResult(UpdateCheckResult? r)
         {
@@ -130,7 +140,7 @@ namespace BA.Updates
 
             if (result != null && result.HasUpdate)
             {
-                UpdateCoordinator.PromptAndHandle(result);
+                UpdateCoordinator.NotifyOnly(result);
             }
             else
             {

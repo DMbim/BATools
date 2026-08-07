@@ -4,6 +4,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using BA.BAApplication;
 using BA.Core.Export.Infrastructure;
+using BA.UI.Helpers;
 using BA.ViewModels.Export;
 using BA.Views.Export;
 
@@ -29,6 +30,7 @@ namespace BA.Commands.Export
 
                 var viewModel = new ExportSettingsViewModel();
                 var window = new ExportSettingsWindow(viewModel);
+                RevitWindowHelper.SetOwnerToRevit(window, uiApp);
                 window.Show();
 
                 return Result.Succeeded;

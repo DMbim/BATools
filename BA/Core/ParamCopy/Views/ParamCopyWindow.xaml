@@ -92,6 +92,54 @@
                 <Setter Property="Margin" Value="0,0,0,6"/>
             </Style>
 
+            <!-- Local (window-scoped) style for the Display Params multi-select
+                 toggle button. Deliberately NOT reusing BaDarkComboBox — that
+                 style's ControlTemplate targets ComboBox parts and cannot be
+                 applied to a ToggleButton. Kept local to this window rather
+                 than added to the shared AppResources.xaml. -->
+            <Style x:Key="PcMultiSelectToggle" TargetType="ToggleButton">
+                <Setter Property="Background" Value="#11151C"/>
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Setter Property="BorderBrush" Value="#2C3440"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="8,4"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="3">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ContentPresenter Grid.Column="0"
+                                                       Margin="{TemplateBinding Padding}"
+                                                       VerticalAlignment="Center"
+                                                       HorizontalAlignment="Left"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="▾"
+                                               Foreground="#A0A8B4"
+                                               Margin="0,0,8,0"
+                                               VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Shared checkbox-list template for the Display Params popups. -->
+            <DataTemplate x:Key="PcCheckableParamTemplate">
+                <CheckBox Content="{Binding Name}"
+                          IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                          Foreground="#F2F2F2"
+                          Margin="2,3"/>
+            </DataTemplate>
+
         </ResourceDictionary>
     </Window.Resources>
 
@@ -138,19 +186,38 @@
                         <TextBlock Grid.Column="0"
                                    Text="Category:"
                                    Style="{StaticResource MutedLabel}"/>
-                        <TextBox Grid.Column="1"
-                                 Text="{Binding SourceCategoryName,
-                                        UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource BaDarkTextBox}"
-                                 Margin="0,0,8,0"/>
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding AvailableCategories}"
+                                  SelectedItem="{Binding SourceCategoryName,
+                                                 UpdateSourceTrigger=PropertyChanged}"
+                                  Style="{StaticResource BaDarkComboBox}"
+                                  Margin="0,0,8,0"
+                                  ToolTip="Only categories with at least one element in the active document are listed"/>
                         <TextBlock Grid.Column="2"
                                    Text="Display params:"
                                    Style="{StaticResource MutedLabel}"/>
-                        <TextBox Grid.Column="3"
-                                 Text="{Binding SourceDisplayParams,
-                                        UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource BaDarkTextBox}"
-                                 ToolTip="Comma-separated parameter names shown as columns, e.g: Mark, Comments, Level"/>
+                        <Grid Grid.Column="3">
+                            <ToggleButton x:Name="SourceDisplayParamsToggle"
+                                          Style="{StaticResource PcMultiSelectToggle}"
+                                          Content="{Binding SourceDisplayParamsSummary}"
+                                          ToolTip="Parameters shown as columns in the Source grid below"/>
+                            <Popup PlacementTarget="{Binding ElementName=SourceDisplayParamsToggle}"
+                                   IsOpen="{Binding IsChecked, ElementName=SourceDisplayParamsToggle, Mode=TwoWay}"
+                                   StaysOpen="False"
+                                   Placement="Bottom"
+                                   Width="240">
+                                <Border Background="#16161A"
+                                        BorderBrush="#2C3440"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Padding="6">
+                                    <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding SourceDisplayParamOptions}"
+                                                      ItemTemplate="{StaticResource PcCheckableParamTemplate}"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
                     </Grid>
 
                     <!-- Filter rules -->
@@ -174,11 +241,14 @@
                                                           SelectedItem="{Binding Operator}"
                                                           Style="{StaticResource BaDarkComboBox}"
                                                           Margin="0,0,4,0"/>
-                                                <TextBox Grid.Column="1"
-                                                         Text="{Binding PrimaryRule.ParameterName,
-                                                                UpdateSourceTrigger=PropertyChanged}"
-                                                         Style="{StaticResource BaDarkTextBox}"
-                                                         Margin="0,0,4,0"/>
+                                                <ComboBox Grid.Column="1"
+                                                          ItemsSource="{Binding DataContext.SourceCategoryParameterNames,
+                                                                        RelativeSource={RelativeSource AncestorType=Window}}"
+                                                          SelectedItem="{Binding PrimaryRule.ParameterName,
+                                                                         UpdateSourceTrigger=PropertyChanged}"
+                                                          Style="{StaticResource BaDarkComboBox}"
+                                                          Margin="0,0,4,0"
+                                                          ToolTip="Parameters found on Source category elements (select a Source category first)"/>
                                                 <ComboBox Grid.Column="2"
                                                           ItemsSource="{x:Static models:FilterConditionValues.All}"
                                                           SelectedItem="{Binding PrimaryRule.Condition}"
@@ -261,11 +331,12 @@
                         <TextBlock Text="Match by param:"
                                    Style="{StaticResource MutedLabel}"
                                    Margin="0,0,0,4"/>
-                        <TextBox Text="{Binding PairingParameterName,
-                                         UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource BaDarkTextBox}"
-                                 Margin="0,0,0,6"
-                                 ToolTip="Parameter whose value must match between source and dest elements"/>
+                        <ComboBox ItemsSource="{Binding PairingParameterCandidates}"
+                                  SelectedItem="{Binding PairingParameterName,
+                                                 UpdateSourceTrigger=PropertyChanged}"
+                                  Style="{StaticResource BaDarkComboBox}"
+                                  Margin="0,0,0,6"
+                                  ToolTip="Parameter whose value must match between source and dest elements. Populated from Reload Source / Reload Dest results."/>
                         <Button Content="Auto-Pair"
                                 Command="{Binding AutoPairCommand}"
                                 Style="{StaticResource BaSecondaryButton}"
@@ -337,19 +408,38 @@
                         <TextBlock Grid.Column="0"
                                    Text="Category:"
                                    Style="{StaticResource MutedLabel}"/>
-                        <TextBox Grid.Column="1"
-                                 Text="{Binding DestCategoryName,
-                                        UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource BaDarkTextBox}"
-                                 Margin="0,0,8,0"/>
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding AvailableCategories}"
+                                  SelectedItem="{Binding DestCategoryName,
+                                                 UpdateSourceTrigger=PropertyChanged}"
+                                  Style="{StaticResource BaDarkComboBox}"
+                                  Margin="0,0,8,0"
+                                  ToolTip="Only categories with at least one element in the active document are listed"/>
                         <TextBlock Grid.Column="2"
                                    Text="Display params:"
                                    Style="{StaticResource MutedLabel}"/>
-                        <TextBox Grid.Column="3"
-                                 Text="{Binding DestDisplayParams,
-                                        UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource BaDarkTextBox}"
-                                 ToolTip="Comma-separated parameter names shown as columns, e.g: Mark, Comments, Level"/>
+                        <Grid Grid.Column="3">
+                            <ToggleButton x:Name="DestDisplayParamsToggle"
+                                          Style="{StaticResource PcMultiSelectToggle}"
+                                          Content="{Binding DestDisplayParamsSummary}"
+                                          ToolTip="Parameters shown as columns in the Dest grid below"/>
+                            <Popup PlacementTarget="{Binding ElementName=DestDisplayParamsToggle}"
+                                   IsOpen="{Binding IsChecked, ElementName=DestDisplayParamsToggle, Mode=TwoWay}"
+                                   StaysOpen="False"
+                                   Placement="Bottom"
+                                   Width="240">
+                                <Border Background="#16161A"
+                                        BorderBrush="#2C3440"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Padding="6">
+                                    <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding DestDisplayParamOptions}"
+                                                      ItemTemplate="{StaticResource PcCheckableParamTemplate}"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
                     </Grid>
 
                     <!-- Filter rules -->
@@ -373,11 +463,14 @@
                                                           SelectedItem="{Binding Operator}"
                                                           Style="{StaticResource BaDarkComboBox}"
                                                           Margin="0,0,4,0"/>
-                                                <TextBox Grid.Column="1"
-                                                         Text="{Binding PrimaryRule.ParameterName,
-                                                                UpdateSourceTrigger=PropertyChanged}"
-                                                         Style="{StaticResource BaDarkTextBox}"
-                                                         Margin="0,0,4,0"/>
+                                                <ComboBox Grid.Column="1"
+                                                          ItemsSource="{Binding DataContext.DestCategoryParameterNames,
+                                                                        RelativeSource={RelativeSource AncestorType=Window}}"
+                                                          SelectedItem="{Binding PrimaryRule.ParameterName,
+                                                                         UpdateSourceTrigger=PropertyChanged}"
+                                                          Style="{StaticResource BaDarkComboBox}"
+                                                          Margin="0,0,4,0"
+                                                          ToolTip="Parameters found on Dest category elements (select a Dest category first)"/>
                                                 <ComboBox Grid.Column="2"
                                                           ItemsSource="{x:Static models:FilterConditionValues.All}"
                                                           SelectedItem="{Binding PrimaryRule.Condition}"
@@ -477,14 +570,20 @@
                           CellStyle="{StaticResource PcCellStyle}"
                           IsReadOnly="False">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Source Parameter Name"
-                                            Binding="{Binding SourceParameterName,
-                                                      UpdateSourceTrigger=PropertyChanged}"
-                                            Width="*"/>
-                        <DataGridTextColumn Header="Dest Parameter Name"
-                                            Binding="{Binding DestParameterName,
-                                                      UpdateSourceTrigger=PropertyChanged}"
-                                            Width="*"/>
+                        <DataGridComboBoxColumn Header="Source Parameter Name"
+                                                 ItemsSource="{Binding DataContext.SourceMatchedParameterNames, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                                 SelectedItemBinding="{Binding SourceParameterName,
+                                                                       UpdateSourceTrigger=PropertyChanged}"
+                                                 ElementStyle="{StaticResource BaDarkComboBox}"
+                                                 EditingElementStyle="{StaticResource BaDarkComboBox}"
+                                                 Width="*"/>
+                        <DataGridComboBoxColumn Header="Dest Parameter Name"
+                                                 ItemsSource="{Binding DataContext.DestMatchedParameterNames, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                                 SelectedItemBinding="{Binding DestParameterName,
+                                                                       UpdateSourceTrigger=PropertyChanged}"
+                                                 ElementStyle="{StaticResource BaDarkComboBox}"
+                                                 EditingElementStyle="{StaticResource BaDarkComboBox}"
+                                                 Width="*"/>
                         <DataGridCheckBoxColumn Header="Write Only If Empty"
                                                 Binding="{Binding WriteOnlyIfEmpty}"
                                                 Width="140"/>

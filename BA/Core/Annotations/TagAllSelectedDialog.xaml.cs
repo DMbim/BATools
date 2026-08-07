@@ -9,6 +9,20 @@ using System.Windows.Controls;
 
 namespace BA.BIM.Commands.Anno
 {
+    public enum TagAllDialogAction
+    {
+        Cancel,
+        Proceed,
+        ExpandVisibleInView,
+        ExpandEntireProject
+    }
+
+    public sealed class TagAllDialogResult
+    {
+        public TagAllDialogAction Action { get; set; }
+        public TagAllSettingsResult Settings { get; set; }
+    }
+
     public partial class TagAllSelectedDialog : Window
     {
         // ---- Settings keys ----
@@ -22,7 +36,11 @@ namespace BA.BIM.Commands.Anno
 
         private readonly List<CategoryTagOptions> _categoryOptions;
         private readonly Dictionary<long, ComboBox> _comboByCategoryKey = new();
-        private TagAllSettingsResult _result;
+        private readonly Dictionary<long, CheckBox> _checkboxByCategoryKey = new();
+        private readonly Dictionary<long, StackPanel> _contentByCategoryKey = new();
+
+        private TagAllDialogAction _resultAction = TagAllDialogAction.Cancel;
+        private TagAllSettingsResult _settingsResult;
 
         private TagAllSelectedDialog(List<CategoryTagOptions> categoryOptions)
         {
@@ -31,15 +49,20 @@ namespace BA.BIM.Commands.Anno
             BuildCategoryRows();
         }
 
-        public static TagAllSettingsResult GetSettings(List<CategoryTagOptions> categoryOptions)
+        /// <summary>
+        /// Shows the dialog modally and returns which action the user took.
+        /// Settings is only populated when Action == Proceed.
+        /// </summary>
+        public static TagAllDialogResult GetResult(List<CategoryTagOptions> categoryOptions)
         {
             var dlg = new TagAllSelectedDialog(categoryOptions);
-            bool? result = dlg.ShowDialog();
+            dlg.ShowDialog();
 
-            if (result != true || dlg._result == null)
-                return null;
-
-            return dlg._result;
+            return new TagAllDialogResult
+            {
+                Action = dlg._resultAction,
+                Settings = dlg._settingsResult
+            };
         }
 
         // ---- Lifecycle ----
@@ -48,7 +71,6 @@ namespace BA.BIM.Commands.Anno
         {
             var s = PluginSettingsStore.Load();
 
-            // Restore window position.
             double left = s.GetDouble(KeyLeft, double.NaN);
             double top = s.GetDouble(KeyTop, double.NaN);
 
@@ -96,9 +118,6 @@ namespace BA.BIM.Commands.Anno
             double damping = s.GetDouble(KeyDamping, 0.75);
             TbDamping.Text = damping.ToString("G", CultureInfo.InvariantCulture);
 
-            // Restore tag type selection per category by matching "FamilyName:TypeName".
-            // ElementIds change per project so we match by name, falling back to the
-            // default if no match is found.
             foreach (var kvp in _comboByCategoryKey)
             {
                 long catKey = kvp.Key;
@@ -111,9 +130,8 @@ namespace BA.BIM.Commands.Anno
                 string savedTypeKey = s.GetString(settingsKey, "");
 
                 if (string.IsNullOrEmpty(savedTypeKey))
-                    continue; // leave default selection
+                    continue;
 
-                // Try to match by "FamilyName:TypeName"
                 for (int i = 0; i < combo.Items.Count; i++)
                 {
                     if (combo.Items[i] is TagTypeComboItem item &&
@@ -139,7 +157,6 @@ namespace BA.BIM.Commands.Anno
             if (TryParseDouble(TbDamping.Text, out double damping))
                 s.SetDouble(KeyDamping, damping);
 
-            // Persist tag type selections by "FamilyName:TypeName".
             foreach (var kvp in _comboByCategoryKey)
             {
                 long catKey = kvp.Key;
@@ -159,7 +176,8 @@ namespace BA.BIM.Commands.Anno
 
         private void BuildCategoryRows()
         {
-            var s = PluginSettingsStore.Load();
+            int totalElements = _categoryOptions.Sum(o => o.Elements.Count);
+            TbSelectionSummary.Text = $"{totalElements} elements selected across {_categoryOptions.Count} categories.";
 
             foreach (var opt in _categoryOptions.OrderBy(o => o.Category.Name))
             {
@@ -168,6 +186,18 @@ namespace BA.BIM.Commands.Anno
                     Orientation = Orientation.Horizontal,
                     Margin = new Thickness(0, 3, 0, 3)
                 };
+
+                var checkbox = new CheckBox
+                {
+                    IsChecked = true,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 6, 0),
+                    ToolTip = "Uncheck to exclude this category from this run."
+                };
+
+                long catKey = opt.Category.Id.Value;
+                checkbox.Checked += (s, e) => UpdateRowEnabled(catKey);
+                checkbox.Unchecked += (s, e) => UpdateRowEnabled(catKey);
 
                 var label = new TextBlock
                 {
@@ -196,8 +226,6 @@ namespace BA.BIM.Commands.Anno
                     });
                 }
 
-                // Pre-select default (or last-used if RestoreFields hasn't run yet;
-                // RestoreFields runs after this in Window_Loaded so default first).
                 int defaultIndex = 0;
                 for (int i = 0; i < combo.Items.Count; i++)
                 {
@@ -212,15 +240,45 @@ namespace BA.BIM.Commands.Anno
                 if (combo.Items.Count > 0)
                     combo.SelectedIndex = defaultIndex;
 
-                row.Children.Add(label);
-                row.Children.Add(combo);
+                var content = new StackPanel { Orientation = Orientation.Horizontal };
+                content.Children.Add(label);
+                content.Children.Add(combo);
+
+                row.Children.Add(checkbox);
+                row.Children.Add(content);
                 CategoryRowsPanel.Children.Add(row);
 
-                _comboByCategoryKey[opt.Category.Id.Value] = combo;
+                _comboByCategoryKey[catKey] = combo;
+                _checkboxByCategoryKey[catKey] = checkbox;
+                _contentByCategoryKey[catKey] = content;
             }
         }
 
-        // ---- Apply / Cancel ----
+        private void UpdateRowEnabled(long categoryKey)
+        {
+            if (!_checkboxByCategoryKey.TryGetValue(categoryKey, out var cb))
+                return;
+            if (!_contentByCategoryKey.TryGetValue(categoryKey, out var content))
+                return;
+
+            bool enabled = cb.IsChecked == true;
+            content.IsEnabled = enabled;
+            content.Opacity = enabled ? 1.0 : 0.5;
+        }
+
+        // ---- Expand / Apply / Cancel ----
+
+        private void BtnExpandView_Click(object sender, RoutedEventArgs e)
+        {
+            _resultAction = TagAllDialogAction.ExpandVisibleInView;
+            Close();
+        }
+
+        private void BtnExpandProject_Click(object sender, RoutedEventArgs e)
+        {
+            _resultAction = TagAllDialogAction.ExpandEntireProject;
+            Close();
+        }
 
         private void BtnApply_Click(object sender, RoutedEventArgs e)
         {
@@ -254,26 +312,30 @@ namespace BA.BIM.Commands.Anno
 
             foreach (var kvp in _comboByCategoryKey)
             {
+                long catKey = kvp.Key;
+
+                if (_checkboxByCategoryKey.TryGetValue(catKey, out var cb) && cb.IsChecked != true)
+                    continue; // excluded by the per category filter checkbox
+
                 if (kvp.Value.SelectedItem is TagTypeComboItem selected)
-                    result.SelectedTagTypeIdByCategoryKey[kvp.Key] = selected.FamilySymbolId;
+                    result.SelectedTagTypeIdByCategoryKey[catKey] = selected.FamilySymbolId;
             }
 
             if (result.SelectedTagTypeIdByCategoryKey.Count == 0)
             {
-                MessageBox.Show("No tag types selected.", "Tag All Selected",
+                MessageBox.Show("No categories selected to tag.", "Tag All Selected",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            _result = result;
-            DialogResult = true;
+            _settingsResult = result;
+            _resultAction = TagAllDialogAction.Proceed;
             Close();
         }
 
         private void BtnCancel_Click(object sender, RoutedEventArgs e)
         {
-            _result = null;
-            DialogResult = false;
+            _resultAction = TagAllDialogAction.Cancel;
             Close();
         }
 
@@ -337,10 +399,6 @@ namespace BA.BIM.Commands.Anno
 
         // ---- Helpers ----
 
-        /// <summary>
-        /// Removes characters that are invalid in a settings dictionary key
-        /// (spaces, slashes, dots that would confuse key namespacing).
-        /// </summary>
         private static string SanitizeCategoryName(string name)
         {
             if (string.IsNullOrEmpty(name)) return "Unknown";
@@ -354,8 +412,6 @@ namespace BA.BIM.Commands.Anno
         {
             public string Label { get; set; }
             public ElementId FamilySymbolId { get; set; }
-
-            /// <summary>"FamilyName:TypeName" used for settings persistence.</summary>
             public string PersistenceKey { get; set; }
 
             public override string ToString() => Label;

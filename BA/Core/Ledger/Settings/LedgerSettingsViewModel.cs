@@ -59,6 +59,8 @@ namespace BA.ViewModels
         private string _projectSetText;
         private bool _isSettingProjectSet;
         private string _resolvedLedgerFilePathDisplay = string.Empty;
+        private bool _isLedgerEnabled;
+        private bool _isSettingLedgerEnabled;
 
         public LedgerSettingsViewModel(LedgerSettings settings, LedgerDiagnosticsResult initialDiagnostics)
         {
@@ -72,6 +74,8 @@ namespace BA.ViewModels
             Categories = new ObservableCollection<CategorySelectionItem>();
             PendingItems = new ObservableCollection<PendingLedgerItem>();
 
+            _isLedgerEnabled = initialDiagnostics?.LedgerEnabled ?? false;
+
             ApplyDiagnostics(initialDiagnostics);
             _centralIdentifierText = initialDiagnostics?.CurrentCentralIdentifier ?? string.Empty;
             _projectSetText = initialDiagnostics?.CurrentProjectSetName ?? string.Empty;
@@ -83,6 +87,7 @@ namespace BA.ViewModels
             SetIdentifierCommand = new RelayCommand(ExecuteSetIdentifier, () => !IsSettingIdentifier && !string.IsNullOrWhiteSpace(CentralIdentifierText));
             SetProjectSetCommand = new RelayCommand(ExecuteSetProjectSet, () => !IsSettingProjectSet && !string.IsNullOrWhiteSpace(ProjectSetText));
             ClearProjectSetCommand = new RelayCommand(ExecuteClearProjectSet, () => !IsSettingProjectSet);
+            ToggleLedgerEnabledCommand = new RelayCommand(ExecuteToggleLedgerEnabled, () => !IsSettingLedgerEnabled);
         }
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -278,9 +283,49 @@ namespace BA.ViewModels
             }
         }
 
+        /// <summary>
+        /// Whether Type Data Ledger sync is currently on for THIS central. Same persistence
+        /// pattern as CentralIdentifierText/ProjectSetText: writes to the document via
+        /// ExtensibleStorage through LedgerUiBridge, not the main Save button, and not the
+        /// per-user LedgerSettings.json. Toggling the button IS the "set" action here, there
+        /// is no separate confirm step, since a two-state button click is already unambiguous
+        /// intent (unlike a free-text field, which needs a distinct Set button).
+        /// </summary>
+        public bool IsLedgerEnabled
+        {
+            get => _isLedgerEnabled;
+            private set
+            {
+                if (_isLedgerEnabled == value)
+                {
+                    return;
+                }
+                _isLedgerEnabled = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(LedgerEnabledButtonText));
+            }
+        }
+
+        /// <summary>
+        /// Display text for the two-state toggle button. The button's background color swap
+        /// (green/red) is driven directly off IsLedgerEnabled via a DataTrigger in the XAML.
+        /// </summary>
+        public string LedgerEnabledButtonText => IsLedgerEnabled ? "Ledger Sync: ON" : "Ledger Sync: OFF";
+
+        public bool IsSettingLedgerEnabled
+        {
+            get => _isSettingLedgerEnabled;
+            private set
+            {
+                _isSettingLedgerEnabled = value;
+                OnPropertyChanged();
+            }
+        }
+
         public ICommand SetIdentifierCommand { get; }
         public ICommand SetProjectSetCommand { get; }
         public ICommand ClearProjectSetCommand { get; }
+        public ICommand ToggleLedgerEnabledCommand { get; }
 
         public ICommand BrowseCommand { get; }
         public ICommand SaveCommand { get; }
@@ -469,6 +514,31 @@ namespace BA.ViewModels
             });
         }
 
+        private void ExecuteToggleLedgerEnabled()
+        {
+            AppLogger.LogInfo("LedgerSettingsViewModel.ExecuteToggleLedgerEnabled: command invoked.");
+            bool requestedValue = !IsLedgerEnabled;
+            IsSettingLedgerEnabled = true;
+
+            LedgerUiBridge.RequestSetLedgerEnabled(requestedValue, success =>
+            {
+                IsSettingLedgerEnabled = false;
+
+                if (success)
+                {
+                    IsLedgerEnabled = requestedValue;
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "Could not change the Ledger sync state for this document. Check the log for details.",
+                        "Ledger Settings",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            });
+        }
+
         private void ExecuteRefresh()
         {
             AppLogger.LogInfo("LedgerSettingsViewModel.ExecuteRefresh: command invoked.");
@@ -494,6 +564,7 @@ namespace BA.ViewModels
             CentralIdentifierText = diagnostics.CurrentCentralIdentifier ?? string.Empty;
             ProjectSetText = diagnostics.CurrentProjectSetName ?? string.Empty;
             ResolvedLedgerFilePathDisplay = diagnostics.ResolvedLedgerFilePath ?? string.Empty;
+            IsLedgerEnabled = diagnostics.LedgerEnabled;
 
             PendingItems.Clear();
             foreach (PendingLedgerItem item in diagnostics.PendingItems)

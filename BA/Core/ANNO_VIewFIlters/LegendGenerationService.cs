@@ -6,6 +6,15 @@ using System.Linq;
 
 namespace BA.Core.ViewFilters
 {
+    // Generic row description for a legend, decoupled from ParameterColorRule.
+    // CreateLegend(rule) below just maps buckets into these and forwards to
+    // CreateLegendFromEntries, which is the one place that actually builds
+    // Revit geometry. The View Template tab's "Create Legend From Selected"
+    // workflow builds its own entry list from a mix of native and BA managed
+    // filters and calls CreateLegendFromEntries directly, it never goes
+    // through a ParameterColorRule at all. // <- NEW
+    public sealed record LegendEntry(string Label, byte R, byte G, byte B, ElementId PatternId);
+
     public static class LegendGenerationService
     {
         public static ElementId CreateLegend(Document doc, ParameterColorRule rule)
@@ -13,6 +22,28 @@ namespace BA.Core.ViewFilters
             if (doc == null) throw new ArgumentNullException(nameof(doc));
             if (rule == null || rule.Buckets == null || rule.Buckets.Count == 0)
                 throw new InvalidOperationException("Rule has no buckets to place on a legend.");
+
+            string title = $"{rule.CategoryName} / {rule.ParameterName}";
+
+            var entries = rule.Buckets
+                .Select(b => new LegendEntry(b.Label, b.R, b.G, b.B, b.FillPatternId))
+                .ToList();
+
+            return CreateLegendFromEntries(doc, title, entries);
+        }
+
+        // New. Callable with any label/color/pattern list, not just buckets
+        // from a ParameterColorRule. This is what the View Template tab's
+        // "Create Legend From Selected" button drives, feeding it entries
+        // built from a mix of native Revit filters and BA managed filters,
+        // each one's color read back off the template's own filter
+        // overrides rather than off a stored rule. // <- NEW
+        public static ElementId CreateLegendFromEntries(Document doc, string title, IReadOnlyList<LegendEntry> entries)
+        {
+            if (doc == null) throw new ArgumentNullException(nameof(doc));
+            if (string.IsNullOrWhiteSpace(title)) throw new ArgumentNullException(nameof(title));
+            if (entries == null || entries.Count == 0)
+                throw new InvalidOperationException("No entries were supplied to place on a legend.");
 
             var existingLegend = new FilteredElementCollector(doc)
                 .OfClass(typeof(View))
@@ -34,10 +65,7 @@ namespace BA.Core.ViewFilters
             newLegend.CropBoxVisible = false;
             doc.Regenerate();
 
-            // View name (Project Browser) now uses a readable separator
-            // rather than raw underscore concatenation of possibly
-            // space-containing category and parameter names. // <- CHANGED
-            string baseName = SanitizeName($"BA_Legend - {rule.CategoryName} - {rule.ParameterName}");
+            string baseName = SanitizeName($"BA_Legend - {title}");
             newLegend.Name = MakeUniqueViewName(doc, baseName);
 
             var textNoteType = new FilteredElementCollector(doc)
@@ -57,17 +85,13 @@ namespace BA.Core.ViewFilters
             double yPos = 0;
             double spacing = 0.1;
 
-            // New. One title placed once above the row list, reading
-            // "Category / Parameter". Row labels no longer repeat this text
-            // per row, they show only the bucket's own value or range. // <- NEW
-            string titleText = $"{rule.CategoryName} / {rule.ParameterName}";
             var titleOrigin = new XYZ(0, yPos, 0);
-            var titleNote = TextNote.Create(doc, newLegend.Id, titleOrigin, titleText, textNoteType.Id);
+            var titleNote = TextNote.Create(doc, newLegend.Id, titleOrigin, title, textNoteType.Id);
             doc.Regenerate();
 
             var titleBbox = titleNote.get_BoundingBox(newLegend);
             double titleHeight = titleBbox.Max.Y - titleBbox.Min.Y;
-            double titleSpacing = titleHeight * 0.75; // slightly larger gap than between rows, to visually separate the title from the list
+            double titleSpacing = titleHeight * 0.75;
 
             yPos = titleBbox.Min.Y - (titleHeight + titleSpacing);
 
@@ -75,15 +99,11 @@ namespace BA.Core.ViewFilters
             var rowHeights = new List<double>();
             double maxTextRight = 0;
 
-            foreach (var bucket in rule.Buckets)
+            foreach (var entry in entries)
             {
                 var origin = new XYZ(0, yPos, 0);
 
-                // Row label is now just the bucket's own label, category and
-                // parameter are stated once in the title above, not per row. // <- CHANGED
-                string labelText = bucket.Label;
-
-                var textNote = TextNote.Create(doc, newLegend.Id, origin, labelText, textNoteType.Id);
+                var textNote = TextNote.Create(doc, newLegend.Id, origin, entry.Label, textNoteType.Id);
                 doc.Regenerate();
 
                 var bbox = textNote.get_BoundingBox(newLegend);
@@ -99,9 +119,9 @@ namespace BA.Core.ViewFilters
 
             double swatchX = maxTextRight + spacing;
 
-            for (int i = 0; i < rule.Buckets.Count; i++)
+            for (int i = 0; i < entries.Count; i++)
             {
-                var bucket = rule.Buckets[i];
+                var entry = entries[i];
 
                 double rowHeight = rowHeights[i];
                 if (rowHeight <= 0) rowHeight = spacing * 2;
@@ -123,12 +143,12 @@ namespace BA.Core.ViewFilters
                 var region = FilledRegion.Create(doc, filledRegionTypeId, newLegend.Id, new List<CurveLoop> { loop });
 
                 var ogs = new OverrideGraphicSettings();
-                var color = new Color(bucket.R, bucket.G, bucket.B);
+                var color = new Color(entry.R, entry.G, entry.B);
                 ogs.SetSurfaceForegroundPatternColor(color);
                 ogs.SetCutForegroundPatternColor(color);
 
-                var patternId = (bucket.FillPatternId != null && bucket.FillPatternId != ElementId.InvalidElementId)
-                    ? bucket.FillPatternId
+                var patternId = (entry.PatternId != null && entry.PatternId != ElementId.InvalidElementId)
+                    ? entry.PatternId
                     : solidFillPatternId;
 
                 if (patternId != null)

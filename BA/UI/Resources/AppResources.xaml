@@ -3,4 +3,6 @@
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="Theme.xaml"/>
     </ResourceDictionary.MergedDictionaries>
+    <!-- Add this to define the missing Brush.LabelText resource -->
+    <SolidColorBrush x:Key="Brush.LabelText" Color="#FFB0B6C3"/>
 </ResourceDictionary>

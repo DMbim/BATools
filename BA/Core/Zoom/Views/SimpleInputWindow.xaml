@@ -7,8 +7,8 @@
         MinWidth="360"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
-        ShowInTaskbar="False">
-
+        ShowInTaskbar="False"
+        Style="{DynamicResource BaWindow}">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -16,7 +16,6 @@
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Window.Resources>
-
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -25,16 +24,13 @@
             <RowDefinition Height="16"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-
         <TextBlock Grid.Row="0"
                    x:Name="TxtPrompt"
                    Style="{StaticResource BaPanelText}"
                    TextWrapping="Wrap"/>
-
         <TextBox Grid.Row="2"
                  x:Name="TxtInput"
                  Style="{StaticResource BaTextBox}"/>
-
         <StackPanel Grid.Row="4"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right">

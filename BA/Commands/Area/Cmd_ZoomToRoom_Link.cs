@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Linq;
-using System.Windows.Input;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
@@ -32,21 +31,13 @@ namespace BATools.Zoom.Commands
             {
                 var settings = ZoomToRoomSettings.Load();
 
-                bool shift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
-
-                if (shift || string.IsNullOrWhiteSpace(settings.SelectedRevitLinkName))
-                {
-                    var picked = PickRevitLinkInstance(host);
-                    if (picked == null) return Result.Cancelled;
-                    settings.SelectedRevitLinkName = picked.Name;
-                    ZoomSettingsService.EnsureRoomIdParameterSelected(
-                        picked.GetLinkDocument() ?? host, settings, forcePrompt: true);
-                    settings.Save();
-                }
-                else
-                {
-                    ZoomSettingsService.EnsureRoomIdParameterSelected(host, settings, forcePrompt: false);
-                }
+                // Shift-to-configure and the auto-popping first-run link picker
+                // (PickRevitLinkInstance / SelectLinkWindow) are both removed --
+                // configuration now happens only via Cmd_ZoomToRoom_Settings /
+                // ZoomToRoomSettingsWindow, consistent with Element -> Room and
+                // Axis -> Room this session. If that auto-prompt convenience is
+                // actually wanted back, say so -- it's a real behavior change,
+                // not an oversight.
 
                 var linkInst = new FilteredElementCollector(host)
                     .OfClass(typeof(RevitLinkInstance))
@@ -56,7 +47,8 @@ namespace BATools.Zoom.Commands
 
                 if (linkInst == null)
                 {
-                    TaskDialog.Show("Zoom to Room", $"Saved link '{settings.SelectedRevitLinkName}' not found.");
+                    TaskDialog.Show("Zoom to Room",
+                        "No Revit link configured. Use the Zoom to Room Settings button to select one.");
                     return Result.Cancelled;
                 }
 
@@ -115,30 +107,6 @@ namespace BATools.Zoom.Commands
                 message = ex.Message;
                 return Result.Failed;
             }
-        }
-
-        /// <summary>
-        /// Shows SelectLinkWindow when multiple links exist, returns immediately when only one exists.
-        /// Returns null if no links are found or the user cancels.
-        /// </summary>
-        private static RevitLinkInstance? PickRevitLinkInstance(Document host)
-        {
-            var links = new FilteredElementCollector(host)
-                .OfClass(typeof(RevitLinkInstance))
-                .Cast<RevitLinkInstance>()
-                .OrderBy(li => li.Name)
-                .ToList();
-
-            if (links.Count == 0)
-            {
-                TaskDialog.Show("Zoom to Room", "No Revit links in the model.");
-                return null;
-            }
-
-            if (links.Count == 1) return links[0];
-
-            var win = new SelectLinkWindow(links);
-            return win.ShowDialog() == true ? win.SelectedLink : null;
         }
     }
 }

@@ -1,0 +1,189 @@
+﻿<Window x:Class="BA.Views.Export.FamilyExportWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:conv="clr-namespace:BA.Views.Converters"
+        Style="{DynamicResource BaWindow}"
+        Title="BA Tools - Family Export"
+        Width="1040" Height="700"
+        MinWidth="820" MinHeight="560"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+            <!-- Local header/row/cell styles, same pattern already
+                 confirmed working in SheetPickerWindow and
+                 ParameterColumnPickerWindow. -->
+            <Style x:Key="FamilyHeaderStyle" TargetType="DataGridColumnHeader">
+                <Setter Property="Background" Value="#16161A"/>
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Setter Property="BorderBrush" Value="#2C3440"/>
+                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                <Setter Property="Padding" Value="10,6"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            </Style>
+
+            <Style x:Key="FamilyRowStyle" TargetType="DataGridRow">
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="#1E2A3A"/>
+                    </Trigger>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="#2A5A9E"/>
+                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                    </Trigger>
+                    <DataTrigger Binding="{Binding IsEditable}" Value="False">
+                        <Setter Property="Opacity" Value="0.45"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="FamilyCellStyle" TargetType="DataGridCell">
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Padding" Value="10,4"/>
+                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="12" />
+            <ColumnDefinition Width="340" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Left: family picker -->
+        <DockPanel Grid.Column="0">
+            <TextBlock DockPanel.Dock="Top" Text="Families" FontWeight="Bold" Margin="0,0,0,6" />
+
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{DynamicResource BaDarkTextBox}"
+                         ToolTip="Filters the list below by family name or category as you type." />
+                <Button Grid.Column="2" Content="Select All" Style="{DynamicResource BaSecondaryButton}"
+                        Command="{Binding SelectAllCommand}"
+                        ToolTip="Selects every currently visible, exportable family. System and in-place families are never selected, they cannot be exported as RFA." />
+                <Button Grid.Column="4" Content="Select None" Style="{DynamicResource BaSecondaryButton}"
+                        Command="{Binding SelectNoneCommand}" />
+            </Grid>
+
+            <DataGrid ItemsSource="{Binding FilteredFamilies}"
+                      Style="{DynamicResource BaDataGrid}"
+                      ColumnHeaderStyle="{StaticResource FamilyHeaderStyle}"
+                      RowStyle="{StaticResource FamilyRowStyle}"
+                      CellStyle="{StaticResource FamilyCellStyle}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      IsReadOnly="False"
+                      ColumnWidth="*">
+                <DataGrid.Columns>
+                    <DataGridCheckBoxColumn Header="Export" Binding="{Binding IsSelected}" Width="60"/>
+                    <DataGridTextColumn Header="Family Name" Binding="{Binding Name}" IsReadOnly="True" Width="2.5*"/>
+                    <DataGridTextColumn Header="Category" Binding="{Binding CategoryName}" IsReadOnly="True" Width="1.5*"/>
+                    <DataGridTextColumn Header="Status" Binding="{Binding StatusLabel}" IsReadOnly="True" Width="2*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </DockPanel>
+
+        <!-- Right: settings and run -->
+        <Border Grid.Column="2" Style="{DynamicResource BaDarkPanelBorder}" Padding="10">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel IsEnabled="{Binding IsBusy, Converter={conv:InverseBooleanConverter}}">
+                    <TextBlock Text="Output Folder" />
+                    <Grid Margin="0,2,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Text="{Binding OutputFolder, UpdateSourceTrigger=PropertyChanged}" Style="{DynamicResource BaDarkTextBox}"
+                             ToolTip="Where exported RFA files (and preview images, if enabled) are written. Required before Run Export will do anything." />
+                        <Button Grid.Column="1" Content="Browse..." Style="{DynamicResource BaSecondaryButton}"
+                            Command="{Binding BrowseOutputFolderCommand}" Margin="8,0,0,0" />
+                    </Grid>
+
+                    <CheckBox Content="Group By Category" IsChecked="{Binding GroupByCategory}" Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,0,6"
+                          ToolTip="Writes each family into a subfolder named after its category instead of dropping every RFA directly into the output folder, useful for large mixed exports." />
+                    <CheckBox Content="Skip Existing Files" IsChecked="{Binding SkipExistingFiles}" Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,0,10"
+                          ToolTip="Skips a family entirely if its RFA already exists at the target path rather than overwriting it. Unchecked means existing files are overwritten." />
+
+                    <CheckBox Content="Export Preview Image" IsChecked="{Binding ExportPreviewImage}" Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,0,10"
+                          ToolTip="Also renders an image from inside each family document, using a view matched by name below. A family without a matching view still exports its RFA, only the image is skipped for that one." />
+
+                    <StackPanel Visibility="{Binding ExportPreviewImage, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="Preferred View Names (comma separated, in priority order)" TextWrapping="Wrap" />
+                        <TextBox Text="{Binding PreferredViewNamesText, UpdateSourceTrigger=PropertyChanged}" Style="{DynamicResource BaDarkTextBox}" Margin="0,2,0,10"
+                             ToolTip="View names to look for inside each family, tried in order left to right. Most family templates include a view named {3D}, add more names as fallbacks." />
+
+                        <TextBlock Text="Image Format" />
+                        <ComboBox ItemsSource="{Binding AvailableImageFormats}" SelectedItem="{Binding ImageFormat}"
+                              Style="{DynamicResource BaDarkComboBox}" Margin="0,2,0,10" />
+
+                        <Border Style="{DynamicResource BaDarkPanelBorder}" Padding="8" Margin="0,0,0,10">
+                            <StackPanel>
+                                <TextBlock Text="Image Settings" FontWeight="SemiBold" Margin="0,0,0,6" />
+
+                                <TextBlock Text="Resolution" />
+                                <ComboBox ItemsSource="{Binding AvailableImageResolutions}" SelectedItem="{Binding ImageResolution}"
+                                      Style="{DynamicResource BaDarkComboBox}" Margin="0,2,0,8" />
+
+                                <TextBlock Text="Zoom Type" />
+                                <ComboBox ItemsSource="{Binding AvailableImageZoomTypes}" SelectedItem="{Binding ImageZoomType}"
+                                      Style="{DynamicResource BaDarkComboBox}" Margin="0,2,0,8" />
+
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="8" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Pixel Size" />
+                                        <TextBox Text="{Binding ImagePixelSize, UpdateSourceTrigger=PropertyChanged}"
+                                             IsEnabled="{Binding ImagePixelSizeEnabled}"
+                                             Style="{DynamicResource BaDarkTextBox}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Zoom %" />
+                                        <TextBox Text="{Binding ImageZoomPercentage, UpdateSourceTrigger=PropertyChanged}"
+                                             IsEnabled="{Binding ImageZoomPercentageEnabled}"
+                                             Style="{DynamicResource BaDarkTextBox}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <TextBlock Text="Fit Direction" Margin="0,4,0,0" />
+                                <ComboBox ItemsSource="{Binding AvailableImageFitDirections}" SelectedItem="{Binding ImageFitDirection}"
+                                      Style="{DynamicResource BaDarkComboBox}" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <Button Content="Run Export" Style="{DynamicResource BaPrimaryButton}"
+                        Command="{Binding RunExportCommand}" Margin="0,4,0,10"
+                        ToolTip="Exports every checked family to RFA, and a preview image if enabled, into the output folder above. One family failing does not stop the rest." />
+
+                    <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Opacity="0.85" />
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</Window>

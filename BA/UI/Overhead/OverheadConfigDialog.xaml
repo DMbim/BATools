@@ -85,9 +85,7 @@
         </Grid>
 
         <DockPanel Grid.Row="2" Margin="0,10,0,0">
-            <TextBlock DockPanel.Dock="Left"
-                       VerticalAlignment="Center"
-                       Text="Tip: Hold Shift on the command to open settings."/>
+ 
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                 <Button Content="Cancel" Width="90" Background="Black" Foreground="White" BorderBrush="#FFFFDCDC" Margin="0,0,8,0" IsCancel="True"/>
                 <Button Content="OK" Width="120" Background="Black" Foreground="White" BorderBrush="#FFFFDCDC" IsDefault="True" Click="Ok_Click"/>

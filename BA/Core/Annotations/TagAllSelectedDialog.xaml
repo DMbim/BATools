@@ -35,8 +35,8 @@
         </Style>
 
         <Style TargetType="ToolTip">
-            <Setter Property="MaxWidth" Value="280"/>
-            <Setter Property="TextBlock.TextWrapping" Value="Wrap"/>
+            <Setter Property="MaxWidth" Value="320"/>
+            <Setter Property="Placement" Value="Mouse"/>
         </Style>
 
     </Window.Resources>
@@ -45,15 +45,51 @@
                 ToolTipService.InitialShowDelay="600"
                 ToolTipService.ShowDuration="12000">
 
+        <!-- ===== SELECTION ===== -->
+        <GroupBox Header="Selection">
+            <StackPanel>
+                <TextBlock x:Name="TbSelectionSummary" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="BtnExpandView" Content="All instances: visible in view"
+                            Width="195" Margin="0,0,8,0" Click="BtnExpandView_Click">
+                        <Button.ToolTip>
+                            <ToolTip Placement="Mouse">
+                                <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                    Expands the current selection to every instance of the same family
+                                    and type as anything already picked, limited to elements visible in
+                                    the active view. Equivalent to Revit's native Select All Instances,
+                                    Visible in View, run against every type currently in your selection.
+                                </TextBlock>
+                            </ToolTip>
+                        </Button.ToolTip>
+                    </Button>
+                    <Button x:Name="BtnExpandProject" Content="All instances: entire project"
+                            Width="195" Click="BtnExpandProject_Click">
+                        <Button.ToolTip>
+                            <ToolTip Placement="Mouse">
+                                <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                    Expands the current selection to every instance of the same family
+                                    and type anywhere in the project, not just this view. Instances with
+                                    no representation in the active view cannot be tagged here and will
+                                    be counted under Failed to create in the final report.
+                                </TextBlock>
+                            </ToolTip>
+                        </Button.ToolTip>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </GroupBox>
+
         <!-- ===== TAG TYPE PER CATEGORY ===== -->
         <GroupBox Header="Tag type per category">
             <GroupBox.ToolTip>
-                <ToolTip>
-                    <TextBlock TextWrapping="Wrap">
-                        For each category present in your selection, choose which tag
-                        family and type to use. Only tag families compatible with each
-                        category are shown. Multi category tags (which can tag any element
-                        type) are always included in every list.
+                <ToolTip Placement="Mouse">
+                    <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                        For each category present in your selection, choose which tag family and
+                        type to use, or uncheck a category to exclude it entirely from this run.
+                        Only tag families compatible with each category are shown. Multi-category
+                        tags are always included in every list. The last-used type per category is
+                        remembered across sessions.
                     </TextBlock>
                 </ToolTip>
             </GroupBox.ToolTip>
@@ -68,14 +104,12 @@
                       Content="Add leader to placed tags"
                       IsChecked="False">
                 <CheckBox.ToolTip>
-                    <ToolTip>
-                        <TextBlock TextWrapping="Wrap">
-                            When enabled, all newly created tags will be placed with a leader
-                            line connecting the tag head to the tagged element. By default
-                            leaders are off to keep drawings clean. Enable when tags are
-                            expected to be moved far from their host elements (e.g. in
-                            crowded areas where collision resolution will displace tags
-                            significantly).
+                    <ToolTip Placement="Mouse">
+                        <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                            When enabled, all newly created tags are placed with a leader line
+                            connecting the tag head to the tagged element. By default leaders are
+                            off to keep drawings clean. Enable when tags are expected to be moved
+                            far from their host elements due to collision resolution in crowded areas.
                         </TextBlock>
                     </ToolTip>
                 </CheckBox.ToolTip>
@@ -85,13 +119,12 @@
         <!-- ===== COLLISION RESOLUTION ===== -->
         <GroupBox Header="Collision resolution">
             <GroupBox.ToolTip>
-                <ToolTip>
-                    <TextBlock TextWrapping="Wrap">
-                        Settings for the MTV (Minimum Translation Vector) simulation used
-                        to resolve collisions between newly placed tags and existing
-                        annotations (tags, text notes, dimensions, generic symbols) already
-                        present in the view. Both the new tag and the colliding annotation
-                        can move  displacement is shared between them proportionally.
+                <ToolTip Placement="Mouse">
+                    <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                        Settings for the MTV simulation used to resolve collisions between newly
+                        placed tags and existing annotations (tags, text notes, dimensions, generic
+                        symbols) already present in the view. Both the new tag and the colliding
+                        annotation can move. Displacement is shared between them proportionally.
                     </TextBlock>
                 </ToolTip>
             </GroupBox.ToolTip>
@@ -100,21 +133,20 @@
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                     <TextBlock Text="Gap (mm):" Style="{StaticResource LabelStyle}">
                         <TextBlock.ToolTip>
-                            <ToolTip>
-                                <TextBlock TextWrapping="Wrap">
-                                    Minimum clear distance in millimetres between annotation
-                                    bounding boxes after collision resolution. Applied as a
-                                    margin inflate on each element's bounding box before
-                                    overlap detection, so the visible gap between element
-                                    edges will equal this value.
+                            <ToolTip Placement="Mouse">
+                                <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                    Minimum clear distance in millimetres between annotation bounding
+                                    boxes after collision resolution. Applied as a margin inflate on
+                                    each element's bounding box before overlap detection, so the visible
+                                    gap between element edges will equal this value.
                                 </TextBlock>
                             </ToolTip>
                         </TextBlock.ToolTip>
                     </TextBlock>
                     <TextBox x:Name="TbGap" Text="6">
                         <TextBox.ToolTip>
-                            <ToolTip>
-                                <TextBlock TextWrapping="Wrap">
+                            <ToolTip Placement="Mouse">
+                                <TextBlock MaxWidth="300" TextWrapping="Wrap">
                                     Minimum clear distance in mm between annotation edges.
                                 </TextBlock>
                             </ToolTip>
@@ -125,20 +157,20 @@
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                     <TextBlock Text="Iterations:" Style="{StaticResource LabelStyle}">
                         <TextBlock.ToolTip>
-                            <ToolTip>
-                                <TextBlock TextWrapping="Wrap">
-                                    Number of MTV simulation passes per tag collision. Each pass
-                                    pushes colliding elements apart by a damped step. Higher values
-                                    resolve complex overlaps more completely. 20 to 30 is sufficient
-                                    for typical tag_vs_annotation collisions involving 2 to 4 elements.
+                            <ToolTip Placement="Mouse">
+                                <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                    Number of MTV simulation passes per tag collision. Each pass pushes
+                                    colliding elements apart by a damped step. Higher values resolve
+                                    complex overlaps more completely. 20 to 30 is sufficient for typical
+                                    tag vs annotation collisions involving 2 to 4 elements.
                                 </TextBlock>
                             </ToolTip>
                         </TextBlock.ToolTip>
                     </TextBlock>
                     <TextBox x:Name="TbIterations" Text="30">
                         <TextBox.ToolTip>
-                            <ToolTip>
-                                <TextBlock TextWrapping="Wrap">
+                            <ToolTip Placement="Mouse">
+                                <TextBlock MaxWidth="300" TextWrapping="Wrap">
                                     MTV passes per collision (recommended: 20 to 40).
                                 </TextBlock>
                             </ToolTip>
@@ -149,20 +181,20 @@
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="Damping (0 to 1):" Style="{StaticResource LabelStyle}">
                         <TextBlock.ToolTip>
-                            <ToolTip>
-                                <TextBlock TextWrapping="Wrap">
-                                    Fraction of the computed displacement applied per iteration.
-                                    Lower values produce smoother, more controlled separation.
-                                    Higher values converge faster but can overshoot in tight spaces.
-                                    0.6 to 0.8 is the stable range for annotation collision resolution.
+                            <ToolTip Placement="Mouse">
+                                <TextBlock MaxWidth="300" TextWrapping="Wrap">
+                                    Fraction of the computed displacement applied per iteration. Lower
+                                    values produce smoother, more controlled separation. Higher values
+                                    converge faster but can overshoot in tight spaces. 0.6 to 0.8 is the
+                                    stable range for annotation collision resolution.
                                 </TextBlock>
                             </ToolTip>
                         </TextBlock.ToolTip>
                     </TextBlock>
                     <TextBox x:Name="TbDamping" Text="0.75">
                         <TextBox.ToolTip>
-                            <ToolTip>
-                                <TextBlock TextWrapping="Wrap">
+                            <ToolTip Placement="Mouse">
+                                <TextBlock MaxWidth="300" TextWrapping="Wrap">
                                     Displacement fraction per iteration (0 to 1, recommended: 0.6 to 0.8).
                                 </TextBlock>
                             </ToolTip>

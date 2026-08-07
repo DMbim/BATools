@@ -18,7 +18,7 @@ namespace BA.App.Guards
     public static class FamilyImportWarningGuardV2
     {
         // ---------------- Settings ----------------
-        public static bool Enabled { get; set; } = true;
+        public static bool Enabled { get; set; } = false;
         public static bool ShowOnlyWhenIssues { get; set; } = true;
         public static string RequiredPrefix { get; set; } = "BA_";
         public static double MaxRecommendedSizeMb { get; set; } = 5.0;
@@ -55,7 +55,7 @@ namespace BA.App.Guards
         // ---------------- Public API ----------------
         public static void Register(UIControlledApplication app)
         {
-            if (app == null) throw new ArgumentNullException(nameof(app));
+            ArgumentNullException.ThrowIfNull(app);
             if (_uiControlledApp != null) return;
 
             _uiControlledApp = app;
@@ -545,7 +545,7 @@ namespace BA.App.Guards
             {
                 var handle = Process.GetCurrentProcess().MainWindowHandle;
                 if (handle == IntPtr.Zero) return;
-                new System.Windows.Interop.WindowInteropHelper(wpfWindow) { Owner = handle };
+                System.Windows.Interop.WindowInteropHelper windowOwnerHelper = new System.Windows.Interop.WindowInteropHelper(wpfWindow) { Owner = handle };
             }
             catch { }
         }

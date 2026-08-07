@@ -1,5 +1,5 @@
 ﻿// File: BA/Core/CurveToElement/Infrastructure/WallGenerationRequestHandler.cs
-// Action: CREATE NEW
+// Action: REPLACE (full file)
 
 using System;
 using System.Collections.Concurrent;
@@ -31,11 +31,14 @@ namespace BA.Core.CurveToElement.Infrastructure
             _externalEvent = ExternalEvent.Create(this);
         }
 
-        public void RequestGeneration(IReadOnlyList<GroupGenerationRequest> requests, Action<GenerationResult> onComplete)
+        public void RequestGeneration(
+            IReadOnlyList<GroupGenerationRequest> requests,
+            bool deleteSourceLinesAfterCreation,
+            Action<GenerationResult> onComplete)
         {
             if (requests == null) throw new ArgumentNullException(nameof(requests));
 
-            _pendingRequests.Enqueue(new PendingGeneration(requests, onComplete));
+            _pendingRequests.Enqueue(new PendingGeneration(requests, deleteSourceLinesAfterCreation, onComplete));
             _externalEvent.Raise();
         }
 
@@ -55,12 +58,12 @@ namespace BA.Core.CurveToElement.Infrastructure
                 GenerationResult result;
                 try
                 {
-                    result = _generationService.Execute(doc, pending.Requests);
+                    result = _generationService.Execute(doc, pending.Requests, pending.DeleteSourceLinesAfterCreation);
                 }
                 catch (Exception ex)
                 {
                     AppLogger.LogError("[CurveToElement] WallGenerationRequestHandler.Execute - unhandled exception", ex);
-                    result = new GenerationResult(false, $"Unexpected error: {ex.Message}", 0, new List<string>());
+                    result = new GenerationResult(false, $"Unexpected error: {ex.Message}", 0, new List<string>(), 0);
                 }
 
                 pending.OnComplete?.Invoke(result);
@@ -71,7 +74,7 @@ namespace BA.Core.CurveToElement.Infrastructure
         {
             while (_pendingRequests.TryDequeue(out PendingGeneration pending))
             {
-                pending.OnComplete?.Invoke(new GenerationResult(false, reason, 0, new List<string>()));
+                pending.OnComplete?.Invoke(new GenerationResult(false, reason, 0, new List<string>(), 0));
             }
         }
 
@@ -80,11 +83,16 @@ namespace BA.Core.CurveToElement.Infrastructure
         private class PendingGeneration
         {
             public IReadOnlyList<GroupGenerationRequest> Requests { get; }
+            public bool DeleteSourceLinesAfterCreation { get; }
             public Action<GenerationResult> OnComplete { get; }
 
-            public PendingGeneration(IReadOnlyList<GroupGenerationRequest> requests, Action<GenerationResult> onComplete)
+            public PendingGeneration(
+                IReadOnlyList<GroupGenerationRequest> requests,
+                bool deleteSourceLinesAfterCreation,
+                Action<GenerationResult> onComplete)
             {
                 Requests = requests;
+                DeleteSourceLinesAfterCreation = deleteSourceLinesAfterCreation;
                 OnComplete = onComplete;
             }
         }

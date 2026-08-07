@@ -1,0 +1,99 @@
+﻿<Window x:Class="BA.Views.Export.ParameterColumnPickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Style="{DynamicResource BaWindow}"
+        Title="Add Parameter Column"
+        Width="640" Height="560"
+        MinWidth="480" MinHeight="380"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Local header/row/cell styles, same pattern already
+                 confirmed working in SheetPickerWindow, BaDataGrid alone
+                 does not cover this styling. -->
+            <Style x:Key="ColumnPickerHeaderStyle" TargetType="DataGridColumnHeader">
+                <Setter Property="Background" Value="#16161A"/>
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Setter Property="BorderBrush" Value="#2C3440"/>
+                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                <Setter Property="Padding" Value="10,6"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            </Style>
+
+            <Style x:Key="ColumnPickerRowStyle" TargetType="DataGridRow">
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="#1E2A3A"/>
+                    </Trigger>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="#2A5A9E"/>
+                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                    </Trigger>
+                    <DataTrigger Binding="{Binding IsAlreadyAdded}" Value="True">
+                        <Setter Property="Opacity" Value="0.45"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="ColumnPickerCellStyle" TargetType="DataGridCell">
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Padding" Value="10,4"/>
+                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <DockPanel Margin="10">
+        <TextBlock DockPanel.Dock="Top"
+                   Text="Parameters found across the sheets currently in this picker. Already added columns are dimmed and cannot be re-added."
+                   TextWrapping="Wrap" Margin="0,0,0,8" Opacity="0.85"/>
+
+        <TextBlock DockPanel.Dock="Top" Text="Search" Margin="0,0,0,2"/>
+        <TextBox x:Name="SearchBox" DockPanel.Dock="Top"
+                 Style="{DynamicResource BaDarkTextBox}"
+                 Margin="0,0,0,8"
+                 TextChanged="SearchBox_TextChanged"/>
+
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Content="Add Selected" Width="120" Margin="0,0,8,0"
+                    IsDefault="True"
+                    Style="{DynamicResource BaPrimaryButton}"
+                    Click="Ok_Click"/>
+            <Button Content="Cancel" Width="100"
+                    IsCancel="True"
+                    Style="{DynamicResource BaSecondaryButton}"/>
+        </StackPanel>
+
+        <DataGrid x:Name="CandidatesGrid"
+                  Style="{DynamicResource BaDataGrid}"
+                  ColumnHeaderStyle="{StaticResource ColumnPickerHeaderStyle}"
+                  RowStyle="{StaticResource ColumnPickerRowStyle}"
+                  CellStyle="{StaticResource ColumnPickerCellStyle}"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  IsReadOnly="False"
+                  ColumnWidth="*">
+            <DataGrid.Columns>
+                <DataGridCheckBoxColumn Header="Add" Binding="{Binding IsSelected}" Width="50"/>
+                <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" IsReadOnly="True" Width="2*"/>
+                <DataGridTextColumn Header="Source" Binding="{Binding SourceLabel}" IsReadOnly="True" Width="*"/>
+                <DataGridTextColumn Header="Type" Binding="{Binding InstanceOrType}" IsReadOnly="True" Width="*"/>
+                <DataGridTextColumn Header="Data Type" Binding="{Binding DataTypeLabel}" IsReadOnly="True" Width="*"/>
+                <DataGridTextColumn Header="Occurs On" Binding="{Binding OccurrenceLabel}" IsReadOnly="True" Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</Window>

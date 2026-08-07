@@ -1,10 +1,11 @@
-﻿<Window x:Class="BA.Views.Export.ExportSettingsWindow"
+﻿<Window
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:BA.Views.Converters"
+        xmlns:av="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="av" x:Class="BA.Views.Export.ExportSettingsWindow"
         Style="{DynamicResource BaWindow}"
         Title="BA Tools - Export Settings"
-        Width="880" Height="600"
+        Width="960" Height="700"
         WindowStartupLocation="CenterOwner">
     <Window.Resources>
         <ResourceDictionary>
@@ -29,12 +30,9 @@
         <!-- Job list -->
         <Border Grid.Column="0" Grid.Row="0" Style="{DynamicResource BaDarkPanelBorder}">
             <DockPanel>
-                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4">
-                    <Button Content="+ PDF" Style="{DynamicResource BaSecondaryButton}"
-                            Command="{Binding AddPdfJobCommand}" Margin="0,0,4,0" />
-                    <Button Content="+ DWG" Style="{DynamicResource BaSecondaryButton}"
-                            Command="{Binding AddDwgJobCommand}" />
-                </StackPanel>
+                <Button DockPanel.Dock="Top" Content="+ New Job" Style="{DynamicResource BaSecondaryButton}"
+                        Command="{Binding AddJobCommand}" Margin="4"
+                        ToolTip="Creates a new export job with its own sheet set, naming template, schedule, and format settings. PDF is enabled by default, tick DWG as well if this job should export both formats in one run." />
                 <ListBox ItemsSource="{Binding Jobs}"
                          SelectedItem="{Binding SelectedJob}"
                          DisplayMemberPath="JobName"
@@ -44,89 +42,348 @@
 
         <!-- Job editor -->
         <Border Grid.Column="2" Grid.Row="0" Style="{DynamicResource BaDarkPanelBorder}">
-            <ScrollViewer VerticalScrollBarVisibility="Auto"
-                          DataContext="{Binding SelectedJob}">
-                <StackPanel Margin="12" IsEnabled="{Binding IsBusy, Converter={conv:InverseBooleanConverter}}">
-                    <TextBlock Text="Job Name" />
-                    <TextBox Text="{Binding JobName, UpdateSourceTrigger=PropertyChanged}" Style="{DynamicResource BaDarkTextBox}" Margin="0,2,0,10" />
+            <Grid>
+                <TextBlock Text="Select a job on the left, or create one with + New Job, to begin editing."
+                           Visibility="{Binding NoJobSelected, Converter={StaticResource BoolToVis}}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           TextWrapping="Wrap" TextAlignment="Center" Opacity="0.7" Margin="24" />
 
-                    <CheckBox Content="Enabled" IsChecked="{Binding Enabled}" Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,0,10" />
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              DataContext="{Binding SelectedJob}"
+                              Visibility="{Binding DataContext.HasSelectedJob, Converter={StaticResource BoolToVis}, RelativeSource={RelativeSource AncestorType={x:Type Grid}}}">
+                    <StackPanel Margin="12" IsEnabled="{Binding IsBusy, Converter={conv:InverseBooleanConverter}}">
+                        <TextBlock Text="Job Name" />
+                        <TextBox Text="{Binding JobName, UpdateSourceTrigger=PropertyChanged}" Style="{DynamicResource BaDarkTextBox}" Margin="0,2,0,10" />
 
-                    <TextBlock Text="Sheet Set" />
-                    <ComboBox ItemsSource="{Binding AvailableSheetSets}"
-                              SelectedItem="{Binding SheetSetName}"
-                              Style="{DynamicResource BaDarkComboBox}" Margin="0,2,0,10" />
+                        <CheckBox Content="Enabled" IsChecked="{Binding Enabled}" Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,0,6"
+                              ToolTip="Whether this job runs at all. An unchecked job is skipped entirely, both by Run Now and by the schedule, without needing to delete it or clear its sheet selection." />
 
-                    <TextBlock Text="Naming Template" />
-                    <TextBox Text="{Binding NamingTemplate, UpdateSourceTrigger=PropertyChanged}" Style="{DynamicResource BaDarkTextBox}" Margin="0,2,0,10" />
-
-                    <TextBlock Text="Date Format (.NET custom format, e.g. yyyyMMdd)" />
-                    <TextBox Text="{Binding DateFormat, UpdateSourceTrigger=PropertyChanged}" Style="{DynamicResource BaDarkTextBox}" Margin="0,2,0,10" />
-
-                    <TextBlock Text="Output Folder Template" />
-                    <TextBox Text="{Binding OutputFolderTemplate, UpdateSourceTrigger=PropertyChanged}" Style="{DynamicResource BaDarkTextBox}" Margin="0,2,0,10" />
-
-                    <StackPanel Visibility="{Binding IsDwg, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="DWG Export Setup" />
-                        <ComboBox ItemsSource="{Binding AvailableDwgExportSetups}"
-                                  SelectedItem="{Binding ExportSetupName}"
-                                  Style="{DynamicResource BaDarkComboBox}" Margin="0,2,0,10" />
-                    </StackPanel>
-
-                    <CheckBox Content="Schedule Enabled" IsChecked="{Binding ScheduleEnabled}" Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,0,6" />
-
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                        <StackPanel Margin="0,0,16,0">
-                            <TextBlock Text="Time of Day (HH:mm)" />
-                            <TextBox Text="{Binding ScheduledTimeText, UpdateSourceTrigger=PropertyChanged}"
-                                     Style="{DynamicResource BaDarkTextBox}" Width="80" HorizontalAlignment="Left" />
+                        <TextBlock Text="Export Formats" Margin="0,4,0,2" Opacity="0.85" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <CheckBox Content="PDF" IsChecked="{Binding ExportPdf}" Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,16,0"
+                                  ToolTip="Exports this job's sheets to PDF using the PDF Settings below. Can be combined with DWG, both formats run in the same job using the same sheet set and naming template." />
+                            <CheckBox Content="DWG" IsChecked="{Binding ExportDwg}" Style="{DynamicResource BaDarkPanelCheckBox}"
+                                  ToolTip="Exports this job's sheets to DWG using the DWG Settings below. Can be combined with PDF, both formats run in the same job using the same sheet set and naming template." />
                         </StackPanel>
-                        <StackPanel>
-                            <TextBlock Text="Catch-up Window (minutes)" />
-                            <TextBox Text="{Binding CatchUpMinutes, UpdateSourceTrigger=PropertyChanged}"
-                                     Style="{DynamicResource BaDarkTextBox}" Width="80" HorizontalAlignment="Left" />
-                        </StackPanel>
-                    </StackPanel>
 
-                    <TextBlock Text="Scheduled Days (none selected = every day)" Margin="0,0,0,4" />
-                    <ItemsControl ItemsSource="{Binding Days}" Margin="0,0,0,10">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected}"
+                        <TextBlock Text="Source" Margin="0,4,0,2" Opacity="0.85" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <RadioButton Content="Export Sheets" IsChecked="{Binding IsSheetsMode}" Foreground="#F2F2F2" Margin="0,0,16,0"
+                                     ToolTip="This job exports actual sheets. Naming supports {SheetNumber}/{SheetName}/{Revision}." />
+                            <RadioButton Content="Export Views" IsChecked="{Binding IsViewsMode}" Foreground="#F2F2F2"
+                                     ToolTip="This job exports arbitrary views (plans, sections, elevations, 3D) directly, not through a sheet. Naming supports {ViewName}/{ViewType} instead, {Revision} is not available, Revit tracks revisions per sheet, not per view." />
+                        </StackPanel>
+
+                        <CheckBox Content="Current View/Sheet Only" IsChecked="{Binding UseActiveViewOrSheet}"
+                              Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,0,10"
+                              ToolTip="Ignores Pick Sheets/Pick Views entirely and exports whatever view or sheet is active in Revit at the moment this job actually runs. In Sheets mode the active view must be a sheet, in Views mode it must not be, a mismatch fails the job with a clear message rather than silently falling back to the configured selection." />
+
+                        <StackPanel Visibility="{Binding IsSheetsMode, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="Sheets" />
+                            <Grid Margin="0,2,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding SheetSelectionSummary}" VerticalAlignment="Center" />
+                                <Button Grid.Column="1" Content="Pick Sheets..." Style="{DynamicResource BaSecondaryButton}"
+                                    Command="{Binding PickSheetsCommand}" Margin="8,0,0,0"
+                                    IsEnabled="{Binding UseActiveViewOrSheet, Converter={conv:InverseBooleanConverter}}"
+                                    ToolTip="Opens the sheet picker to choose which sheets this job exports. Sheets are matched by sheet number at export time, so a renamed or deleted sheet is skipped and reported rather than failing the job. Disabled while Current View/Sheet Only is checked, that selection is ignored in that mode." />
+                            </Grid>
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding IsViewsMode, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="Views" />
+                            <Grid Margin="0,2,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding ViewSelectionSummary}" VerticalAlignment="Center" />
+                                <Button Grid.Column="1" Content="Pick Views..." Style="{DynamicResource BaSecondaryButton}"
+                                    Command="{Binding PickViewsCommand}" Margin="8,0,0,0"
+                                    IsEnabled="{Binding UseActiveViewOrSheet, Converter={conv:InverseBooleanConverter}}"
+                                    ToolTip="Opens the view picker to choose which views this job exports directly. Views are matched by their internal id at export time, so a deleted view is skipped and reported rather than failing the job. Disabled while Current View/Sheet Only is checked, that selection is ignored in that mode." />
+                            </Grid>
+                        </StackPanel>
+
+                        <TextBlock Text="Naming Template" />
+                        <Grid Margin="0,2,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{Binding NamingTemplate, UpdateSourceTrigger=PropertyChanged}" Style="{DynamicResource BaDarkTextBox}"
+                                 ToolTip="The filename pattern for each exported item, built from tokens. Sheets mode: {SheetNumber}/{SheetName}/{Revision}/{Date}. Views mode: {ViewName}/{ViewType}/{Date}. The file extension is added automatically per format, do not include .pdf or .dwg here." />
+                            <Button Grid.Column="1" Content="Edit..." Style="{DynamicResource BaSecondaryButton}"
+                                Command="{Binding EditNamingCommand}" Margin="8,0,0,0"
+                                ToolTip="Opens the naming template builder, a searchable list of available tokens plus separator buttons and a live preview, instead of typing the template by hand." />
+                            <Button Grid.Column="2" Content="Preview" Style="{DynamicResource BaSecondaryButton}"
+                                Command="{Binding PreviewCommand}" Margin="8,0,0,0"
+                                ToolTip="Resolves this naming template and the output folder template below against a sample sheet or view, showing the result at the bottom of this panel, one line per enabled format, without actually exporting anything." />
+                        </Grid>
+
+                        <TextBlock Text="Date Format (.NET custom format, e.g. yyyyMMdd)" />
+                        <TextBox Text="{Binding DateFormat, UpdateSourceTrigger=PropertyChanged}" Style="{DynamicResource BaDarkTextBox}" Margin="0,2,0,10"
+                             ToolTip="Controls how {Date} is formatted inside the naming template, using standard .NET date format syntax. Only applies when the template has no inline format override for that token." />
+
+                        <TextBlock Text="Output Folder Template" />
+                        <Grid Margin="0,2,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{Binding OutputFolderTemplate, UpdateSourceTrigger=PropertyChanged}" Style="{DynamicResource BaDarkTextBox}"
+                                 ToolTip="The destination folder for exported files, supports the same tokens as the naming template. Literal path separators are preserved, only the resolved token values are sanitized for illegal characters." />
+                            <Button Grid.Column="1" Content="Browse..." Style="{DynamicResource BaSecondaryButton}"
+                                Command="{Binding BrowseOutputFolderCommand}" Margin="8,0,0,0"
+                                ToolTip="Opens a folder picker and inserts the chosen path as a literal value, replacing whatever was there. You can still add tokens like {Date} to the result afterward by editing the text directly." />
+                        </Grid>
+                        
+                        <TextBlock Text="Preview file name:" FontWeight="Bold" />
+                        <TextBlock Text="{Binding PreviewFileName}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                        <TextBlock Text="Preview folder:" FontWeight="Bold" />
+                        <TextBlock Text="{Binding PreviewFolder}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                        <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Opacity="0.8" />
+                        <!-- PDF settings, only relevant when PDF is one of the enabled formats -->
+                        
+                        <Border Visibility="{Binding ExportPdf, Converter={StaticResource BoolToVis}}"
+                            Style="{DynamicResource BaDarkPanelBorder}" Margin="0,0,0,10" Padding="10">
+                            <StackPanel>
+                                <TextBlock Text="PDF Settings" FontWeight="Bold" Margin="0,0,0,8" />
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="10" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Color Depth" />
+                                        <ComboBox ItemsSource="{Binding AvailableColorDepths}" SelectedItem="{Binding PdfColorDepth}"
+                                              Style="{DynamicResource BaDarkComboBox}" Margin="0,2,0,0"
+                                              ToolTip="Controls whether the PDF exports in full color, grayscale, or as black lines only. This affects both appearance and file size, black lines gives the smallest, highest contrast output for line drawings." />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Export Quality" />
+                                        <ComboBox ItemsSource="{Binding AvailablePdfQualities}" SelectedItem="{Binding PdfExportQuality}"
+                                              Style="{DynamicResource BaDarkComboBox}" Margin="0,2,0,0"
+                                              ToolTip="Sets the DPI used for any raster content in the PDF. Higher values give sharper detail but larger files. Only affects rasterized elements, vector lines and text are unaffected by this setting." />
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="10" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Zoom Type" />
+                                        <ComboBox ItemsSource="{Binding AvailablePdfZoomTypes}" SelectedItem="{Binding PdfZoomType}"
+                                              Style="{DynamicResource BaDarkComboBox}" Margin="0,2,0,0"
+                                              ToolTip="Fit to Page scales each sheet to fill the paper automatically. Zoom instead applies the exact percentage set below, useful when matching a consistent scale across multiple exported sheets." />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Zoom Percentage" />
+                                        <TextBox Text="{Binding PdfZoomPercentage, UpdateSourceTrigger=PropertyChanged}"
+                                             IsEnabled="{Binding PdfZoomPercentageEnabled}"
+                                             Style="{DynamicResource BaDarkTextBox}" Margin="0,2,0,0"
+                                             ToolTip="The exact zoom percentage applied when Zoom Type above is set to Zoom. Ignored entirely when Zoom Type is Fit to Page, Revit does not read this value in that mode." />
+                                    </StackPanel>
+                                </Grid>
+
+                                <WrapPanel>
+                                    <CheckBox Content="Always Use Raster" IsChecked="{Binding PdfAlwaysUseRaster}"
+                                          Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,16,4"
+                                          ToolTip="Forces all graphics to rasterize instead of using vector processing where possible. Unchecked (vector) keeps lines and text crisp at any zoom and produces smaller files, this is mainly a troubleshooting fallback." />
+                                    <CheckBox Content="Hide Crop Boundaries" IsChecked="{Binding PdfHideCropBoundaries}"
+                                          Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,16,4"
+                                          ToolTip="Hides the dashed crop region boundary lines that would otherwise appear around views on the exported sheet, matching what a client facing print typically expects to look like." />
+                                    <CheckBox Content="Hide Scope Boxes" IsChecked="{Binding PdfHideScopeBoxes}"
+                                          Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,16,4"
+                                          ToolTip="Hides scope box geometry from the exported PDF. Scope boxes are a modeling and view range aid, not meant to appear in a drawing set issued to consultants or clients." />
+                                    <CheckBox Content="Hide Reference Planes" IsChecked="{Binding PdfHideReferencePlane}"
+                                          Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,16,4"
+                                          ToolTip="Hides reference plane lines from the exported PDF. Reference planes are a modeling aid used while designing, not meant to appear in a drawing set issued to consultants or clients." />
+                                    <CheckBox Content="View Links In Blue" IsChecked="{Binding PdfViewLinksInBlue}"
+                                          Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,16,4"
+                                          ToolTip="Colors hyperlinked view reference tags blue in the exported PDF, similar to how links commonly appear in web documents, making it easier to spot cross references while reviewing on screen." />
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- DWG settings, only relevant when DWG is one of the enabled formats -->
+                        <Border Visibility="{Binding ExportDwg, Converter={StaticResource BoolToVis}}"
+                            Style="{DynamicResource BaDarkPanelBorder}" Margin="0,0,0,10" Padding="10">
+                            <StackPanel>
+                                <TextBlock Text="DWG Settings" FontWeight="Bold" Margin="0,0,0,8" />
+
+                                <TextBlock Text="Predefined Setup" Margin="0,0,0,0" />
+                                <TextBlock Text="Selecting a real setup here uses it exactly as saved in Revit and grays out every setting below, they carry no effect in that case, not just Layer Mapping."
+                                       TextWrapping="Wrap" Opacity="0.7" FontStyle="Italic" Margin="0,2,0,4" />
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="200" />
+                                        <ColumnDefinition Width="8" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox Grid.Column="0" ItemsSource="{Binding AvailablePredefinedSetupNames}" Text="{Binding DwgPredefinedSetupName, UpdateSourceTrigger=PropertyChanged}"
+                                          Style="{DynamicResource BaDarkComboBox}" HorizontalAlignment="Stretch"
+                                          IsEditable="True" IsTextSearchEnabled="True"
+                                          ToolTip="A DWG export setup already built and saved in Revit's own Export Setups DWG/DXF dialog, or '&lt;In-session export setup&gt;' to use the settings below instead. When a real setup is selected, it is used completely as-is, every other DWG setting on this panel is grayed out and ignored, since a predefined setup carries Colors and Object Style Overrides too, not just the layer table." />
+                                    <Button Grid.Column="2" Content="Refresh" Style="{DynamicResource BaSecondaryButton}"
+                                        Command="{Binding RefreshPredefinedDwgSetupsCommand}"
+                                        ToolTip="Reloads this list from the live document. This list can change from outside this tool entirely, in Revit's own Modify DWG/DXF Export Setup dialog, a job editor left open across that kind of change would otherwise keep showing stale data." />
+                                </Grid>
+
+                                <Grid Margin="0,0,0,8" IsEnabled="{Binding IsCustomDwgSettingsEnabled}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="10" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="10" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="AutoCAD Version" />
+                                        <ComboBox ItemsSource="{Binding AvailableAcadVersions}" SelectedItem="{Binding DwgFileVersion}"
+                                              Style="{DynamicResource BaDarkComboBox}" Margin="0,2,0,0"
+                                              ToolTip="The AutoCAD file format version the DWG is saved as. Older versions maximize compatibility with consultants running older AutoCAD releases, newer versions support more recent DWG features." />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Layer Mapping" />
+                                        <ComboBox ItemsSource="{Binding AvailableDwgLayerMappings}" SelectedItem="{Binding DwgLayerMapping}"
+                                              Style="{DynamicResource BaDarkComboBox}" Margin="0,2,0,0"
+                                              ToolTip="Selects which industry standard layer naming convention exported elements use. AIA, CP83, BS1192, and ISO13567 are established regional standards; Revit Default uses Revit's own built in mapping." />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="4">
+                                        <TextBlock Text="Target Unit" />
+                                        <ComboBox ItemsSource="{Binding AvailableExportUnits}" SelectedItem="{Binding DwgTargetUnit}"
+                                              Style="{DynamicResource BaDarkComboBox}" Margin="0,2,0,0"
+                                              ToolTip="The unit system used for exported geometry. Default follows the project's current Revit units; override this when a consultant specifically requires feet, millimeters, or another unit instead." />
+                                    </StackPanel>
+                                </Grid>
+
+
+
+                                <Grid Margin="0,8,0,0" IsEnabled="{Binding IsCustomDwgSettingsEnabled}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="10" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="10" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Linetype Scale" />
+                                        <ComboBox ItemsSource="{Binding AvailableDwgLineScalings}" SelectedItem="{Binding DwgLineScaling}"
+                                              Style="{DynamicResource BaDarkComboBox}" Margin="0,2,0,0"
+                                              ToolTip="How linetype scales (dashes, center lines, and so on) are applied in the exported DWG, matching Revit's own 'Set linetype scale' option in its native DWG export dialog." />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Colors" />
+                                        <ComboBox ItemsSource="{Binding AvailableDwgColorModes}" SelectedItem="{Binding DwgColors}"
+                                              Style="{DynamicResource BaDarkComboBox}" Margin="0,2,0,0"
+                                              ToolTip="Index Colors snaps every color to the nearest of 255 fixed AutoCAD palette colors and can visibly shift colors that aren't already on that palette. True Color RGB preserves the exact color from the model instead." />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="4">
+                                        <TextBlock Text="Object Style Overrides" />
+                                        <ComboBox ItemsSource="{Binding AvailableDwgPropOverrideModes}" SelectedItem="{Binding DwgPropOverrides}"
+                                              Style="{DynamicResource BaDarkComboBox}" Margin="0,2,0,0"
+                                              ToolTip="ByEntity (Revit's own raw default) writes an explicit color and lineweight on every object. ByLayer instead lets objects inherit color and lineweight from their layer, the standard convention for a clean CAD deliverable, and this tool's own default." />
+                                    </StackPanel>
+                                </Grid>
+                                
+                                    <WrapPanel IsEnabled="{Binding IsCustomDwgSettingsEnabled}">
+                                        <CheckBox Content="Merged Views" IsChecked="{Binding DwgMergedViews}"
+                                              Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,16,4"
+                                              ToolTip="Checked exports everything into one merged DWG file. Unchecked exports separate DWGs referenced externally (XRefs), Revit's own 'Export views on sheets and links as external references' checkbox is the inverse of this one." />
+                                        <CheckBox Content="Shared Coordinates" IsChecked="{Binding DwgSharedCoords}"
+                                              Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,16,4"
+                                              ToolTip="Exports geometry positioned using the project's shared coordinate system instead of the internal project origin, important when the DWG needs to align with civil or site survey coordinates." />
+                                        <CheckBox Content="Export Areas/Rooms" IsChecked="{Binding DwgExportingAreas}"
+                                              Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,16,4"
+                                              ToolTip="Includes room and area boundary geometry in the exported DWG. Off by default, since this geometry is rarely needed by consultants working purely from architectural line work." />
+                                        <CheckBox Content="Hide Scope Box" IsChecked="{Binding DwgHideScopeBox}"
+                                              Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,16,4"
+                                              ToolTip="Hides scope box geometry from the exported DWG. Scope boxes are a modeling and view range aid, not meant to appear in a drawing set issued to consultants or clients." />
+                                        <CheckBox Content="Hide Reference Planes" IsChecked="{Binding DwgHideReferencePlane}"
+                                              Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,16,4"
+                                              ToolTip="Hides reference plane lines from the exported DWG. Reference planes are a modeling aid used while designing, not meant to appear in a drawing set issued to consultants or clients." />
+                                    </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <CheckBox Content="Schedule Enabled" IsChecked="{Binding ScheduleEnabled}" Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,0,6"
+                              ToolTip="Allows this job to run automatically at the scheduled time below, checked by Revit's idling loop. When unchecked, this job only ever runs when Run Now is clicked manually." />
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Text="Time of Day (HH:mm)" />
+                                <TextBox Text="{Binding ScheduledTimeText, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{DynamicResource BaDarkTextBox}" Width="80" HorizontalAlignment="Left"
+                                     ToolTip="The local time of day this job should automatically run, in 24 hour HH:mm format. The job only fires if Revit happens to be open and idle around this time on a scheduled day." />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Catch-up Window (minutes)" />
+                                <TextBox Text="{Binding CatchUpMinutes, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{DynamicResource BaDarkTextBox}" Width="80" HorizontalAlignment="Left"
+                                     ToolTip="How many minutes past the scheduled time the job is still allowed to fire if Revit was not open exactly on time. Outside this window the job is skipped for that day entirely, never fired late." />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <TextBlock Text="Scheduled Days (none selected = every day)" Margin="0,0,0,4"
+                               ToolTip="Which days of the week this job is allowed to auto run. Leaving every day unchecked means no restriction, the job is eligible to run every day rather than being limited to specific days." />
+                        <ItemsControl ItemsSource="{Binding Days}" Margin="0,0,0,10">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected}"
                                           Style="{DynamicResource BaDarkPanelCheckBox}" Margin="0,0,10,4" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
 
-                    <StackPanel Orientation="Horizontal" Margin="0,4,0,10">
-                        <Button Content="Preview Naming" Style="{DynamicResource BaSecondaryButton}"
-                                Command="{Binding PreviewCommand}" Margin="0,0,8,0" />
-                        <Button Content="Run Now" Style="{DynamicResource BaSecondaryButton}"
-                                Command="{Binding RunNowCommand}" />
+                        
+                      
+                        <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Opacity="0.8" />
                     </StackPanel>
-
-                    <TextBlock Text="Preview file name:" FontWeight="Bold" />
-                    <TextBlock Text="{Binding PreviewFileName}" TextWrapping="Wrap" Margin="0,0,0,8" />
-                    <TextBlock Text="Preview folder:" FontWeight="Bold" />
-                    <TextBlock Text="{Binding PreviewFolder}" TextWrapping="Wrap" Margin="0,0,0,8" />
-                    <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Opacity="0.8" />
-                </StackPanel>
-            </ScrollViewer>
+                </ScrollViewer>
+            </Grid>
         </Border>
 
         <!-- Bottom bar -->
-        <StackPanel Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1"
-                    Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Margin="0,0,16,0" Opacity="0.8" />
-            <Button Content="Remove Selected" Style="{DynamicResource BaSecondaryButton}"
-                    Command="{Binding RemoveSelectedJobCommand}" Margin="0,0,8,0" />
-            <Button Content="Save All" Style="{DynamicResource BaPrimaryButton}"
-                    Command="{Binding SaveAllCommand}" />
-        </StackPanel>
+        <Grid Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0" Content="Run Now" Style="{DynamicResource BaPrimaryButton}"
+                    Command="{Binding SelectedJob.RunNowCommand}"
+                    IsEnabled="{Binding HasSelectedJob}"
+                    FontWeight="Bold" Padding="18,6"
+                    ToolTip="Runs the selected job immediately for every enabled format, regardless of whether Schedule Enabled is checked. Useful for testing the job's configuration before relying on the automatic schedule." />
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Margin="0,0,16,0" Opacity="0.8" />
+                <Button Content="Remove Selected" Style="{DynamicResource BaSecondaryButton}"
+                        Command="{Binding RemoveSelectedJobCommand}" Margin="0,0,8,0"
+                        ToolTip="Permanently removes the currently selected job from this list. This does not take effect on disk until Save All is clicked, Close without saving discards the removal." />
+                <Button Content="Save All" Style="{DynamicResource BaPrimaryButton}"
+                        Command="{Binding SaveAllCommand}" Margin="0,0,8,0"
+                        ToolTip="Writes every job currently in the list to disk, including all format settings, naming template, and schedule. Jobs are not persisted automatically, changes are lost if you close without saving." />
+                <Button Content="Close" Style="{DynamicResource BaSecondaryButton}"
+                        Command="{Binding CloseCommand}"
+                        ToolTip="Closes this window. Unsaved changes since the last Save All are not automatically saved, and this window does not warn before discarding them." />
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

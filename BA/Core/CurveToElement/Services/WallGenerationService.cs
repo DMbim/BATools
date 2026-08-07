@@ -1,5 +1,5 @@
 ﻿// File: BA/Core/CurveToElement/Services/WallGenerationService.cs
-// Action: CREATE NEW
+// Action: REPLACE (full file)
 
 using System;
 using System.Collections.Generic;
@@ -18,6 +18,14 @@ namespace BA.Core.CurveToElement.Services
     /// aborting the whole operation - one bad curve should not cost the user 40 other
     /// successfully created walls. The entire operation is still one Transaction, so it is
     /// one undo step regardless of how many individual walls succeeded or failed.
+    ///
+    /// Optional source-line deletion (deleteSourceLinesAfterCreation) happens at GROUP
+    /// granularity only, not per curve. CurveChainBuilder does not thread ClassifiableCurve's
+    /// SourceElementId through CurveChain.OrderedSegments (those are pure Curve geometry), so
+    /// there is no reliable way to map an individual failed Wall.Create back to the specific
+    /// source ElementId that produced it. Rather than guess, a group's source lines are only
+    /// deleted if every curve in that group produced a wall; a partial failure leaves the
+    /// whole group's lines untouched and reports why in the warnings list.
     /// </summary>
     public class WallGenerationService
     {
@@ -30,16 +38,17 @@ namespace BA.Core.CurveToElement.Services
             _orientationResolver = new WallOrientationResolver();
         }
 
-        public GenerationResult Execute(Document doc, IReadOnlyList<GroupGenerationRequest> requests)
+        public GenerationResult Execute(Document doc, IReadOnlyList<GroupGenerationRequest> requests, bool deleteSourceLinesAfterCreation)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
             if (requests == null) throw new ArgumentNullException(nameof(requests));
 
             if (requests.Count == 0)
-                return new GenerationResult(false, "No groups to generate.", 0, new List<string>());
+                return new GenerationResult(false, "No groups to generate.", 0, new List<string>(), 0);
 
             var warnings = new List<string>();
             int createdCount = 0;
+            int deletedLineCount = 0;
 
             using (Transaction transaction = new Transaction(doc, "Generate Walls from Curves"))
             {
@@ -47,9 +56,22 @@ namespace BA.Core.CurveToElement.Services
                 {
                     transaction.Start();
 
+                    var elementIdsToDelete = new List<ElementId>();
+
                     foreach (GroupGenerationRequest request in requests)
                     {
-                        createdCount += ProcessGroup(doc, request, warnings);
+                        int createdInGroup = ProcessGroup(doc, request, warnings);
+                        createdCount += createdInGroup;
+
+                        if (deleteSourceLinesAfterCreation)
+                        {
+                            CollectGroupCurvesForDeletion(request, createdInGroup, elementIdsToDelete, warnings);
+                        }
+                    }
+
+                    if (deleteSourceLinesAfterCreation && elementIdsToDelete.Count > 0)
+                    {
+                        deletedLineCount = TryDeleteSourceLines(doc, elementIdsToDelete, warnings);
                     }
 
                     transaction.Commit();
@@ -65,15 +87,88 @@ namespace BA.Core.CurveToElement.Services
                         false,
                         $"Wall generation failed and was rolled back: {ex.Message}",
                         0,
-                        warnings);
+                        warnings,
+                        0);
                 }
             }
 
-            string message = createdCount > 0
-                ? $"Created {createdCount} wall(s)."
-                : "No walls were created. Check warnings for details.";
+            string message = BuildSuccessMessage(createdCount, deletedLineCount, deleteSourceLinesAfterCreation);
+            return new GenerationResult(createdCount > 0, message, createdCount, warnings, deletedLineCount);
+        }
 
-            return new GenerationResult(createdCount > 0, message, createdCount, warnings);
+        /// <summary>
+        /// Adds a group's source ElementIds to the delete list only if every curve in the
+        /// group produced a wall. If some curves failed (createdInGroup less than the group's
+        /// curve count, but greater than zero) nothing in the group is queued for deletion, and
+        /// a warning explains why - deleting a line whose wall never got created would silently
+        /// destroy the user's only remaining reference to that geometry.
+        /// </summary>
+        private void CollectGroupCurvesForDeletion(
+            GroupGenerationRequest request,
+            int createdInGroup,
+            List<ElementId> elementIdsToDelete,
+            List<string> warnings)
+        {
+            int totalCurvesInGroup = request.Group.Curves.Count;
+
+            if (createdInGroup == totalCurvesInGroup && totalCurvesInGroup > 0)
+            {
+                foreach (ClassifiableCurve curve in request.Group.Curves)
+                {
+                    elementIdsToDelete.Add(curve.SourceElementId);
+                }
+            }
+            else if (createdInGroup > 0)
+            {
+                int failedCount = totalCurvesInGroup - createdInGroup;
+                warnings.Add(
+                    $"Group '{request.Group.StyleName}': {failedCount} of {totalCurvesInGroup} source line(s) did not " +
+                    "produce a wall. None of this group's source lines were deleted, to avoid losing geometry that " +
+                    "has no corresponding wall.");
+            }
+        }
+
+        /// <summary>
+        /// Batch-deletes the collected source detail lines in a single Document.Delete call.
+        /// Wrapped in its own try/catch so a delete failure (unlikely, but Document.Delete can
+        /// throw for ids Revit refuses to remove) reports a warning instead of rolling back the
+        /// whole transaction and discarding walls that already committed successfully.
+        /// </summary>
+        private int TryDeleteSourceLines(Document doc, List<ElementId> elementIdsToDelete, List<string> warnings)
+        {
+            var validIds = new List<ElementId>(elementIdsToDelete.Count);
+            foreach (ElementId id in elementIdsToDelete)
+            {
+                if (doc.GetElement(id) != null)
+                    validIds.Add(id);
+            }
+
+            if (validIds.Count == 0)
+                return 0;
+
+            try
+            {
+                doc.Delete(validIds);
+                return validIds.Count;
+            }
+            catch (Exception ex)
+            {
+                string warning = $"Wall(s) were created successfully, but deleting the source detail line(s) failed: {ex.Message}";
+                AppLogger.LogError("WallGenerationService.TryDeleteSourceLines: " + warning, ex);
+                warnings.Add(warning);
+                return 0;
+            }
+        }
+
+        private static string BuildSuccessMessage(int createdCount, int deletedLineCount, bool deleteRequested)
+        {
+            if (createdCount == 0)
+                return "No walls were created. Check warnings for details.";
+
+            if (!deleteRequested || deletedLineCount == 0)
+                return $"Created {createdCount} wall(s).";
+
+            return $"Created {createdCount} wall(s) and removed {deletedLineCount} source detail line(s).";
         }
 
         private int ProcessGroup(Document doc, GroupGenerationRequest request, List<string> warnings)

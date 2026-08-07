@@ -4,12 +4,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
-using BA.Core.Parameters;
 using BA.Markup.Models;
 using BA.Markup.Settings;
-using View = Autodesk.Revit.DB.View;
 
 namespace BA.Markup.Services
 {
@@ -23,6 +20,7 @@ namespace BA.Markup.Services
         private const string ParamBaComments = "BA_Comments";
         private const string ParamBaMarkupDate = "BA_Markup_Date";
         private const string ParamBaMarkupAuthor = "BA_Markup_Author";
+        private const string ParamBaAssignedUser = "BA.Tls_AssignedUser"; // <- NEW
         private const string ParamX = "x";
         private const string ParamY = "y";
 
@@ -62,6 +60,13 @@ namespace BA.Markup.Services
             SetStringParameter(instance, ParamBaMarkupDate, input.BaDate);
             SetStringParameter(instance, ParamBaMarkupAuthor, input.BaAuthor);
 
+            // <- NEW: BA_Tls_AssignedUser. Empty string is a valid value, means
+            //    unassigned, matching MarkupInputModel.AssignedUser's own convention.
+            //    BA_Tls_WIP and BA_Tls_Solved are intentionally NOT set here — they
+            //    default to their family's own default value (false/unchecked) and
+            //    are only ever toggled later via MarkupNotificationViewModel.
+            SetStringParameter(instance, ParamBaAssignedUser, input.AssignedUser);
+
             PlaceMarkupTag(instance, boundingBox, activeView);
 
             return instance;
@@ -76,28 +81,36 @@ namespace BA.Markup.Services
 
             if (input.RevisionElementId < 0)
                 throw new InvalidOperationException(
-                    "No revision selected. A valid Revit Revision must be selected for Official Revision mode.");
+                    "No revision selected. A valid Revit Revision must be selected " +
+                    "for Official Revision mode.");
 
             var revisionId = new ElementId(input.RevisionElementId);
 
             if (_doc.GetElement(revisionId) is not Revision)
                 throw new InvalidOperationException(
-                    $"Revision with ElementId {input.RevisionElementId} no longer exists in the document.");
+                    $"Revision with ElementId {input.RevisionElementId} no longer " +
+                    "exists in the document.");
 
-            // <- CHANGED: RevisionCloud.Create takes IList<Curve>, not IList<CurveLoop>.
-            // Use the flat curve list builder, not the CurveLoop builder.
             var curves = BuildCurvesFromBoundingBox(boundingBox);
 
             var cloud = RevisionCloud.Create(
                 _doc,
                 activeView,
                 revisionId,
-                curves);  // <- CHANGED: was "loops" (IList<CurveLoop>), now "curves" (IList<Curve>)
+                curves);
 
             SetStringParameterIfExists(cloud, ParamBaType, input.BaType);
             SetStringParameterIfExists(cloud, ParamBaComments, input.BaComments);
             SetStringParameterIfExists(cloud, ParamBaMarkupDate, input.BaDate);
             SetStringParameterIfExists(cloud, ParamBaMarkupAuthor, input.BaAuthor);
+
+            // <- NEW: lenient, same convention as the other BA_* writes on RevisionCloud
+            //    above. If BA_Tls_AssignedUser isn't bound to the Revision Clouds
+            //    category this silently no-ops rather than failing cloud placement.
+            SetStringParameterIfExists(cloud, ParamBaAssignedUser, input.AssignedUser);
+
+            // Place the BA_TAG_Revision tag on the cloud inside the same transaction.
+            PlaceRevisionTag(cloud, boundingBox, activeView);
 
             return cloud;
         }
@@ -111,7 +124,8 @@ namespace BA.Markup.Services
             View activeView)
         {
             if (elementIds == null || elementIds.Count == 0)
-                throw new ArgumentException("No elements provided for bounding box calculation.");
+                throw new ArgumentException(
+                    "No elements provided for bounding box calculation.");
 
             double minX = double.MaxValue, minY = double.MaxValue;
             double maxX = double.MinValue, maxY = double.MinValue;
@@ -134,8 +148,8 @@ namespace BA.Markup.Services
 
             if (minX == double.MaxValue)
                 throw new InvalidOperationException(
-                    "Could not compute a bounding box from the selected elements in the active view. " +
-                    "Elements may not be visible in this view.");
+                    "Could not compute a bounding box from the selected elements " +
+                    "in the active view. Elements may not be visible in this view.");
 
             return ExpandBoundingBox(minX, minY, maxX, maxY, z);
         }
@@ -198,16 +212,16 @@ namespace BA.Markup.Services
             var symbol = FindFamilySymbol(name, BuiltInCategory.OST_DetailComponents);
             if (symbol != null) return symbol;
 
-            var primaryPath = Path.Combine(_settings.FamilySearchRoot, name + ".rfa");
-            if (TryLoadFamily(primaryPath, out _))
+            var path = Path.Combine(_settings.FamilySearchRoot, name + ".rfa");
+            if (TryLoadFamily(path, out _))
             {
                 var s = FindFamilySymbol(name, BuiltInCategory.OST_DetailComponents);
                 if (s != null) return s;
             }
 
             throw new InvalidOperationException(
-                $"Family '{name}' could not be found in the project or loaded from:\n{primaryPath}\n" +
-                "Please load the family manually and retry.");
+                $"Family '{name}' could not be found in the project or loaded from:" +
+                $"\n{path}\nPlease load the family manually and retry.");
         }
 
         private FamilySymbol GetOrLoadTagSymbol()
@@ -216,15 +230,36 @@ namespace BA.Markup.Services
             var symbol = FindFamilySymbol(name, BuiltInCategory.OST_DetailComponentTags);
             if (symbol != null) return symbol;
 
-            var primaryPath = Path.Combine(_settings.FamilySearchRoot, name + ".rfa");
-            if (TryLoadFamily(primaryPath, out _))
+            var path = Path.Combine(_settings.FamilySearchRoot, name + ".rfa");
+            if (TryLoadFamily(path, out _))
             {
                 var s = FindFamilySymbol(name, BuiltInCategory.OST_DetailComponentTags);
                 if (s != null) return s;
             }
 
             throw new InvalidOperationException(
-                $"Tag family '{name}' could not be found in the project or loaded from:\n{primaryPath}");
+                $"Tag family '{name}' could not be found in the project or loaded " +
+                $"from:\n{path}");
+        }
+
+        // Loads BA_TAG_Revision from the same FamilySearchRoot.
+        // Revision cloud tags are OST_RevisionCloudTags, not OST_DetailComponentTags.
+        private FamilySymbol GetOrLoadRevisionTagSymbol()
+        {
+            var name = _settings.RevisionTagFamilyName;
+            var symbol = FindFamilySymbol(name, BuiltInCategory.OST_RevisionCloudTags);
+            if (symbol != null) return symbol;
+
+            var path = Path.Combine(_settings.FamilySearchRoot, name + ".rfa");
+            if (TryLoadFamily(path, out _))
+            {
+                var s = FindFamilySymbol(name, BuiltInCategory.OST_RevisionCloudTags);
+                if (s != null) return s;
+            }
+
+            throw new InvalidOperationException(
+                $"Revision tag family '{name}' could not be found in the project " +
+                $"or loaded from:\n{path}");
         }
 
         private FamilySymbol? FindFamilySymbol(string familyName, BuiltInCategory category)
@@ -266,6 +301,7 @@ namespace BA.Markup.Services
             }
             catch
             {
+                // Tag family missing — non-fatal for internal markup placement.
                 return;
             }
 
@@ -284,6 +320,49 @@ namespace BA.Markup.Services
                 tagSymbol.Id,
                 activeView.Id,
                 new Reference(markup),
+                false,
+                TagOrientation.Horizontal,
+                tagPoint);
+        }
+
+        // Places BA_TAG_Revision on a RevisionCloud element.
+        // Called from PlaceRevisionCloud inside the same transaction.
+        // Non-fatal if the tag family is missing — logs the skip silently.
+        // RevisionCloud is tagged via IndependentTag.Create using a Reference
+        // to the cloud element. The tag point is offset from the top-right
+        // corner of the bounding box, same convention as the markup tag.
+        private void PlaceRevisionTag(
+            RevisionCloud cloud,
+            BoundingBoxXYZ boundingBox,
+            View activeView)
+        {
+            FamilySymbol tagSymbol;
+            try
+            {
+                tagSymbol = GetOrLoadRevisionTagSymbol();
+                EnsureSymbolActive(tagSymbol);
+            }
+            catch
+            {
+                // Tag family missing — non-fatal. Cloud is placed without a tag.
+                return;
+            }
+
+            double offsetX = UnitUtils.ConvertToInternalUnits(
+                _settings.TagOffsetXMm, UnitTypeId.Millimeters);
+            double offsetY = UnitUtils.ConvertToInternalUnits(
+                _settings.TagOffsetYMm, UnitTypeId.Millimeters);
+
+            var tagPoint = new XYZ(
+                boundingBox.Max.X + offsetX,
+                boundingBox.Max.Y + offsetY,
+                boundingBox.Min.Z);
+
+            IndependentTag.Create(
+                _doc,
+                tagSymbol.Id,
+                activeView.Id,
+                new Reference(cloud),
                 false,
                 TagOrientation.Horizontal,
                 tagPoint);
@@ -313,127 +392,60 @@ namespace BA.Markup.Services
                 (bb.Min.Y + bb.Max.Y) / 2.0,
                 bb.Min.Z);
 
-        // <- CHANGED: winding direction reversed (was p0->p1->p2->p3, now p0->p3->p2->p1).
-        // RevisionCloud.Create is sensitive to curve loop winding direction -- the previous
-        // counter-clockwise order produced inward-bulging (inverted) cloud scallops. This
-        // reversal is based on the observed symptom, not a memorized API guarantee -- confirm
-        // it actually renders correctly after rebuilding; if it's still inverted, the real fix
-        // is elsewhere (e.g. view orientation, or RevisionCloud.Create expecting the opposite
-        // convention than assumed here).
+        // Winding order is counter-clockwise (CCW) so Revit computes an upward-facing
+        // normal and draws cloud arcs on the correct side.
         private static IList<Curve> BuildCurvesFromBoundingBox(BoundingBoxXYZ bb)
         {
             double x0 = bb.Min.X, y0 = bb.Min.Y;
             double x1 = bb.Max.X, y1 = bb.Max.Y;
             double z = bb.Min.Z;
 
-            var p0 = new XYZ(x0, y0, z);
-            var p1 = new XYZ(x1, y0, z);
-            var p2 = new XYZ(x1, y1, z);
-            var p3 = new XYZ(x0, y1, z);
+            var p0 = new XYZ(x0, y0, z); // bottom-left
+            var p1 = new XYZ(x0, y1, z); // top-left
+            var p2 = new XYZ(x1, y1, z); // top-right
+            var p3 = new XYZ(x1, y0, z); // bottom-right
 
             return new List<Curve>
-            {
-                Line.CreateBound(p0, p3),
-                Line.CreateBound(p3, p2),
-                Line.CreateBound(p2, p1),
-                Line.CreateBound(p1, p0)
-            };
+    {
+        Line.CreateBound(p0, p1), // left edge, bottom to top
+        Line.CreateBound(p1, p2), // top edge, left to right
+        Line.CreateBound(p2, p3), // right edge, top to bottom
+        Line.CreateBound(p3, p0)  // bottom edge, right to left
+    };
         }
 
-        // <- CHANGED: winding reversed to match BuildCurvesFromBoundingBox above, for
-        // consistency -- this method isn't currently called, but would hit the same
-        // inverted-bump issue if wired up later without this.
-        private static IList<CurveLoop> BuildCurveLoopFromBoundingBox(BoundingBoxXYZ bb)
-        {
-            double x0 = bb.Min.X, y0 = bb.Min.Y;
-            double x1 = bb.Max.X, y1 = bb.Max.Y;
-            double z = bb.Min.Z;
-
-            var p0 = new XYZ(x0, y0, z);
-            var p1 = new XYZ(x1, y0, z);
-            var p2 = new XYZ(x1, y1, z);
-            var p3 = new XYZ(x0, y1, z);
-
-            var loop = CurveLoop.Create(new List<Curve>
-            {
-                Line.CreateBound(p0, p3),
-                Line.CreateBound(p3, p2),
-                Line.CreateBound(p2, p1),
-                Line.CreateBound(p1, p0)
-            });
-
-            return new List<CurveLoop> { loop };
-        }
 
         // ================================================================== //
         //  PARAMETER HELPERS
         // ================================================================== //
 
-        private static void SetLengthParameter(Element element, string paramName, double internalValue)
+        private static void SetLengthParameter(
+            Element element, string paramName, double internalValue)
         {
             var param = element.LookupParameter(paramName);
             if (param == null || param.IsReadOnly)
                 throw new InvalidOperationException(
-                    $"Parameter '{paramName}' not found or is read-only on element {element.Id}.");
+                    $"Parameter '{paramName}' not found or is read-only on " +
+                    $"element {element.Id}.");
             param.Set(internalValue);
         }
 
-        private void SetStringParameter(Element element, string paramName, string value)
+        private static void SetStringParameter(
+            Element element, string paramName, string value)
         {
             var param = element.LookupParameter(paramName);
-
-            if (param == null)
-            {
-                // Required parameter missing on this element -- attempt to create it
-                // from the shared parameter file and bind it to the element's category
-                // as an Instance parameter under Text, then retry the lookup once.
-                EnsureSharedParameterBound(element.Category, paramName);
-                param = element.LookupParameter(paramName);
-            }
-
             if (param == null)
                 throw new InvalidOperationException(
-                    $"Shared parameter '{paramName}' could not be found or created for category " +
-                    $"'{element.Category?.Name}' on element {element.Id}. " +
-                    "Check the shared parameter file path in Markup settings and that the file is reachable.");
-
+                    $"Shared parameter '{paramName}' not found on element {element.Id}. " +
+                    "Verify the parameter is bound to the correct category.");
             if (param.IsReadOnly)
                 throw new InvalidOperationException(
                     $"Shared parameter '{paramName}' is read-only on element {element.Id}.");
-
             param.Set(value);
         }
 
-        /// <summary>
-        /// Creates the named shared parameter from the configured shared parameter
-        /// file if it doesn't already exist there, then binds it to the given
-        /// category as an Instance parameter under the Text parameter group.
-        /// No GUID hint is used -- matched/created purely by name. Any failure
-        /// here (file unreachable, bind rejected, etc.) propagates as-is from
-        /// SharedParameterBinder, which already throws clear, specific
-        /// InvalidOperationExceptions -- not swallowed here, so the real reason
-        /// reaches whatever catches this instead of being replaced by a generic
-        /// "not found" message from the retry above.
-        /// </summary>
-        private void EnsureSharedParameterBound(Category? category, string paramName)
-        {
-            if (category == null) return;
-
-            var app = _uiDoc.Application.Application;
-
-            SharedParameterBinder.BindSharedParameter(
-                app,
-                _doc,
-                _settings.SharedParameterFilePath,
-                paramName,
-                Guid.Empty,
-                GroupTypeId.Text,
-                isInstance: true,
-                categories: new List<Category> { category },
-                createIfMissing: true);
-        }
-
-        private static void SetStringParameterIfExists(Element element, string paramName, string value)
+        private static void SetStringParameterIfExists(
+            Element element, string paramName, string value)
         {
             var param = element.LookupParameter(paramName);
             if (param == null || param.IsReadOnly) return;

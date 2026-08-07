@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:conv="clr-namespace:BA_Tools.ScheduleExporter.Helpers"
         Title="Ledger Settings"
-        Width="560" Height="640"
+        Width="560" Height="660"
         Style="{DynamicResource BaWindow}"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResizeWithGrip">
@@ -13,6 +13,24 @@
                 <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml" />
             </ResourceDictionary.MergedDictionaries>
             <conv:InverseBooleanConverter x:Key="InverseBooleanConverter" />
+
+            <!-- Two-state Ledger on/off button: background swaps green/red based on
+                 IsLedgerEnabled. Colors are hardcoded here since no existing theme brush
+                 (e.g. Brush.Success/Brush.Danger) was specified; swap these for real theme
+                 resources if BaDark* already defines them. -->
+            <Style x:Key="BaLedgerToggleButton" TargetType="Button" BasedOn="{StaticResource BaPrimaryButton}">
+                <Setter Property="Width" Value="170" />
+                <Setter Property="HorizontalAlignment" Value="Left" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsLedgerEnabled}" Value="True">
+                        <Setter Property="Background" Value="#FF2E7D46" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding IsLedgerEnabled}" Value="False">
+                        <Setter Property="Background" Value="#FF8A2E2E" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -21,13 +39,32 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
+        <!-- Ledger sync on/off (per central, defaults OFF for every model) -->
+        <Border Grid.Row="0" Style="{StaticResource BaDarkPanelBorder}" Margin="0,0,0,12">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="{Binding LedgerEnabledButtonText}"
+                        Style="{StaticResource BaLedgerToggleButton}"
+                        Command="{Binding ToggleLedgerEnabledCommand}"
+                        IsEnabled="{Binding IsSettingLedgerEnabled, Converter={StaticResource InverseBooleanConverter}}" />
+                <TextBlock Text="Controls whether this central participates in Type Data Ledger sync. Off by default for every model; this is stored per central and travels with the document."
+                           Foreground="{DynamicResource Brush.WindowFg}"
+                           Opacity="0.7"
+                           TextWrapping="Wrap"
+                           FontSize="11"
+                           MaxWidth="330"
+                           Margin="12,0,0,0"
+                           VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+
         <!-- Ledger path -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+        <StackPanel Grid.Row="1" Margin="0,0,0,12">
             <TextBlock Style="{StaticResource BaLabelText}" Text="Ledger JSON File Path" Margin="0,0,0,4" />
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -44,7 +81,7 @@
                         Command="{Binding BrowseCommand}" />
             </Grid>
         </StackPanel>
-        <StackPanel Grid.Row="4" Margin="0,10,0,0">
+        <StackPanel Grid.Row="5" Margin="0,10,0,0">
 
             <TextBlock Text="Project Set" Foreground="{DynamicResource Brush.WindowFg}" FontWeight="SemiBold" Margin="0,0,0,4"/>
             <TextBlock Text="Auto-detected from the central's file path (e.g. N:\17-081\... -> 17-081). Only set this manually if auto-detection is wrong for this central."
@@ -69,7 +106,7 @@
                TextWrapping="Wrap"/>
         </StackPanel>
         <!-- Central model identifier (this document only) -->
-        <Border Grid.Row="1" Style="{StaticResource BaDarkPanelBorder}" Margin="0,0,0,12">
+        <Border Grid.Row="2" Style="{StaticResource BaDarkPanelBorder}" Margin="0,0,0,12">
             <StackPanel>
                 <TextBlock Style="{StaticResource BaSectionTitleText}" Text="Central Model Identifier (this document only)" />
                 <TextBlock Style="{StaticResource BaMutedTextDark}"
@@ -95,7 +132,7 @@
         </Border>
 
         <!-- Retry settings -->
-        <Border Grid.Row="2" Style="{StaticResource BaDarkPanelBorder}" Margin="0,0,0,12">
+        <Border Grid.Row="3" Style="{StaticResource BaDarkPanelBorder}" Margin="0,0,0,12">
             <StackPanel>
                 <TextBlock Style="{StaticResource BaSectionTitleText}" Text="File Lock Retry Settings" />
                 <Grid>
@@ -118,7 +155,7 @@
         </Border>
 
         <!-- Category filter + diagnostics, side by side -->
-        <Grid Grid.Row="3">
+        <Grid Grid.Row="4">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="12" />
@@ -208,7 +245,7 @@
         </Grid>
 
         <!-- Buttons -->
-        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="Cancel"
                     Style="{StaticResource BaSecondaryButton}"
                     Command="{Binding CancelCommand}"

@@ -21,7 +21,7 @@ namespace BA.BIM.Core.Annotations
     public sealed class PackingConfig
     {
         public double Margin { get; set; }     // clearance around bbox (internal units)
-        public double Step { get; set; }       // spiral step (internal units)
+        public double Step { get; set; }       // spiral ring pitch (internal units)
         public int MaxRings { get; set; }      // search budget
         public bool TouchCountsAsCollision { get; set; } = true;
 
@@ -49,6 +49,13 @@ namespace BA.BIM.Core.Annotations
 
     public static class AnnoPacking
     {
+        // Processes elements top to bottom, left to right. For each element that
+        // collides with something already placed, searches an expanding square
+        // spiral of candidate offsets around its ORIGINAL position (via
+        // SpiralOffsets) and takes the first offset that clears every placed
+        // rect. This is a true spiral search, not a single direction push, so it
+        // will find a clear spot on either side of an obstacle rather than only
+        // committing to one direction and failing if that direction is blocked.
         public static PackingReport DeoverlapGreedySpiral(
            Document doc,
            Autodesk.Revit.DB.View view,
@@ -78,47 +85,30 @@ namespace BA.BIM.Core.Annotations
                 if (bb == null)
                     continue;
 
-                Rect2D rect = AnnoGeometry.GetRectInViewPlane(plane, bb).Inflate(cfg.Margin);
+                Rect2D originalRect = AnnoGeometry.GetRectInViewPlane(plane, bb).Inflate(cfg.Margin);
 
-                bool collides = placed.Any(r => Intersects(r, rect, cfg.TouchCountsAsCollision));
+                bool collides = placed.Any(r => Intersects(r, originalRect, cfg.TouchCountsAsCollision));
                 if (collides) report.CollidingInitially++;
 
                 if (!collides)
                 {
-                    placed.Add(rect);
+                    placed.Add(originalRect);
                     continue;
                 }
 
-                // ---------- NEW STRATEGY ----------
-                // Push away from center of already placed cluster
-
-                UV myCenter = rect.Center();
-                UV clusterCenter = GetClusterCenter(placed);
-
-                UV direction = new UV(
-                    myCenter.U - clusterCenter.U,
-                    myCenter.V - clusterCenter.V);
-
-                double len = System.Math.Sqrt(direction.U * direction.U + direction.V * direction.V);
-                if (len < 1e-6)
-                    direction = new UV(1, 0); // fallback
-
-                direction = new UV(direction.U / len, direction.V / len);
-
                 bool moved = false;
 
-                // Push outward in increasing distance
-                for (int i = 1; i <= cfg.MaxRings; i++)
+                foreach (var offset in SpiralOffsets(cfg.Step, cfg.MaxRings))
                 {
-                    UV delta = new UV(direction.U * i * cfg.Step,
-                                      direction.V * i * cfg.Step);
+                    if (offset.U == 0 && offset.V == 0)
+                        continue; // ring 0 is the original position, already known to collide
 
-                    var candidate = rect.MoveBy(delta);
+                    var candidate = originalRect.MoveBy(offset);
 
                     if (placed.Any(r => Intersects(r, candidate, cfg.TouchCountsAsCollision)))
                         continue;
 
-                    var deltaXyz = plane.DeltaToXYZ(delta);
+                    var deltaXyz = plane.DeltaToXYZ(offset);
 
                     if (AnnoMove.TryMoveBy(doc, it.Element, deltaXyz, out string reason))
                     {
@@ -127,34 +117,20 @@ namespace BA.BIM.Core.Annotations
                         moved = true;
                         break;
                     }
+                    else
+                    {
+                        report.FailReasons[reason] = report.FailReasons.GetValueOrDefault(reason) + 1;
+                    }
                 }
 
                 if (!moved)
                 {
                     report.CouldNotFindSpot++;
-                    placed.Add(rect);
+                    placed.Add(originalRect);
                 }
             }
 
             return report;
-        }
-
-        private static UV GetClusterCenter(List<Rect2D> rects)
-        {
-            if (rects.Count == 0)
-                return new UV(0, 0);
-
-            double u = 0;
-            double v = 0;
-
-            foreach (var r in rects)
-            {
-                var c = r.Center();
-                u += c.U;
-                v += c.V;
-            }
-
-            return new UV(u / rects.Count, v / rects.Count);
         }
 
         private static bool Intersects(Rect2D a, Rect2D b, bool touchCounts)
@@ -162,10 +138,12 @@ namespace BA.BIM.Core.Annotations
             if (!touchCounts)
                 return a.Intersects(b);
 
-            // Inclusive intersection (touching edges counts as collision)
             return !(b.MinX > a.MaxX || b.MaxX < a.MinX || b.MinY > a.MaxY || b.MaxY < a.MinY);
         }
 
+        // Enumerates offsets on an expanding square ring around (0,0): ring 0 is
+        // the origin itself, ring r covers the perimeter of a (2r+1) x (2r+1)
+        // square of cells at spacing `step`.
         private static IEnumerable<UV> SpiralOffsets(double step, int maxRings)
         {
             yield return new UV(0, 0);

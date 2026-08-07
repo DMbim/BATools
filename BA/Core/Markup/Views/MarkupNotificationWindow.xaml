@@ -1,0 +1,153 @@
+﻿<!-- BA/Markup/Views/MarkupNotificationWindow.xaml -->
+<Window
+    x:Class="BA.Markup.Views.MarkupNotificationWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="clr-namespace:BA.Markup.ViewModels"
+    d:DataContext="{d:DesignInstance Type=vm:MarkupNotificationViewModel}"
+    mc:Ignorable="d"
+    Title="BA — Markup Assignments"
+    Width="820"
+    Height="480"
+    MinWidth="620"
+    MinHeight="320"
+    ResizeMode="CanResize"
+    WindowStartupLocation="CenterOwner"
+    Style="{DynamicResource {x:Type Window}}">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ============================================================== -->
+        <!-- ROW 0: Header                                                   -->
+        <!-- ============================================================== -->
+        <Border Grid.Row="0"
+                Style="{StaticResource BaDarkPanelBorder}"
+                Margin="0,0,0,8"
+                Padding="10,8">
+            <StackPanel>
+                <TextBlock Text="You have open markup assignments"
+                           FontWeight="SemiBold"
+                           FontSize="13"
+                           Foreground="White"/>
+                <TextBlock Text="Rows marked NEW changed since your last sync."
+                           FontSize="11"
+                           Opacity="0.7"
+                           Margin="0,2,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ============================================================== -->
+        <!-- ROW 1: DataGrid                                                 -->
+        <!-- ============================================================== -->
+        <DataGrid Grid.Row="1"
+                  ItemsSource="{Binding Items}"
+                  SelectedItem="{Binding SelectedRow}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  SelectionMode="Single"
+                  CanUserSortColumns="True"
+                  CanUserResizeColumns="True"
+                  CanUserReorderColumns="False"
+                  GridLinesVisibility="Horizontal"
+                  HeadersVisibility="Column"
+                  RowHeaderWidth="0"
+                  Margin="0,0,0,8"
+                  BorderThickness="1">
+
+            <DataGrid.Columns>
+                <DataGridTextColumn Header=""
+                                    Binding="{Binding IsNew, Converter={StaticResource BoolToVis}}"
+                                    Width="0"
+                                    Visibility="Collapsed"/>
+                <DataGridTemplateColumn Header="New" Width="45">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="●"
+                                       Foreground="#4FC3F7"
+                                       HorizontalAlignment="Center"
+                                       Visibility="{Binding IsNew, Converter={StaticResource BoolToVis}}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="From"
+                                    Binding="{Binding Author}"
+                                    Width="100"/>
+                <DataGridTextColumn Header="Type"
+                                    Binding="{Binding BaType}"
+                                    Width="110"/>
+                <DataGridTextColumn Header="Comments"
+                                    Binding="{Binding Comments}"
+                                    Width="*"/>
+                <DataGridTextColumn Header="View"
+                                    Binding="{Binding ViewName}"
+                                    Width="140"/>
+                <DataGridTextColumn Header="Date"
+                                    Binding="{Binding Date}"
+                                    Width="90"/>
+                <DataGridCheckBoxColumn Header="WIP"
+                                        Binding="{Binding Wip}"
+                                        Width="50"/>
+            </DataGrid.Columns>
+
+        </DataGrid>
+
+        <!-- ============================================================== -->
+        <!-- ROW 2: Status bar + action buttons                              -->
+        <!-- ============================================================== -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <TextBlock Text="{Binding StatusMessage}"
+                           FontSize="11"
+                           TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="Go To View is unavailable, this markup was not synced from your active document."
+                           FontSize="10"
+                           Opacity="0.6"
+                           Visibility="{Binding GoToViewUnavailable, Converter={StaticResource BoolToVis}}"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button Content="Go To View"
+                        Command="{Binding GoToViewCommand}"
+                        Style="{StaticResource BaSecondaryButton}"
+                        Width="90"
+                        Margin="0,0,6,0"/>
+                <Button Content="Mark WIP"
+                        Command="{Binding MarkWipCommand}"
+                        Style="{StaticResource BaSecondaryButton}"
+                        Width="80"
+                        Margin="0,0,6,0"/>
+                <Button Content="Mark Solved"
+                        Command="{Binding MarkSolvedCommand}"
+                        Style="{StaticResource BaPrimaryButton}"
+                        Width="95"
+                        Margin="0,0,6,0"/>
+                <Button Content="Close"
+                        Command="{Binding CloseCommand}"
+                        Style="{StaticResource BaSecondaryButton}"
+                        Width="70"/>
+            </StackPanel>
+        </Grid>
+
+    </Grid>
+</Window>

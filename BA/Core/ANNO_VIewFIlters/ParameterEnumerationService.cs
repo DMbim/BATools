@@ -85,7 +85,180 @@ namespace BA.Core.ViewFilters
 
             return results.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToArray();
         }
+        // New. Multi-category counterpart to GetFilterableParameters, for the
+        // Super Selector tab. Instance/type resolution mirrors the single
+        // category version exactly: try to find the parameter on a sample
+        // instance first, fall back to a sample type. Built-in parameters are
+        // not present in doc.ParameterBindings, so which side an element
+        // exposes them on is the only reliable signal, same reasoning as the
+        // existing single category method. // <- NEW
+        public static ParameterInfo[] GetFilterableParametersForCategories(Document doc, ICollection<ElementId> categoryIds)
+        {
+            if (doc == null) throw new ArgumentNullException(nameof(doc));
+            if (categoryIds == null || categoryIds.Count == 0)
+                return Array.Empty<ParameterInfo>();
 
+            var filterableParamIds = ParameterFilterUtilities.GetFilterableParametersInCommon(doc, categoryIds);
+            if (filterableParamIds == null || filterableParamIds.Count == 0)
+                return Array.Empty<ParameterInfo>();
+
+            var sampleInstances = new List<Element>();
+            var sampleTypes = new List<Element>();
+
+            foreach (var catId in categoryIds)
+            {
+                var inst = new FilteredElementCollector(doc)
+                    .OfCategoryId(catId)
+                    .WhereElementIsNotElementType()
+                    .FirstOrDefault();
+                if (inst != null) sampleInstances.Add(inst);
+
+                Element type = null;
+                if (inst != null)
+                {
+                    var typeId = inst.GetTypeId();
+                    if (typeId != null && typeId != ElementId.InvalidElementId)
+                        type = doc.GetElement(typeId);
+                }
+                else
+                {
+                    type = new FilteredElementCollector(doc)
+                        .OfCategoryId(catId)
+                        .WhereElementIsElementType()
+                        .FirstOrDefault();
+                }
+                if (type != null) sampleTypes.Add(type);
+            }
+
+            if (sampleInstances.Count == 0 && sampleTypes.Count == 0)
+                return Array.Empty<ParameterInfo>();
+
+            var results = new List<ParameterInfo>();
+
+            foreach (var paramId in filterableParamIds)
+            {
+                bool isInstance = true;
+                Parameter found = null;
+
+                foreach (var el in sampleInstances)
+                {
+                    found = FindParameterById(el, paramId);
+                    if (found != null) break;
+                }
+
+                if (found == null)
+                {
+                    foreach (var el in sampleTypes)
+                    {
+                        found = FindParameterById(el, paramId);
+                        if (found != null) { isInstance = false; break; }
+                    }
+                }
+
+                if (found == null || found.Definition == null) continue;
+
+                results.Add(new ParameterInfo(paramId, found.Definition.Name, found.StorageType, isInstance));
+            }
+
+            return results.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+        }
+        // New. Super Selector's own category and parameter enumeration.
+        // Deliberately does not use ParameterFilterUtilities, which scopes
+        // itself to categories/parameters usable in a ParameterFilterElement
+        // - a constraint Super Selector has no reason to inherit since it
+        // never creates one, it picks elements directly via ISelectionFilter.
+        // // <- NEW
+        public static CategoryInfo[] GetAllSelectableCategories(Document doc)
+        {
+            if (doc == null) throw new ArgumentNullException(nameof(doc));
+
+            var list = new List<CategoryInfo>();
+
+            foreach (Category cat in doc.Settings.Categories)
+            {
+                if (cat == null) continue;
+                if (cat.CategoryType != CategoryType.Model && cat.CategoryType != CategoryType.Annotation)
+                    continue;
+
+                // Deliberately does not filter on AllowsBoundParameters.
+                // That property means "can a shared/project parameter be
+                // bound here," not "is this a legitimate pick target" -
+                // Tag categories are false for it (they display values from
+                // the tagged element, not their own bound parameters) but
+                // are completely valid things to select. This was wrongly
+                // excluding them. // <- FIXED
+                list.Add(new CategoryInfo(cat.Id, cat.Name));
+            }
+
+            return list.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+        }
+
+        public static ParameterInfo[] GetCommonParametersForCategories(Document doc, ICollection<ElementId> categoryIds)
+        {
+            if (doc == null) throw new ArgumentNullException(nameof(doc));
+            if (categoryIds == null || categoryIds.Count == 0)
+                return Array.Empty<ParameterInfo>();
+
+            Dictionary<ElementId, ParameterInfo> intersection = null;
+
+            foreach (var catId in categoryIds)
+            {
+                var perCategory = new Dictionary<ElementId, ParameterInfo>();
+
+                var instances = new FilteredElementCollector(doc)
+                    .OfCategoryId(catId)
+                    .WhereElementIsNotElementType()
+                    .ToElements();
+
+                foreach (var el in instances)
+                {
+                    foreach (Parameter p in el.Parameters)
+                    {
+                        if (p?.Definition == null) continue;
+                        var defId = (p.Definition as InternalDefinition)?.Id;
+                        if (defId == null || perCategory.ContainsKey(defId)) continue;
+                        perCategory[defId] = new ParameterInfo(defId, p.Definition.Name, p.StorageType, true);
+                    }
+
+                    var typeId = el.GetTypeId();
+                    if (typeId == null || typeId == ElementId.InvalidElementId) continue;
+                    var type = doc.GetElement(typeId);
+                    if (type == null) continue;
+
+                    foreach (Parameter p in type.Parameters)
+                    {
+                        if (p?.Definition == null) continue;
+                        var defId = (p.Definition as InternalDefinition)?.Id;
+                        if (defId == null || perCategory.ContainsKey(defId)) continue;
+                        perCategory[defId] = new ParameterInfo(defId, p.Definition.Name, p.StorageType, false);
+                    }
+                }
+
+                if (perCategory.Count == 0)
+                {
+                    // No instances of this category exist yet in the model.
+                    // Skipped rather than collapsing the whole intersection
+                    // to empty, so checking one empty category alongside
+                    // populated ones doesn't wipe out the result.
+                    continue;
+                }
+
+                if (intersection == null)
+                {
+                    intersection = perCategory;
+                }
+                else
+                {
+                    foreach (var key in intersection.Keys.Where(k => !perCategory.ContainsKey(k)).ToList())
+                        intersection.Remove(key);
+                }
+            }
+
+            if (intersection == null || intersection.Count == 0)
+                return Array.Empty<ParameterInfo>();
+
+            return intersection.Values.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+        }
         public static List<(string Value, int Count)> DiscoverDistinctValues(
             Document doc, ElementId categoryId, ParameterInfo parameterInfo)
         {

@@ -1,0 +1,163 @@
+﻿<Window x:Class="BA.Views.Export.NamingTemplateBuilderWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Style="{DynamicResource BaWindow}"
+        Title="Edit Naming Template"
+        Width="920" Height="640"
+        MinWidth="760" MinHeight="520"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Local header/row/cell styles, same pattern already
+                 confirmed working in SheetPickerWindow and
+                 ParameterColumnPickerWindow. -->
+            <Style x:Key="NtbHeaderStyle" TargetType="DataGridColumnHeader">
+                <Setter Property="Background" Value="#16161A"/>
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Setter Property="BorderBrush" Value="#2C3440"/>
+                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                <Setter Property="Padding" Value="10,6"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            </Style>
+
+            <Style x:Key="NtbRowStyle" TargetType="DataGridRow">
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="#1E2A3A"/>
+                    </Trigger>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="#2A5A9E"/>
+                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="NtbCellStyle" TargetType="DataGridCell">
+                <Setter Property="Foreground" Value="#F2F2F2"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Padding" Value="10,4"/>
+                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="70"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Preview result:" FontWeight="SemiBold" Margin="0,0,0,2"/>
+        <TextBox Grid.Row="1" x:Name="ResultPreviewBox" IsReadOnly="True"
+                 Style="{DynamicResource BaDarkTextBox}" Margin="0,0,0,10"
+                 TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
+
+        <Grid Grid.Row="2" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="270"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left: available tokens, read only, click Add to Template
+                 or double click a row to insert it. -->
+            <DockPanel Grid.Column="0">
+                <TextBlock DockPanel.Dock="Top" Text="Available Parameters" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                <TextBox x:Name="TokenSearchBox" DockPanel.Dock="Top"
+                         Style="{DynamicResource BaDarkTextBox}" Margin="0,0,0,6"
+                         TextChanged="TokenSearchBox_TextChanged"/>
+                <Button DockPanel.Dock="Bottom" Content="Add to Template"
+                        Style="{DynamicResource BaSecondaryButton}" Margin="0,6,0,0"
+                        Click="AddSelectedToken_Click"/>
+                <DataGrid x:Name="TokensGrid"
+                          Style="{DynamicResource BaDataGrid}"
+                          ColumnHeaderStyle="{StaticResource NtbHeaderStyle}"
+                          RowStyle="{StaticResource NtbRowStyle}"
+                          CellStyle="{StaticResource NtbCellStyle}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          IsReadOnly="True"
+                          ColumnWidth="*"
+                          MouseDoubleClick="TokensGrid_MouseDoubleClick">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Token" Binding="{Binding TokenName}" Width="2*"/>
+                        <DataGridTextColumn Header="Type" Binding="{Binding TypeLabel}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+
+            <!-- Right: the ordered template being built. -->
+            <DockPanel Grid.Column="2">
+                <TextBlock DockPanel.Dock="Top" Text="Template" FontWeight="SemiBold" Margin="0,0,0,4"/>
+
+                <TextBlock DockPanel.Dock="Top" Text="Separators" Margin="0,0,0,2" Opacity="0.85"/>
+                <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                    <Button Content="_" Tag="_" Width="32" Margin="0,0,4,4" Style="{DynamicResource BaSecondaryButton}" Click="SeparatorButton_Click"/>
+                    <Button Content="-" Tag="-" Width="32" Margin="0,0,4,4" Style="{DynamicResource BaSecondaryButton}" Click="SeparatorButton_Click"/>
+                    <Button Content="." Tag="." Width="32" Margin="0,0,4,4" Style="{DynamicResource BaSecondaryButton}" Click="SeparatorButton_Click"/>
+                    <Button Content="Space" Tag=" " Width="52" Margin="0,0,4,4" Style="{DynamicResource BaSecondaryButton}" Click="SeparatorButton_Click"/>
+                    <Button Content="(" Tag="(" Width="32" Margin="0,0,4,4" Style="{DynamicResource BaSecondaryButton}" Click="SeparatorButton_Click"/>
+                    <Button Content=")" Tag=")" Width="32" Margin="0,0,4,4" Style="{DynamicResource BaSecondaryButton}" Click="SeparatorButton_Click"/>
+                    <Button Content="[" Tag="[" Width="32" Margin="0,0,4,4" Style="{DynamicResource BaSecondaryButton}" Click="SeparatorButton_Click"/>
+                    <Button Content="]" Tag="]" Width="32" Margin="0,0,4,4" Style="{DynamicResource BaSecondaryButton}" Click="SeparatorButton_Click"/>
+                </WrapPanel>
+
+                <TextBlock DockPanel.Dock="Top" Text="Custom text" Margin="0,0,0,2" Opacity="0.85"/>
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="CustomTextBox" Grid.Column="0" Style="{DynamicResource BaDarkTextBox}"/>
+                    <Button Grid.Column="1" Content="Add" Style="{DynamicResource BaSecondaryButton}"
+                            Margin="8,0,0,0" Click="AddCustomText_Click"/>
+                </Grid>
+
+                <StackPanel DockPanel.Dock="Right" Width="110" Margin="10,0,0,0">
+                    <Button Content="Move Up" Style="{DynamicResource BaSecondaryButton}" Margin="0,0,0,6" Click="MoveUp_Click"/>
+                    <Button Content="Move Down" Style="{DynamicResource BaSecondaryButton}" Margin="0,0,0,6" Click="MoveDown_Click"/>
+                    <Button Content="Remove" Style="{DynamicResource BaSecondaryButton}" Click="Remove_Click"/>
+                </StackPanel>
+
+                <ListBox x:Name="SegmentsList" DisplayMemberPath="DisplayText"
+                         SelectionChanged="SegmentsList_SelectionChanged"/>
+            </DockPanel>
+        </Grid>
+
+        <Grid Grid.Row="3" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="RowDetailLabel" Grid.Column="0" Text="Select a row to edit it."
+                       VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <TextBox x:Name="RowDetailBox" Grid.Column="1"
+                     Style="{DynamicResource BaDarkTextBox}"
+                     TextChanged="RowDetailBox_TextChanged"/>
+        </Grid>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Preview" Width="100" Margin="0,0,8,0"
+                    Style="{DynamicResource BaSecondaryButton}" Click="Preview_Click"/>
+            <Button Content="OK" Width="100" Margin="0,0,8,0" IsDefault="True"
+                    Style="{DynamicResource BaPrimaryButton}" Click="Ok_Click"/>
+            <Button Content="Cancel" Width="100" IsCancel="True"
+                    Style="{DynamicResource BaSecondaryButton}"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -1,5 +1,5 @@
 ﻿// File: BA/Commands/CurveToElement/CurveToElementCommand.cs
-// Action: CREATE NEW
+// Action: REPLACE (full file)
 
 using System;
 using System.Collections.Generic;
@@ -103,15 +103,15 @@ namespace BA.Commands.CurveToElement
                 doc.GetUnits(),
                 previewHandler);
 
-            windowViewModel.RequestGenerate = (requests, onComplete) =>
-                generationHandler.RequestGeneration(requests, onComplete);
+            windowViewModel.RequestGenerate = (requests, deleteSourceLines, onComplete) =>
+                generationHandler.RequestGeneration(requests, deleteSourceLines, onComplete);
 
             // Window construction/ownership/Show() intentionally left to the code-behind layer,
-            // consistent with LedgerSettingsWindow - see CurveToElementWindow, next piece.
+            // consistent with LedgerSettingsWindow - see CurveToElementWindow.
             var window = new BA.UI.CurveToElement.CurveToElementWindow(windowViewModel);
 
             var windowInteropHelper = new System.Windows.Interop.WindowInteropHelper(window);
-            windowInteropHelper.Owner = uiApp.MainWindowHandle; // <- NEW: without this, modeless window input capture is unreliable in Revit's host
+            windowInteropHelper.Owner = uiApp.MainWindowHandle; // without this, modeless window input capture is unreliable in Revit's host
 
             window.Show();
 

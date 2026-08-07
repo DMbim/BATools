@@ -16,12 +16,14 @@ namespace BA.Commands.Rooms
         // Sample offset in XY: ~200mm
         private static readonly double SampleInsetFt = UnitUtils.ConvertToInternalUnits(200, UnitTypeId.Millimeters);
 
-        public RoomHostFinishTransferResult Run(UIDocument uidoc, RoomHostFinishTransferSettings settings, bool selectedRoomsOnly)
+        /// <summary>
+        /// Runs the transfer against an explicit set of room ids, resolved by the caller
+        /// (the window's room picker list). No longer reads UIDocument.Selection.
+        /// </summary>
+        public RoomHostFinishTransferResult Run(Document doc, RoomHostFinishTransferSettings settings, IReadOnlyCollection<ElementId> roomIds)
         {
-            if (uidoc == null) throw new ArgumentNullException(nameof(uidoc));
+            if (doc == null) throw new ArgumentNullException(nameof(doc));
             if (settings == null) throw new ArgumentNullException(nameof(settings));
-
-            var doc = uidoc.Document;
 
             var mappings = (settings.Mappings ?? new List<RoomHostParamMapping>())
                 .Where(m => !string.IsNullOrWhiteSpace(m.SourceCategory)
@@ -32,15 +34,10 @@ namespace BA.Commands.Rooms
             if (mappings.Count == 0)
                 throw new InvalidOperationException("No valid mappings defined.");
 
-            var rooms = GetRooms(doc, uidoc, selectedRoomsOnly);
+            var rooms = GetRooms(doc, roomIds);
 
             if (rooms.Count == 0)
-            {
-                if (selectedRoomsOnly)
-                    throw new InvalidOperationException("No Rooms found in selection. Select Rooms or Room Tags, or disable 'Selected rooms only'.");
-                else
-                    throw new InvalidOperationException("No placed/enclosed Rooms found (Area > 0). Place rooms and ensure they are enclosed.");
-            }
+                throw new InvalidOperationException("No rooms to process. Check at least one room in the list and try again.");
 
             var stats = new TransferDebugStats();
 
@@ -150,19 +147,19 @@ namespace BA.Commands.Rooms
 
             // Show debug summary (this is the workflow: always diagnose by bucket)
             TaskDialog.Show("BA",
-$@"Rooms seen: {stats.RoomsSeen}
-Rooms written (at least 1 write): {stats.RoomsProcessed}
-Values written: {stats.Written}
+                    $@"Rooms seen: {stats.RoomsSeen}
+                    Rooms written (at least 1 write): {stats.RoomsProcessed}
+                    Values written: {stats.Written}
 
-Skipped buckets:
-- No room bbox: {stats.Skipped_NoRoomSolidOrBBox}
-- No sample point inside room: {stats.Skipped_NoSamplePoint}
-- No floor hit: {stats.Skipped_NoFloorHit}
-- No ceiling hit: {stats.Skipped_NoCeilingHit}
-- Source param empty/missing: {stats.Skipped_SourceEmpty}
-- Target write failed: {stats.Skipped_TargetFail}
-- Invalid mapping: {stats.Skipped_InvalidMapping}"
-);
+                    Skipped buckets:
+                    - No room bbox: {stats.Skipped_NoRoomSolidOrBBox}
+                    - No sample point inside room: {stats.Skipped_NoSamplePoint}
+                    - No floor hit: {stats.Skipped_NoFloorHit}
+                    - No ceiling hit: {stats.Skipped_NoCeilingHit}
+                    - Source param empty/missing: {stats.Skipped_SourceEmpty}
+                    - Target write failed: {stats.Skipped_TargetFail}
+                    - Invalid mapping: {stats.Skipped_InvalidMapping}"
+                    );
 
             return new RoomHostFinishTransferResult
             {
@@ -206,67 +203,21 @@ Skipped buckets:
             return bestGroup?.First().e;
         }
 
-        private static List<Room> GetRooms(Document doc, UIDocument uidoc, bool selectedOnly)
+        /// <summary>
+        /// Resolves the explicit id list (from the window's room picker) to live Room elements.
+        /// No Selection access, no RoomTag resolution: the window is the single source of scope.
+        /// </summary>
+        private static List<Room> GetRooms(Document doc, IReadOnlyCollection<ElementId> roomIds)
         {
-            if (!selectedOnly)
-            {
-                return new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_Rooms)
-                    .WhereElementIsNotElementType()
-                    .OfType<Room>()
-                    .Where(r => r.Area > 0)
-                    .ToList();
-            }
-
-            var selIds = uidoc.Selection.GetElementIds();
-            if (selIds == null || selIds.Count == 0)
+            if (roomIds == null || roomIds.Count == 0)
                 return new List<Room>();
-
-            // Cache all rooms once for point-in-room fallback for tags
-            var allRooms = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType()
-                .OfType<Room>()
-                .Where(r => r.Area > 0)
-                .ToList();
 
             var result = new List<Room>();
 
-            foreach (var id in selIds)
+            foreach (var id in roomIds)
             {
-                var e = doc.GetElement(id);
-                if (e == null) continue;
-
-                if (e is Room r)
-                {
-                    if (r.Area > 0) result.Add(r);
-                    continue;
-                }
-
-                if (e is RoomTag tag)
-                {
-                    // Try direct room link
-                    try
-                    {
-                        var rr = tag.Room;
-                        if (rr != null && rr.Area > 0)
-                        {
-                            result.Add(rr);
-                            continue;
-                        }
-                    }
-                    catch { }
-
-                    // Fallback by tag head position
-                    XYZ p = null;
-                    try { p = tag.TagHeadPosition; } catch { }
-                    if (p == null && tag.Location is LocationPoint lp) p = lp.Point;
-
-                    if (p == null) continue;
-
-                    var roomByPoint = allRooms.FirstOrDefault(x => x.IsPointInRoom(p));
-                    if (roomByPoint != null) result.Add(roomByPoint);
-                }
+                if (doc.GetElement(id) is Room r && r.Area > 0)
+                    result.Add(r);
             }
 
             return result

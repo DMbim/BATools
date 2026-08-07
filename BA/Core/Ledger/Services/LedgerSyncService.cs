@@ -28,6 +28,14 @@ namespace BA.Core.Ledger
     /// and retried on the next sync attempt since their Personal Ledger baseline is not
     /// advanced on failure.
     ///
+    /// NAME FILTER: only shared parameters whose name starts with "BA_" (case-insensitive)
+    /// are ever pushed to or pulled from the Main Ledger. This keeps a shared parameter file
+    /// that happens to be shared with other, unrelated tools/parameters from ever leaking into
+    /// this ledger's sync scope. Applied on both scan passes, and therefore also acts as a
+    /// passive filter against any stray non-"BA_" entries that may already exist in an older
+    /// Main Ledger file, they will simply stop being read from this point on, no migration
+    /// needed.
+    ///
     /// NOTE ON PARAMETER SCOPE: this entire engine reads FamilySymbol.Parameters, which by
     /// Revit API construction can only ever return Type-bound shared parameters -- Instance-
     /// bound parameters live on FamilyInstance, not FamilySymbol/ElementType, and never appear
@@ -39,6 +47,8 @@ namespace BA.Core.Ledger
     /// </summary>
     public static class LedgerSyncService
     {
+        private const string TrackedNamePrefix = "BA_";
+
         internal class FieldCandidate
         {
             public string FamilyTypeKey;
@@ -142,6 +152,16 @@ namespace BA.Core.Ledger
                 return true;
             }
 
+            // Per-central kill switch. OFF is the default for every model (no entity yet
+            // resolves to disabled), so a document must have had this explicitly turned on
+            // via the Ledger Settings window before any read/write against either ledger file
+            // happens. When off, the real Synchronize with Central is never touched, this step
+            // is simply skipped entirely.
+            if (!LedgerEnabledService.IsEnabled(doc))
+            {
+                return true;
+            }
+
             LedgerSettings settings = LedgerSettings.Load();
             string currentUser = Environment.UserName;
 
@@ -167,6 +187,7 @@ namespace BA.Core.Ledger
             var pushes = new List<PushItem>();
             var pulls = new List<PullItem>();
             var conflicts = new List<LedgerConflictItem>();
+            int skippedForPrefix = 0;
 
             // ---- Scan phase: read-only, no writes ----
             foreach (KeyValuePair<string, FamilySymbol> kvp in symbolsByKey)
@@ -196,6 +217,12 @@ namespace BA.Core.Ledger
                     if (parameter.StorageType == StorageType.ElementId || parameter.StorageType == StorageType.None)
                     {
                         continue; // document-local, cannot round-trip across 5 models
+                    }
+
+                    if (!IsTrackedParameterName(parameter.Definition.Name))
+                    {
+                        skippedForPrefix++;
+                        continue;
                     }
 
                     Guid guid = parameter.GUID;
@@ -252,6 +279,12 @@ namespace BA.Core.Ledger
                         }
 
                         LedgerParameterEntry mainEntry = kvp2.Value;
+
+                        if (!IsTrackedParameterName(mainEntry.ParameterName))
+                        {
+                            skippedForPrefix++;
+                            continue;
+                        }
 
                         LedgerParameterEntry baselineEntry = null;
                         personalNode?.Parameters.TryGetValue(guidString, out baselineEntry);
@@ -317,6 +350,10 @@ namespace BA.Core.Ledger
 
             if (pushes.Count == 0 && pulls.Count == 0)
             {
+                if (skippedForPrefix > 0)
+                {
+                    AppLogger.LogInfo($"LedgerSyncService.Run: {skippedForPrefix} field occurrence(s) skipped, parameter name did not start with '{TrackedNamePrefix}'.");
+                }
                 return true; // nothing to do, let the real sync proceed untouched
             }
 
@@ -326,7 +363,7 @@ namespace BA.Core.Ledger
 
             if (pushes.Count > 0)
             {
-                LedgerFileService.OpenAndModify(doc,ledger =>
+                LedgerFileService.OpenAndModify(doc, ledger =>
                 {
                     foreach (PushItem push in pushes)
                     {
@@ -425,6 +462,11 @@ namespace BA.Core.Ledger
 
             AppLogger.LogInfo($"LedgerSyncService.Run: {pushes.Count} field(s) pushed, {pulls.Count(p => p.SourceEntry != null)} field(s) pulled.");
 
+            if (skippedForPrefix > 0)
+            {
+                AppLogger.LogInfo($"LedgerSyncService.Run: {skippedForPrefix} field occurrence(s) skipped, parameter name did not start with '{TrackedNamePrefix}'.");
+            }
+
             if (bindingFailures.Count > 0)
             {
                 AppLogger.LogInfo($"LedgerSyncService.Run: {bindingFailures.Count} field(s) could not be bound in this document, see errors above.");
@@ -432,6 +474,12 @@ namespace BA.Core.Ledger
             }
 
             return true;
+        }
+
+        private static bool IsTrackedParameterName(string parameterName)
+        {
+            return !string.IsNullOrEmpty(parameterName)
+                && parameterName.StartsWith(TrackedNamePrefix, StringComparison.OrdinalIgnoreCase);
         }
 
         private static void ClassifyField(

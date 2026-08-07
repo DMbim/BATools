@@ -5,7 +5,6 @@ using Autodesk.Revit.UI.Selection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 using BA.BIM.Core.Annotations;
 
@@ -14,9 +13,6 @@ namespace BA.BIM.Commands.Anno
     [Transaction(TransactionMode.Manual)]
     public class TagAllSelectedCommand : IExternalCommand
     {
-        // Annotation categories considered as "obstacles" a new tag can collide with.
-        // Covers tags, text, dimensions, generic annotations, and BA symbol families
-        // (which are placed as generic annotation or detail item instances).
         private static readonly BuiltInCategory[] ObstacleCategories = new[]
         {
             BuiltInCategory.OST_Tags,
@@ -26,9 +22,6 @@ namespace BA.BIM.Commands.Anno
             BuiltInCategory.OST_GenericAnnotation,
             BuiltInCategory.OST_DetailComponents,
 
-            // Per-category tag categories - these are the actual categories
-            // IndependentTag instances live in for built in categories such as
-            // doors/windows/rooms/etc. Most fall under OST_*Tags naming.
             BuiltInCategory.OST_DoorTags,
             BuiltInCategory.OST_WindowTags,
             BuiltInCategory.OST_WallTags,
@@ -63,74 +56,92 @@ namespace BA.BIM.Commands.Anno
 
             try
             {
-                // ---------------- 1. Selection ----------------
+                // ---------------- 1. Use current selection (no pick prompt) ----------------
+                // Reuses TaggableElementSelectionFilter's AllowElement logic directly so
+                // pre-selected elements are validated against the exact same rules manual
+                // picking enforced before (must have a category, must not be view specific,
+                // must not be pinned).
 
-                IList<Reference> picked = uidoc.Selection.PickObjects(
-                    ObjectType.Element,
-                    new TaggableElementSelectionFilter(view.Id),
-                    "Select elements to tag. ESC to cancel.");
+                ICollection<ElementId> preSelectedIds = uidoc.Selection.GetElementIds();
 
-                var pickedElems = picked
-                    .Select(r => doc.GetElement(r))
-                    .Where(e => e != null)
+                if (preSelectedIds == null || preSelectedIds.Count == 0)
+                {
+                    TaskDialog.Show("BA", "Select elements to tag first, then run this command.");
+                    return Result.Cancelled;
+                }
+
+                var taggableFilter = new TaggableElementSelectionFilter(view.Id);
+
+                List<Element> workingSelection = preSelectedIds
+                    .Select(id => doc.GetElement(id))
+                    .Where(e => e != null && taggableFilter.AllowElement(e))
                     .Distinct(new ElementIdComparer())
                     .ToList();
 
-                if (pickedElems.Count == 0)
+                if (workingSelection.Count == 0)
                 {
-                    TaskDialog.Show("BA", "No elements selected.");
+                    TaskDialog.Show("BA", "Nothing in the current selection can be tagged. " +
+                        "View-specific and pinned elements are excluded. Select model elements first, then run this command.");
                     return Result.Cancelled;
                 }
 
-                // ---------------- 2. Group by category, resolve valid tag types ----------------
+                // ---------------- 2. Filter / Select all instances / Proceed loop ----------------
+                //
+                // The dialog can hand control back with an expansion request instead of
+                // final settings. PostCommand cannot be used for Revit's native Select All
+                // Instances here: it only runs after this Execute() returns, cannot accept
+                // parameters, and re-triggers full manual UI interaction, none of which
+                // fits a modal command that needs the result immediately. So this replicates
+                // the same outcome directly: same family+type as anything currently selected,
+                // scoped to either the active view or the whole document.
 
-                var byCategory = pickedElems
-                    .Where(e => e.Category != null)
-                    .GroupBy(e => e.Category.Id.Value)
-                    .ToList();
+                Dictionary<long, CategoryTagOptions> categoryTagOptions = null;
+                TagAllSettingsResult dlgResult = null;
 
-                var categoryTagOptions = new Dictionary<long, CategoryTagOptions>();
-
-                foreach (var grp in byCategory)
+                while (true)
                 {
-                    var sampleElem = grp.First();
-                    Category cat = sampleElem.Category;
+                    categoryTagOptions = BuildCategoryTagOptions(doc, view, workingSelection);
 
-                    var tagTypes = GetValidTagTypes(doc, cat);
-
-                    if (tagTypes.Count == 0)
+                    if (categoryTagOptions.Count == 0)
                     {
-                        // No tag family available for this category - excluded from
-                        // the dialog entirely, reported as skipped at the end.
-                        continue;
+                        TaskDialog.Show("BA", "None of the selected categories have an available tag type/family loaded in the project.");
+                        return Result.Cancelled;
                     }
 
-                    categoryTagOptions[grp.Key] = new CategoryTagOptions
+                    var dlgOutcome = TagAllSelectedDialog.GetResult(categoryTagOptions.Values.ToList());
+
+                    if (dlgOutcome.Action == TagAllDialogAction.Cancel)
+                        return Result.Cancelled;
+
+                    if (dlgOutcome.Action == TagAllDialogAction.Proceed)
                     {
-                        Category = cat,
-                        Elements = grp.ToList(),
-                        AvailableTagTypes = tagTypes,
-                        DefaultTagTypeId = GetActiveTagTypeIdForCategory(view, cat, tagTypes)
-                    };
+                        dlgResult = dlgOutcome.Settings;
+                        break;
+                    }
+
+                    bool entireProject = dlgOutcome.Action == TagAllDialogAction.ExpandEntireProject;
+                    var expanded = ExpandSelectionToAllInstances(doc, view, workingSelection, entireProject);
+
+                    if (expanded.Count == 0)
+                    {
+                        TaskDialog.Show("BA", "No matching instances found.");
+                        continue; // reopen the dialog with the selection unchanged
+                    }
+
+                    workingSelection = expanded;
                 }
 
-                if (categoryTagOptions.Count == 0)
+                if (dlgResult == null || dlgResult.SelectedTagTypeIdByCategoryKey.Count == 0)
                 {
-                    TaskDialog.Show("BA", "None of the selected categories have an available tag type/family loaded in the project.");
+                    TaskDialog.Show("BA", "No categories selected to tag.");
                     return Result.Cancelled;
                 }
 
-                // ---------------- 3. Dialog: tag type per category + leader + gap/margin ----------------
-
-                var dlgResult = TagAllSelectedDialog.GetSettings(categoryTagOptions.Values.ToList());
-                if (dlgResult == null)
-                    return Result.Cancelled;
-
-                // ---------------- 4. Build worklist (skip already-tagged) ----------------
+                // ---------------- 3. Build worklist (skip already-tagged) ----------------
 
                 var alreadyTaggedIds = GetAlreadyTaggedElementIds(doc, view);
 
-                var report = new TagAllReport();
+                var report = new TagAllReport { Total = workingSelection.Count };
                 var workList = new List<(Element Element, ElementId TagTypeId)>();
 
                 foreach (var kvp in categoryTagOptions)
@@ -153,8 +164,6 @@ namespace BA.BIM.Commands.Anno
                     }
                 }
 
-                report.Total = pickedElems.Count;
-
                 if (workList.Count == 0)
                 {
                     TaskDialog.Show("BA - Tag All",
@@ -162,7 +171,7 @@ namespace BA.BIM.Commands.Anno
                     return Result.Cancelled;
                 }
 
-                // ---------------- 5. Create tags + resolve collisions ----------------
+                // ---------------- 4. Create tags + resolve collisions ----------------
 
                 ViewPlane2D plane = ViewPlane2D.FromView(view);
 
@@ -170,9 +179,9 @@ namespace BA.BIM.Commands.Anno
                 {
                     t.Start();
 
-                    // Running obstacle list: existing view-specific annotations,
-                    // refreshed as we go (newly created/moved tags get appended).
-                    var obstacles = CollectObstacleItems(doc, view);
+                    var preexistingObstacles = CollectObstacleItems(doc, view);
+                    var obstacles = new List<AnnoItem>(preexistingObstacles);
+                    var newTagItems = new List<AnnoItem>();
 
                     foreach (var (element, tagTypeId) in workList)
                     {
@@ -200,17 +209,14 @@ namespace BA.BIM.Commands.Anno
                         var newTagBb = newTag.get_BoundingBox(view);
                         if (newTagBb == null)
                         {
-                            // can't evaluate collisions without a bbox - leave at default position
                             continue;
                         }
 
                         var newTagRect = AnnoGeometry.GetRectInViewPlane(plane, newTagBb);
-                        double margin = AnnoGeometry.AutoMargin(newTagRect);
+
+                        double margin = dlgResult.Gap;
                         var newTagRectInflated = newTagRect.Inflate(margin);
 
-                        // Find colliding obstacles (excluding the tag itself, which
-                        // CollectObstacleItems may include if it was just appended -
-                        // it isn't yet, appended after this block).
                         var colliding = new List<AnnoItem>();
                         foreach (var ob in obstacles)
                         {
@@ -222,7 +228,7 @@ namespace BA.BIM.Commands.Anno
                                 continue;
 
                             var obRect = AnnoGeometry.GetRectInViewPlane(plane, obBb);
-                            double obMargin = AnnoGeometry.AutoMargin(obRect);
+                            double obMargin = dlgResult.Gap;
                             var obRectInflated = obRect.Inflate(obMargin);
 
                             if (newTagRectInflated.IntersectsInclusive(obRectInflated))
@@ -231,15 +237,22 @@ namespace BA.BIM.Commands.Anno
 
                         if (colliding.Count > 0)
                         {
-                            ResolveTagCollision(doc, view, plane, newTag, newTagRect, margin, colliding, dlgResult);
+                            ResolveTagCollision(doc, view, plane, newTag, newTagRectInflated, margin, colliding, dlgResult);
                             report.CollidedAndResolved++;
                         }
 
-                        // Append the new tag to the obstacle pool so subsequent tags
-                        // in this run also avoid it.
                         var refreshedBb = newTag.get_BoundingBox(view);
                         if (refreshedBb != null)
-                            obstacles.Add(new AnnoItem(newTag, refreshedBb));
+                        {
+                            var newTagAnnoItem = new AnnoItem(newTag, refreshedBb);
+                            obstacles.Add(newTagAnnoItem);
+                            newTagItems.Add(newTagAnnoItem);
+                        }
+                    }
+
+                    if (newTagItems.Count > 0)
+                    {
+                        RunFinalGlobalRecheck(doc, view, plane, newTagItems, preexistingObstacles, dlgResult, report);
                     }
 
                     t.Commit();
@@ -250,7 +263,9 @@ namespace BA.BIM.Commands.Anno
                     $"Created: {report.Created}\n" +
                     $"Already tagged (skipped): {report.SkippedAlreadyTagged}\n" +
                     $"Collided and resolved: {report.CollidedAndResolved}\n" +
-                    $"Failed to create: {report.FailedToCreate}");
+                    $"Failed to create: {report.FailedToCreate}\n" +
+                    $"Final recheck, elements moved: {report.FinalPassMoved}\n" +
+                    $"Final recheck, remaining collisions: {report.FinalPassRemainingCollisions}");
 
                 return Result.Succeeded;
             }
@@ -265,6 +280,86 @@ namespace BA.BIM.Commands.Anno
             }
         }
 
+        // ---------------- Category grouping ----------------
+
+        private static Dictionary<long, CategoryTagOptions> BuildCategoryTagOptions(Document doc, View view, List<Element> elements)
+        {
+            var byCategory = elements
+                .Where(e => e.Category != null)
+                .GroupBy(e => e.Category.Id.Value)
+                .ToList();
+
+            var categoryTagOptions = new Dictionary<long, CategoryTagOptions>();
+
+            foreach (var grp in byCategory)
+            {
+                var sampleElem = grp.First();
+                Category cat = sampleElem.Category;
+
+                var tagTypes = GetValidTagTypes(doc, cat);
+
+                if (tagTypes.Count == 0)
+                    continue;
+
+                categoryTagOptions[grp.Key] = new CategoryTagOptions
+                {
+                    Category = cat,
+                    Elements = grp.ToList(),
+                    AvailableTagTypes = tagTypes,
+                    DefaultTagTypeId = GetActiveTagTypeIdForCategory(view, cat, tagTypes)
+                };
+            }
+
+            return categoryTagOptions;
+        }
+
+        // ---------------- Select all instances ----------------
+        //
+        // Matches Revit's own "Select All Instances" semantics: same family AND type
+        // as anything currently in the working selection, unioned across every distinct
+        // type present. "Visible in view" scopes the collector to the active view.
+        // "Entire project" scopes it to the whole document; instances that come back
+        // from elsewhere with no representation in the active view will simply fail to
+        // create later and land in the Failed to create count, same as any other element
+        // Revit can't place a tag reference for in this view.
+
+        private static List<Element> ExpandSelectionToAllInstances(Document doc, View view, List<Element> seedElements, bool entireProject)
+        {
+            var typeIds = new HashSet<long>(
+                seedElements
+                    .Select(e => e.GetTypeId())
+                    .Where(id => id != ElementId.InvalidElementId)
+                    .Select(id => id.Value));
+
+            if (typeIds.Count == 0)
+                return seedElements;
+
+            var builtInCats = seedElements
+                .Where(e => e.Category != null)
+                .Select(e => (BuiltInCategory)(int)e.Category.Id.Value)
+                .Distinct()
+                .ToList();
+
+            if (builtInCats.Count == 0)
+                return seedElements;
+
+            var catFilter = new ElementMulticategoryFilter(builtInCats);
+
+            FilteredElementCollector collector = entireProject
+                ? new FilteredElementCollector(doc)
+                : new FilteredElementCollector(doc, view.Id);
+
+            var matches = collector
+                .WhereElementIsNotElementType()
+                .WherePasses(catFilter)
+                .Where(e => typeIds.Contains(e.GetTypeId().Value))
+                .ToList();
+
+            return matches
+                .Distinct(new ElementIdComparer())
+                .ToList();
+        }
+
         // ---------------- Tag creation ----------------
 
         private static IndependentTag CreateTag(Document doc, View view, Element element, ElementId tagTypeId, bool useLeader)
@@ -274,9 +369,6 @@ namespace BA.BIM.Commands.Anno
 
             Reference reference = new Reference(element);
 
-            // IndependentTag.Create (Revit 2022+) signature:
-            // Create(Document, ElementId tagTypeId, ElementId viewId, Reference reference,
-            //        bool addLeader, TagOrientation orientation, XYZ point)
             IndependentTag tag = IndependentTag.Create(
                 doc,
                 tagTypeId,
@@ -289,7 +381,7 @@ namespace BA.BIM.Commands.Anno
             return tag;
         }
 
-        // ---------------- Collision resolution for a single new tag ----------------
+        // ---------------- Collision resolution for a single new tag (local pass) ----------------
 
         private static void ResolveTagCollision(
             Document doc,
@@ -301,9 +393,6 @@ namespace BA.BIM.Commands.Anno
             List<AnnoItem> colliding,
             TagAllSettingsResult settings)
         {
-            // Build working set: [0] = new tag, [1..] = colliding obstacles.
-            // Use inflated rects for the simulation (consistent margins, matches
-            // ResolveCollisions behavior).
             var workingRects = new List<Rect2D> { newTagRectInflated };
             var workingElements = new List<Element> { newTag };
 
@@ -313,7 +402,7 @@ namespace BA.BIM.Commands.Anno
                 if (bb == null) continue;
 
                 var r = AnnoGeometry.GetRectInViewPlane(plane, bb);
-                double m = AnnoGeometry.AutoMargin(r);
+                double m = settings.Gap;
                 workingRects.Add(r.Inflate(m));
                 workingElements.Add(ob.Element);
             }
@@ -323,7 +412,6 @@ namespace BA.BIM.Commands.Anno
 
             UV[] deltas = AnnoArrangeOps.RunMtvSimulation(workingRects, settings.Iterations, settings.Damping);
 
-            // Apply deltas to Revit elements.
             for (int i = 0; i < workingElements.Count; i++)
             {
                 var d = deltas[i];
@@ -333,10 +421,6 @@ namespace BA.BIM.Commands.Anno
                 var deltaXyz = plane.DeltaToXYZ(d);
                 AnnoMove.TryMoveBy(doc, workingElements[i], deltaXyz, out _);
             }
-
-            // ---------------- Alignment pass ----------------
-            // Align the new tag's perpendicular axis to the center of the obstacle
-            // it overlapped most (by pre-MTV inflated-rect intersection area).
 
             int biggestOverlapIdx = -1;
             double biggestOverlapArea = -1;
@@ -354,8 +438,6 @@ namespace BA.BIM.Commands.Anno
             if (biggestOverlapIdx < 0)
                 return;
 
-            // Refresh post-MTV rects from the actual Revit geometry (the simulation
-            // worked on simplified rects; refreshing avoids drift from the simplification).
             var newTagBbPostMtv = newTag.get_BoundingBox(view);
             var obstacleBbPostMtv = workingElements[biggestOverlapIdx].get_BoundingBox(view);
 
@@ -372,6 +454,113 @@ namespace BA.BIM.Commands.Anno
 
             var alignDeltaXyz = plane.DeltaToXYZ(alignDelta);
             AnnoMove.TryMoveBy(doc, newTag, alignDeltaXyz, out _);
+        }
+
+        // ---------------- Final global collision recheck ----------------
+
+        private static void RunFinalGlobalRecheck(
+            Document doc,
+            View view,
+            ViewPlane2D plane,
+            List<AnnoItem> newTags,
+            List<AnnoItem> preexistingObstacles,
+            TagAllSettingsResult settings,
+            TagAllReport report)
+        {
+            double safetyMargin = Math.Max(settings.Gap * 2.0, UnitUtils.ConvertToInternalUnits(20, UnitTypeId.Millimeters));
+
+            double minU = double.PositiveInfinity, minV = double.PositiveInfinity;
+            double maxU = double.NegativeInfinity, maxV = double.NegativeInfinity;
+
+            var newTagRects = new List<Rect2D>();
+            var validNewTags = new List<Element>();
+
+            foreach (var t in newTags)
+            {
+                var bb = t.Element.get_BoundingBox(view);
+                if (bb == null) continue;
+
+                var r = AnnoGeometry.GetRectInViewPlane(plane, bb);
+                newTagRects.Add(r);
+                validNewTags.Add(t.Element);
+
+                minU = Math.Min(minU, r.MinX);
+                minV = Math.Min(minV, r.MinY);
+                maxU = Math.Max(maxU, r.MaxX);
+                maxV = Math.Max(maxV, r.MaxY);
+            }
+
+            if (newTagRects.Count == 0)
+                return;
+
+            var envelope = new Rect2D(minU, minV, maxU, maxV).Inflate(safetyMargin);
+
+            var nearbyObstacles = new List<Element>();
+            foreach (var ob in preexistingObstacles)
+            {
+                var bb = ob.Element.get_BoundingBox(view);
+                if (bb == null) continue;
+
+                var r = AnnoGeometry.GetRectInViewPlane(plane, bb);
+                if (r.IntersectsInclusive(envelope))
+                    nearbyObstacles.Add(ob.Element);
+            }
+
+            var workingElements = new List<Element>();
+            var workingRects = new List<Rect2D>();
+
+            foreach (var e in validNewTags)
+            {
+                var bb = e.get_BoundingBox(view);
+                if (bb == null) continue;
+                var r = AnnoGeometry.GetRectInViewPlane(plane, bb);
+                workingElements.Add(e);
+                workingRects.Add(r.Inflate(settings.Gap));
+            }
+
+            foreach (var e in nearbyObstacles)
+            {
+                var bb = e.get_BoundingBox(view);
+                if (bb == null) continue;
+                var r = AnnoGeometry.GetRectInViewPlane(plane, bb);
+                workingElements.Add(e);
+                workingRects.Add(r.Inflate(settings.Gap));
+            }
+
+            if (workingElements.Count < 2)
+                return;
+
+            UV[] deltas = AnnoArrangeOps.RunMtvSimulation(workingRects, settings.Iterations, settings.Damping);
+
+            int movedInFinalPass = 0;
+            for (int i = 0; i < workingElements.Count; i++)
+            {
+                var d = deltas[i];
+                if (Math.Abs(d.U) < 1e-9 && Math.Abs(d.V) < 1e-9)
+                    continue;
+
+                var deltaXyz = plane.DeltaToXYZ(d);
+                if (AnnoMove.TryMoveBy(doc, workingElements[i], deltaXyz, out _))
+                    movedInFinalPass++;
+            }
+
+            report.FinalPassMoved = movedInFinalPass;
+
+            var finalRects = new List<Rect2D>();
+            foreach (var e in workingElements)
+            {
+                var bb = e.get_BoundingBox(view);
+                if (bb == null) continue;
+                finalRects.Add(AnnoGeometry.GetRectInViewPlane(plane, bb).Inflate(settings.Gap));
+            }
+
+            int remaining = 0;
+            for (int i = 0; i < finalRects.Count; i++)
+                for (int j = i + 1; j < finalRects.Count; j++)
+                    if (finalRects[i].IntersectsInclusive(finalRects[j]))
+                        remaining++;
+
+            report.FinalPassRemainingCollisions = remaining;
         }
 
         private static double IntersectionArea(Rect2D a, Rect2D b)
@@ -437,11 +626,6 @@ namespace BA.BIM.Commands.Anno
 
         // ---------------- Tag type resolution ----------------
 
-        // Revit's API does not expose a generic "model category -> tag category"
-        // lookup. The mapping below covers the common architectural categories.
-        // Anything not in this map falls back to OST_MultiCategoryTags (tag families
-        // placed in this category can tag elements of arbitrary categories via
-        // CategorySpecific=false family parameter).
         private static readonly Dictionary<BuiltInCategory, BuiltInCategory[]> CategoryToTagCategories =
             new()
             {
@@ -474,7 +658,6 @@ namespace BA.BIM.Commands.Anno
 
             var tagCategorySet = new HashSet<long>();
 
-            // 1. Specific tag category(ies) for this model category, if mapped.
             if (CategoryToTagCategories.TryGetValue((BuiltInCategory)(int)targetCategory.Id.Value, out var tagBuiltIns))
             {
                 foreach (var tagBic in tagBuiltIns)
@@ -485,7 +668,6 @@ namespace BA.BIM.Commands.Anno
                 }
             }
 
-            // 2. Always also offer multi-category tags - these can tag any category.
             var multiCat = Category.GetCategory(doc, BuiltInCategory.OST_MultiCategoryTags);
             if (multiCat != null)
                 tagCategorySet.Add(multiCat.Id.Value);
@@ -505,16 +687,6 @@ namespace BA.BIM.Commands.Anno
 
         private static ElementId GetActiveTagTypeIdForCategory(View view, Category targetCategory, List<FamilySymbol> availableTagTypes)
         {
-            // Revit does not expose a direct "active tag type per category" API for
-            // arbitrary categories. Try the category-specific tag category's default
-            // family type first (set via "Manage > Settings > Object Styles" /
-            // loaded family defaults); fall back to the first available tag type
-            // (which, by construction in GetValidTagTypes, is a category-specific
-            // tag type if one exists, since the map is iterated before
-            // OST_MultiCategoryTags is appended... NOTE: HashSet does not preserve
-            // insertion order reliably for iteration via FilteredElementCollector
-            // ordering either, so "first available" is best-effort, not guaranteed
-            // to prefer category-specific over multi-category. See remarks below.)
             if (availableTagTypes.Count == 0)
                 return ElementId.InvalidElementId;
 
@@ -532,8 +704,6 @@ namespace BA.BIM.Commands.Anno
                         return defaultId;
                     }
 
-                    // No default set, but at least one category-specific tag type
-                    // exists - prefer it over a multi-category tag as the fallback.
                     var firstCategorySpecific = availableTagTypes.FirstOrDefault(t => t.Category?.Id == tagCat.Id);
                     if (firstCategorySpecific != null)
                         return firstCategorySpecific.Id;
@@ -561,14 +731,12 @@ namespace BA.BIM.Commands.Anno
             public int SkippedAlreadyTagged { get; set; }
             public int CollidedAndResolved { get; set; }
             public int FailedToCreate { get; set; }
+            public int FinalPassMoved { get; set; }
+            public int FinalPassRemainingCollisions { get; set; }
             public Dictionary<string, int> FailReasons { get; } = new();
         }
     }
 
-    /// <summary>
-    /// Per-category info shown in the Tag All dialog: which elements were selected
-    /// for this category, and which tag types/families can be used to tag them.
-    /// </summary>
     public sealed class CategoryTagOptions
     {
         public Category Category { get; set; }
@@ -577,18 +745,13 @@ namespace BA.BIM.Commands.Anno
         public ElementId DefaultTagTypeId { get; set; }
     }
 
-    /// <summary>
-    /// Result of the Tag All settings dialog.
-    /// </summary>
     public sealed class TagAllSettingsResult
     {
-        // Category.Id.Value -> chosen tag FamilySymbol ElementId
         public Dictionary<long, ElementId> SelectedTagTypeIdByCategoryKey { get; set; } = new();
 
         public bool UseLeader { get; set; }
 
-        // MTV resolution settings, reused from arrange config conventions
-        public double Gap { get; set; }                 // internal units
+        public double Gap { get; set; }
         public int Iterations { get; set; } = 30;
         public double Damping { get; set; } = 0.75;
     }
@@ -603,8 +766,6 @@ namespace BA.BIM.Commands.Anno
             if (elem == null) return false;
             if (elem.Category == null) return false;
 
-            // Exclude annotation-ish elements - this command tags MODEL elements,
-            // it does not let the user select existing tags/text/etc. as tag targets.
             if (elem.ViewSpecific) return false;
 
             if (elem.Pinned) return false;

@@ -51,11 +51,14 @@ namespace BA.Commands.Export
 
                 foreach (var job in settingsRoot.Jobs)
                 {
-                    var result = ExportJobRunner.RunJob(doc, job, now);
+                    var results = ExportJobRunner.RunJob(doc, job, now, uiApp.ActiveUIDocument?.ActiveView);
 
-                    summary.AppendLine(result.HasJobLevelError
-                        ? $"{job.JobName}: FAILED - {result.JobLevelError}"
-                        : $"{job.JobName}: {result.SuccessCount} succeeded, {result.FailureCount} failed");
+                    foreach (var result in results)
+                    {
+                        summary.AppendLine(result.HasJobLevelError
+                            ? $"{job.JobName} ({result.Format}): FAILED - {result.JobLevelError}"
+                            : $"{job.JobName} ({result.Format}): {result.SuccessCount} succeeded, {result.FailureCount} failed");
+                    }
                 }
 
                 TaskDialog.Show("BA Tools - Run Export Jobs", summary.ToString());

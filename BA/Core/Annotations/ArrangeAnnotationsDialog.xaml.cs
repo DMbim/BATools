@@ -17,7 +17,6 @@ namespace BA.BIM.Commands.Anno
         private const string KeyIterations = "ArrangeDlg.Iterations";
         private const string KeyDamping = "ArrangeDlg.Damping";
         private const string KeyAutoMargin = "ArrangeDlg.UseAutoMargin";
-        private const string KeyFixedMargin = "ArrangeDlg.FixedMargin";
         private const string KeyMaxFactor = "ArrangeDlg.MaxDisplacementFactor";
 
         private ArrangeConfig _result;
@@ -48,7 +47,6 @@ namespace BA.BIM.Commands.Anno
         {
             var s = PluginSettingsStore.Load();
 
-            // Restore window position. If no saved position, center on screen.
             double left = s.GetDouble(KeyLeft, double.NaN);
             double top = s.GetDouble(KeyTop, double.NaN);
 
@@ -60,7 +58,6 @@ namespace BA.BIM.Commands.Anno
             else
             {
                 WindowStartupLocation = WindowStartupLocation.CenterScreen;
-                // Force layout so ActualWidth/Height are available, then center.
                 Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
                 {
                     Left = (SystemParameters.PrimaryScreenWidth - ActualWidth) / 2;
@@ -68,8 +65,8 @@ namespace BA.BIM.Commands.Anno
                 }));
             }
 
-            // Restore last-used field values.
             RestoreFields(s);
+            UpdateFieldAvailability();
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -79,8 +76,6 @@ namespace BA.BIM.Commands.Anno
             s.SetDouble(KeyLeft, Left);
             s.SetDouble(KeyTop, Top);
 
-            // Persist current field values regardless of whether Apply or Cancel was clicked,
-            // so the next open starts with whatever the user last had visible.
             PersistFields(s);
 
             PluginSettingsStore.Save(s);
@@ -90,34 +85,24 @@ namespace BA.BIM.Commands.Anno
 
         private void RestoreFields(PluginSettings s)
         {
-            // Mode
             string modeName = s.GetString(KeyMode, ArrangeMode.ResolveCollisions.ToString());
             if (Enum.TryParse<ArrangeMode>(modeName, out var mode))
                 SelectMode(mode);
             else
                 RbResolveCollisions.IsChecked = true;
 
-            // Spacing
             double gapMm = s.GetDouble(KeyGap, 6.0);
             TbGap.Text = gapMm.ToString("G", CultureInfo.InvariantCulture);
 
-            // ResolveCollisions (Synchronizing TextBoxes and Sliders)
             int iterations = (int)s.GetDouble(KeyIterations, 30);
-            SlIterations.Value = iterations;
             TbIterations.Text = iterations.ToString(CultureInfo.InvariantCulture);
 
             double damping = s.GetDouble(KeyDamping, 0.75);
-            SlDamping.Value = damping;
             TbDamping.Text = damping.ToString("G", CultureInfo.InvariantCulture);
 
             bool autoMargin = s.GetBool(KeyAutoMargin, true);
             CbAutoMargin.IsChecked = autoMargin;
-            TbFixedMargin.IsEnabled = !autoMargin;
 
-            double fixedMarginMm = s.GetDouble(KeyFixedMargin, 2.0);
-            TbFixedMargin.Text = fixedMarginMm.ToString("G", CultureInfo.InvariantCulture);
-
-            // SnapGrid
             double maxFactor = s.GetDouble(KeyMaxFactor, 3.0);
             TbMaxDisplacementFactor.Text = maxFactor.ToString("G", CultureInfo.InvariantCulture);
         }
@@ -137,9 +122,6 @@ namespace BA.BIM.Commands.Anno
 
             s.SetBool(KeyAutoMargin, CbAutoMargin.IsChecked == true);
 
-            if (TryParseDouble(TbFixedMargin.Text, out double fixedMm))
-                s.SetDouble(KeyFixedMargin, fixedMm);
-
             if (TryParseDouble(TbMaxDisplacementFactor.Text, out double factor))
                 s.SetDouble(KeyMaxFactor, factor);
         }
@@ -155,6 +137,7 @@ namespace BA.BIM.Commands.Anno
                 case ArrangeMode.StackListVertical: RbStackVertical.IsChecked = true; break;
                 case ArrangeMode.StackListHorizontal: RbStackHorizontal.IsChecked = true; break;
                 case ArrangeMode.SnapToGuideLine: RbSnapToGuideLine.IsChecked = true; break;
+                case ArrangeMode.SpiralPack: RbSpiralPack.IsChecked = true; break;
                 default: RbResolveCollisions.IsChecked = true; break;
             }
         }
@@ -163,22 +146,52 @@ namespace BA.BIM.Commands.Anno
 
         private void ModeRadio_Checked(object sender, RoutedEventArgs e)
         {
-            if (GbResolve == null || GbSnapGrid == null)
-                return; // fires during InitializeComponent
-
-            var rb = sender as System.Windows.Controls.RadioButton;
-            string tag = rb?.Tag as string;
-
-            GbResolve.Visibility = tag == "ResolveCollisions" ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-            GbSnapGrid.Visibility = tag == "SnapGrid" ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            UpdateFieldAvailability();
         }
 
         private void CbAutoMargin_CheckedChanged(object sender, RoutedEventArgs e)
         {
-            if (TbFixedMargin == null || CbAutoMargin == null)
-                return;
+            UpdateFieldAvailability();
+        }
 
-            TbFixedMargin.IsEnabled = CbAutoMargin.IsChecked != true;
+        /// <summary>
+        /// Single source of truth for which fields actually affect the currently
+        /// selected mode. Groups whose settings are unused by the mode are hidden
+        /// entirely (Resolve collisions settings, Snap to grid settings). The Gap
+        /// field is grayed out (disabled + dimmed) rather than hidden when it has
+        /// no effect, since Gap is a shared control across most modes and hiding
+        /// it would be more disruptive than dimming it in place.
+        /// </summary>
+        private void UpdateFieldAvailability()
+        {
+            if (GbResolve == null || GbSnapGrid == null || GbSpacing == null)
+                return; // fires during InitializeComponent before all elements exist
+
+            ArrangeMode mode = GetSelectedMode();
+
+            GbResolve.Visibility = mode == ArrangeMode.ResolveCollisions ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            GbSnapGrid.Visibility = mode == ArrangeMode.SnapGrid ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+
+            // Gap has zero effect on Distribute modes: they only align on the shared
+            // axis and preserve position on the other axis, there is no spacing to
+            // control.
+            bool gapAppliesToMode = mode != ArrangeMode.DistributeHorizontal
+                                  && mode != ArrangeMode.DistributeVertical;
+
+            // In ResolveCollisions, Gap is only read when Auto margin is off.
+            bool gapAppliesGivenAutoMargin = mode != ArrangeMode.ResolveCollisions
+                                           || CbAutoMargin.IsChecked != true;
+
+            bool gapEnabled = gapAppliesToMode && gapAppliesGivenAutoMargin;
+
+            GbSpacing.IsEnabled = gapEnabled;
+            GbSpacing.Opacity = gapEnabled ? 1.0 : 0.5;
+
+            GbSpacing.ToolTip = gapEnabled
+                ? null
+                : (!gapAppliesToMode
+                    ? "Gap has no effect in this mode. Horizontal/vertical spacing between elements is preserved as-is."
+                    : "Gap is ignored while Auto margin is enabled above.");
         }
 
         // ---- Apply / Cancel ----
@@ -204,7 +217,6 @@ namespace BA.BIM.Commands.Anno
                 Iterations = 30,
                 Damping = 0.75,
                 UseAutoMargin = true,
-                FixedMargin = UnitUtils.ConvertToInternalUnits(2, UnitTypeId.Millimeters),
                 MaxDisplacementFactor = 3.0,
             };
 
@@ -230,14 +242,6 @@ namespace BA.BIM.Commands.Anno
                 cfg.Iterations = iterations;
                 cfg.Damping = damping;
                 cfg.UseAutoMargin = CbAutoMargin.IsChecked == true;
-
-                if (!cfg.UseAutoMargin)
-                {
-                    if (!TryParseMm(TbFixedMargin.Text, "Fixed margin", out double fixedMarginInternal))
-                        return;
-
-                    cfg.FixedMargin = fixedMarginInternal;
-                }
             }
             else if (mode == ArrangeMode.SnapGrid)
             {
@@ -272,6 +276,7 @@ namespace BA.BIM.Commands.Anno
             if (RbStackVertical.IsChecked == true) return ArrangeMode.StackListVertical;
             if (RbStackHorizontal.IsChecked == true) return ArrangeMode.StackListHorizontal;
             if (RbSnapToGuideLine.IsChecked == true) return ArrangeMode.SnapToGuideLine;
+            if (RbSpiralPack.IsChecked == true) return ArrangeMode.SpiralPack;
             return ArrangeMode.Cancel;
         }
 
@@ -279,7 +284,6 @@ namespace BA.BIM.Commands.Anno
 
         private static bool IsPositionOnScreen(double left, double top)
         {
-            // Ensure at least 100x50px of the window is visible on any screen.
             foreach (var screen in System.Windows.Forms.Screen.AllScreens)
             {
                 var b = screen.WorkingArea;

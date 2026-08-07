@@ -15,21 +15,22 @@ namespace BA.BIM.Core.Annotations
         StackListVertical = 4,
         StackListHorizontal = 5,
         SnapToGuideLine = 6,
-        SnapGrid = 7
+        SnapGrid = 7,
+        SpiralPack = 8
     }
 
     public sealed class ArrangeConfig
     {
         public ArrangeMode Mode { get; set; }
 
-        // spacing (internal units)
+        // spacing (internal units). For ResolveCollisions this is the margin used
+        // when UseAutoMargin is false. For SpiralPack it is always the margin.
         public double Gap { get; set; }
 
         // collision solver
         public int Iterations { get; set; }
         public double Damping { get; set; }         // 0..1
         public bool UseAutoMargin { get; set; }
-        public double FixedMargin { get; set; }     // if not auto
 
         // SnapGrid: cap on per element displacement from its original position,
         // expressed as a multiple of Gap. MaxDisplacement = Gap * MaxDisplacementFactor.
@@ -44,7 +45,6 @@ namespace BA.BIM.Core.Annotations
                 Iterations = 30,
                 Damping = 0.75,
                 UseAutoMargin = true,
-                FixedMargin = UnitUtils.ConvertToInternalUnits(2, UnitTypeId.Millimeters),
                 MaxDisplacementFactor = 3.0,
             };
         }
@@ -109,6 +109,10 @@ namespace BA.BIM.Core.Annotations
         public int GridRows { get; set; }
         public int GrowthSteps { get; set; }
         public int OverThreshold { get; set; }
+
+        // SpiralPack specific
+        public int FailedToMove { get; set; }
+        public int CouldNotFindSpot { get; set; }
     }
 
     public static class AnnoArrangeOps
@@ -130,6 +134,7 @@ namespace BA.BIM.Core.Annotations
                 ArrangeMode.StackListHorizontal => Stack(doc, view, plane, items, vertical: false, cfg.Gap),
                 ArrangeMode.SnapToGuideLine => SnapToGuideLine(doc, view, plane, items, cfg.Gap, guide),
                 ArrangeMode.SnapGrid => SnapGrid(doc, view, plane, items, cfg),
+                ArrangeMode.SpiralPack => SpiralPack(doc, view, plane, items, cfg),
                 _ => new ArrangeReport { Total = items.Count }
             };
         }
@@ -143,13 +148,12 @@ namespace BA.BIM.Core.Annotations
 
             var rects = GetRects(view, plane, items, margin: 0);
 
-            // Compute average center on the alignment axis
             double sum = 0;
             int valid = 0;
             for (int i = 0; i < rects.Count; i++)
             {
                 UV c = rects[i].Center();
-                sum += horizontal ? c.V : c.U; // V for horizontal row, U for vertical column
+                sum += horizontal ? c.V : c.U;
                 valid++;
             }
 
@@ -163,10 +167,9 @@ namespace BA.BIM.Core.Annotations
             {
                 UV c = rects[i].Center();
 
-                // Move each element so its bbox center lands on the shared axis value
                 UV delta = horizontal
-                    ? new UV(0, target - c.V)   // align V, preserve U
-                    : new UV(target - c.U, 0);  // align U, preserve V
+                    ? new UV(0, target - c.V)
+                    : new UV(target - c.U, 0);
 
                 if (delta.U * delta.U + delta.V * delta.V < 1e-18)
                     continue;
@@ -182,7 +185,6 @@ namespace BA.BIM.Core.Annotations
 
         private static ArrangeReport Stack(Document doc, View view, ViewPlane2D plane, IList<AnnoItem> items, bool vertical, double gap)
         {
-            // sort by top-to-bottom then left-to-right for vertical stack, reverse for horizontal
             var rects = GetRects(view, plane, items, margin: 0);
 
             var order = Enumerable.Range(0, items.Count)
@@ -194,7 +196,6 @@ namespace BA.BIM.Core.Annotations
 
             if (vertical)
             {
-                // Anchor at first top, keep X as-is
                 double cursorTop = rects[order[0]].MaxY;
 
                 for (int k = 0; k < order.Count; k++)
@@ -211,7 +212,6 @@ namespace BA.BIM.Core.Annotations
             }
             else
             {
-                // Horizontal: anchor at first left, keep Y as-is
                 double cursorLeft = rects[order[0]].MinX;
 
                 for (int k = 0; k < order.Count; k++)
@@ -248,15 +248,12 @@ namespace BA.BIM.Core.Annotations
             var centers = rects.Select(r => r.Center()).ToList();
             var dir = guide.Dir();
 
-            // Project centers onto guide; optionally distribute along guide with gap based on bbox size
             var projected = centers.Select(c => guide.ProjectPoint(c)).ToList();
 
-            // Order along guide by parameter t
             var order = Enumerable.Range(0, items.Count)
                 .OrderBy(i => ParamAlong(projected[i], guide.P0, dir))
                 .ToList();
 
-            // First pass: snap perpendicular to line (remove normal offset)
             int moved = 0;
             for (int i = 0; i < items.Count; i++)
             {
@@ -268,8 +265,6 @@ namespace BA.BIM.Core.Annotations
                     moved++;
             }
 
-            // Second pass: distribute along guide with gaps (stack along line)
-            // Refresh rects after snap
             rects = GetRects(view, plane, items, margin: 0);
             centers = rects.Select(r => r.Center()).ToList();
             projected = centers.Select(c => guide.ProjectPoint(c)).ToList();
@@ -283,7 +278,6 @@ namespace BA.BIM.Core.Annotations
                 var c = centers[idx];
                 double t = ParamAlong(projected[idx], guide.P0, dir);
 
-                // advance cursor by half width projected onto dir (approx): use max(width,height) as a safe spacing basis
                 double size = Math.Max(r.Width, r.Height);
                 double targetT = (k == 0) ? t : (cursor + size * 0.5 + gap);
 
@@ -312,16 +306,17 @@ namespace BA.BIM.Core.Annotations
             int n = items.Count;
             var report = new ArrangeReport { Total = n, Iterations = cfg.Iterations };
 
-            // Initial rects + margin
             var rects = GetRects(view, plane, items, margin: 0);
-            double[] margins = rects.Select(r => cfg.UseAutoMargin ? AnnoGeometry.AutoMargin(r) : cfg.FixedMargin).ToArray();
+
+            // Gap is the actual controlling clearance. Auto margin is a separate,
+            // proportional choice that ignores Gap entirely when enabled.
+            double[] margins = rects.Select(r => cfg.UseAutoMargin ? AnnoGeometry.AutoMargin(r) : cfg.Gap).ToArray();
             var inflated = rects.Select((r, i) => r.Inflate(margins[i])).ToList();
 
             report.InitiallyColliding = CountCollisions(inflated);
 
             UV[] total = RunMtvSimulation(inflated, cfg.Iterations, cfg.Damping);
 
-            // Apply to Revit
             int moved = 0;
             for (int i = 0; i < n; i++)
             {
@@ -334,7 +329,6 @@ namespace BA.BIM.Core.Annotations
 
             report.Moved = moved;
 
-            // recompute collisions after move (fresh bboxes)
             var finalRects = GetRects(view, plane, items, margin: 0);
             finalRects = finalRects.Select((r, i) => r.Inflate(margins[i])).ToList();
             report.RemainingCollisions = CountCollisions(finalRects);
@@ -342,23 +336,11 @@ namespace BA.BIM.Core.Annotations
             return report;
         }
 
-        /// <summary>
-        /// Pure MTV (Minimum Translation Vector) collision-resolution simulation.
-        /// Takes a list of rects (already inflated by whatever margin the caller wants),
-        /// runs up to `iterations` passes of pairwise MTV separation with damping, and
-        /// returns the accumulated UV delta per rect. Does not touch Revit elements or
-        /// mutate the input list - the caller applies the returned deltas.
-        ///
-        /// Used by ResolveCollisions (full selection) and by TagAllSelectedCommand's
-        /// per-tag collision resolution (small working sets: {new tag} + colliding
-        /// existing annotations).
-        /// </summary>
         internal static UV[] RunMtvSimulation(IList<Rect2D> rects, int iterations, double damping)
         {
             int n = rects.Count;
             UV[] total = Enumerable.Repeat(new UV(0, 0), n).ToArray();
 
-            // Work on a local mutable copy so the caller's list is untouched.
             var working = rects.ToList();
 
             for (int iter = 0; iter < iterations; iter++)
@@ -375,8 +357,7 @@ namespace BA.BIM.Core.Annotations
 
                         any = true;
 
-                        // Minimum Translation Vector (axis-aligned in UV)
-                        var mtv = ComputeMTV(working[i], working[j]); // move i by -mtv/2, j by +mtv/2
+                        var mtv = ComputeMTV(working[i], working[j]);
                         step[i] = Add(step[i], new UV(-0.5 * mtv.U, -0.5 * mtv.V));
                         step[j] = Add(step[j], new UV(+0.5 * mtv.U, +0.5 * mtv.V));
                     }
@@ -385,7 +366,6 @@ namespace BA.BIM.Core.Annotations
                 if (!any)
                     break;
 
-                // apply damped step to rects (simulation space)
                 for (int i = 0; i < n; i++)
                 {
                     var d = new UV(step[i].U * damping, step[i].V * damping);
@@ -397,18 +377,6 @@ namespace BA.BIM.Core.Annotations
             return total;
         }
 
-        /// <summary>
-        /// Given a moved element's rect and the rect of the obstacle it was resolved
-        /// against (both post-MTV), returns a delta that snaps the moved element's
-        /// center on the axis PERPENDICULAR to the dominant displacement axis to match
-        /// the obstacle's center on that axis. E.g. if the element was pushed mostly
-        /// along V (vertical), its U (horizontal) center is aligned to the obstacle's
-        /// U center, so it ends up directly above/below the obstacle rather than at an
-        /// arbitrary horizontal offset.
-        ///
-        /// `displacement` is the MTV delta that was just applied to `movedRect`
-        /// (already applied - movedRect reflects the post-move position).
-        /// </summary>
         internal static UV ComputeAlignmentDelta(Rect2D movedRect, Rect2D obstacleRect, UV displacement)
         {
             UV movedCenter = movedRect.Center();
@@ -417,26 +385,18 @@ namespace BA.BIM.Core.Annotations
             bool dominantIsV = Math.Abs(displacement.V) >= Math.Abs(displacement.U);
 
             if (dominantIsV)
-            {
-                // pushed mainly vertically -> align horizontal (U) center to obstacle
                 return new UV(obstacleCenter.U - movedCenter.U, 0);
-            }
             else
-            {
-                // pushed mainly horizontally -> align vertical (V) center to obstacle
                 return new UV(0, obstacleCenter.V - movedCenter.V);
-            }
         }
 
         private static UV ComputeMTV(Rect2D a, Rect2D b)
         {
-            // penetration distances along X and Y (inclusive collision)
-            double left = b.MinX - a.MaxX;   // negative when overlapping
-            double right = b.MaxX - a.MinX;  // positive when overlapping
+            double left = b.MinX - a.MaxX;
+            double right = b.MaxX - a.MinX;
             double down = b.MinY - a.MaxY;
             double up = b.MaxY - a.MinY;
 
-            // overlap amounts
             double penX = Math.Min(Math.Abs(left), Math.Abs(right));
             double penY = Math.Min(Math.Abs(down), Math.Abs(up));
 
@@ -445,7 +405,6 @@ namespace BA.BIM.Core.Annotations
             double sx = (cb.U >= ca.U) ? 1.0 : -1.0;
             double sy = (cb.V >= ca.V) ? 1.0 : -1.0;
 
-            // move along least penetration axis
             if (penX < penY)
                 return new UV(sx * penX, 0);
             else
@@ -462,18 +421,46 @@ namespace BA.BIM.Core.Annotations
             return c;
         }
 
-        // ---------------- Snap Grid ----------------
+        // ---------------- Spiral pack ----------------
         //
-        // Builds a uniform grid (cell pitch = maxItemDimension + Gap), centered on the
-        // centroid of the items' ORIGINAL bbox centers (captured at call time, before
-        // any move). Items are assigned to grid cells by nearest-original-center,
-        // greedy, one item per cell. If any item's required displacement to its
-        // assigned cell exceeds MaxDisplacement (= Gap * MaxDisplacementFactor), the
-        // grid grows by one column or row (whichever axis has the larger aggregate
-        // overflow), and reassignment is repeated. Growth is capped at MaxGridDim x
-        // MaxGridDim. Items that still exceed the threshold after the cap is reached
-        // are placed in their nearest available cell anyway and counted in
-        // report.OverThreshold.
+        // Deterministic alternative to the MTV solver. Each colliding element is
+        // pushed outward along an expanding square spiral around its ORIGINAL
+        // position (not the cluster centroid) until it lands in a spot clear of
+        // every already placed element. Elements can end up further from their
+        // original position than ResolveCollisions would produce, but the result
+        // is collision free by construction, bounded by PackingConfig.MaxRings.
+
+        private static ArrangeReport SpiralPack(Document doc, View view, ViewPlane2D plane, IList<AnnoItem> items, ArrangeConfig cfg)
+        {
+            var packingItems = new List<AnnoPackingItem>(items.Count);
+
+            foreach (var it in items)
+            {
+                AnnoLocation.TryGetRepresentativePoint(view, it.Element, out XYZ rep);
+                packingItems.Add(new AnnoPackingItem(it.Element, rep ?? plane.Origin, it.BBoxInView));
+            }
+
+            var packingCfg = new PackingConfig
+            {
+                Margin = cfg.Gap,
+                Step = UnitUtils.ConvertToInternalUnits(3, UnitTypeId.Millimeters),
+                MaxRings = 160,
+                TouchCountsAsCollision = true
+            };
+
+            var packingReport = AnnoPacking.DeoverlapGreedySpiral(doc, view, plane, packingItems, packingCfg);
+
+            return new ArrangeReport
+            {
+                Total = packingReport.Total,
+                InitiallyColliding = packingReport.CollidingInitially,
+                Moved = packingReport.Moved,
+                FailedToMove = packingReport.FailedToMove,
+                CouldNotFindSpot = packingReport.CouldNotFindSpot,
+            };
+        }
+
+        // ---------------- Snap Grid ----------------
 
         private const int MaxGridDim = 8;
 
@@ -485,11 +472,9 @@ namespace BA.BIM.Core.Annotations
             if (n == 0)
                 return report;
 
-            // Original (pre-move) rects and centers - captured once, before any TryMove.
             var origRects = GetRects(view, plane, items, margin: 0);
             var origCenters = origRects.Select(r => r.Center()).ToList();
 
-            // Cell pitch from the largest item dimension across the selection, uniform for all cells.
             double maxDim = 0;
             foreach (var r in origRects)
             {
@@ -497,20 +482,18 @@ namespace BA.BIM.Core.Annotations
                 maxDim = Math.Max(maxDim, r.Height);
             }
             if (maxDim <= 0)
-                maxDim = cfg.Gap; // degenerate fallback, avoids zero pitch
+                maxDim = cfg.Gap;
 
             double pitch = maxDim + cfg.Gap;
             double maxDisplacement = cfg.Gap * cfg.MaxDisplacementFactor;
 
-            // Centroid of original centers - grid is built symmetric around this point.
             UV centroid = GetCentroid(origCenters);
 
-            // Baseline topology
             int cols = Math.Max(1, (int)Math.Ceiling(Math.Sqrt(n)));
             int rows = Math.Max(1, (int)Math.Ceiling((double)n / cols));
 
             int growthSteps = 0;
-            Dictionary<int, UV> assignment = null; // itemIndex -> target center (UV)
+            Dictionary<int, UV> assignment = null;
             int overThreshold = 0;
 
             while (true)
@@ -519,9 +502,6 @@ namespace BA.BIM.Core.Annotations
 
                 assignment = AssignItemsToCells(origCenters, cells);
 
-                // Determine per-axis overflow: for items whose displacement exceeds
-                // maxDisplacement, how far over are they, and along which axis is the
-                // larger component of that excess (in absolute UV terms).
                 double overflowU = 0;
                 double overflowV = 0;
                 overThreshold = 0;
@@ -547,7 +527,7 @@ namespace BA.BIM.Core.Annotations
                     break;
 
                 if (cols >= MaxGridDim && rows >= MaxGridDim)
-                    break; // give up growing, accept overThreshold violations
+                    break;
 
                 growthSteps++;
 
@@ -569,14 +549,8 @@ namespace BA.BIM.Core.Annotations
                     else
                         break;
                 }
-
-                // Grid capacity must cover n items; if growth along the chosen axis
-                // doesn't help (capacity already >= n but assignment still overflows
-                // because of spatial spread, not raw count), keep growing anyway up
-                // to the cap - handled naturally by the loop.
             }
 
-            // Apply moves
             int moved = 0;
             for (int i = 0; i < n; i++)
             {
@@ -600,18 +574,12 @@ namespace BA.BIM.Core.Annotations
             return report;
         }
 
-        // Builds cell center UVs for a cols x rows grid, centered on `centroid`.
-        // Cell (0,0) is top-left when iterated, but the grid itself is symmetric
-        // around centroid regardless of cols/rows parity.
         private static List<UV> BuildCellCenters(UV centroid, double pitch, int cols, int rows)
         {
             var cells = new List<UV>(cols * rows);
 
-            // offsets so the grid is centered: indices run 0..cols-1 / 0..rows-1,
-            // offset by -(cols-1)/2 and -(rows-1)/2 so the centroid sits at the
-            // geometric center of the grid.
             double offsetU = -(cols - 1) / 2.0;
-            double offsetV = (rows - 1) / 2.0; // rows go downward in V (top row = +V)
+            double offsetV = (rows - 1) / 2.0;
 
             for (int row = 0; row < rows; row++)
             {
@@ -626,18 +594,12 @@ namespace BA.BIM.Core.Annotations
             return cells;
         }
 
-        // Greedy nearest-cell assignment: for each item (processed in order of
-        // distance-to-nearest-available-cell, smallest first, so the items with the
-        // tightest constraints get first pick), assign the closest still-available
-        // cell. Returns itemIndex -> cell center.
         private static Dictionary<int, UV> AssignItemsToCells(List<UV> origCenters, List<UV> cells)
         {
             int n = origCenters.Count;
             var result = new Dictionary<int, UV>(n);
             var availableCells = new List<UV>(cells);
 
-            // Precompute, for each item, the distance to its nearest available cell.
-            // Recomputed each iteration since availability changes.
             var remainingItems = Enumerable.Range(0, n).ToList();
 
             while (remainingItems.Count > 0)
@@ -656,7 +618,7 @@ namespace BA.BIM.Core.Annotations
                         UV cell = availableCells[ci];
                         double du = cell.U - oc.U;
                         double dv = cell.V - oc.V;
-                        double dist = du * du + dv * dv; // squared distance, fine for comparison
+                        double dist = du * du + dv * dv;
 
                         if (dist < bestDist)
                         {
@@ -667,14 +629,8 @@ namespace BA.BIM.Core.Annotations
                     }
                 }
 
-                // bestItem/bestCellIdx must be valid here: availableCells.Count >= remainingItems.Count
-                // is guaranteed by the caller (cols*rows grown until capacity >= n in practice; if not,
-                // see fallback below).
                 if (bestItem < 0 || bestCellIdx < 0)
                 {
-                    // Fallback: more items than cells (shouldn't normally happen since
-                    // cols*rows >= n always, but guard anyway). Assign remaining items
-                    // to the centroid of remaining cells, or (0,0) if none left.
                     foreach (var idx in remainingItems)
                     {
                         result[idx] = availableCells.Count > 0 ? availableCells[0] : new UV(0, 0);

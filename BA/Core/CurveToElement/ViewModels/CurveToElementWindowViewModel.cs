@@ -1,5 +1,5 @@
 ﻿// File: BA/ViewModels/CurveToElement/CurveToElementWindowViewModel.cs
-// Action: CREATE NEW
+// Action: REPLACE (full file)
 
 using Autodesk.Revit.DB;
 using BA.BAApplication;
@@ -28,13 +28,14 @@ namespace BA.ViewModels.CurveToElement
     /// not open a transaction itself - RequestGenerate is a caller-supplied delegate, wired by
     /// the command/window that owns this instance, exactly as RequestClose/BrowseForFilePath
     /// are caller-supplied hooks in LedgerSettingsViewModel. This keeps the actual Wall.Create
-    /// transaction logic (WallGenerationService, not yet built) fully decoupled from this class.
+    /// transaction logic (WallGenerationService) fully decoupled from this class.
     /// </summary>
     public class CurveToElementWindowViewModel : BA.UI.Mvvm.ObservableObject, IDisposable
     {
         private readonly WallFaceOffsetPreviewHandler _previewHandler;
         private bool _isGenerating;
         private string _statusMessage = string.Empty;
+        private bool _deleteSourceLinesAfterCreation;
         private bool _isDisposed;
 
         public CurveToElementWindowViewModel(
@@ -82,11 +83,12 @@ namespace BA.ViewModels.CurveToElement
         public Action<bool?> RequestClose { get; set; }
 
         /// <summary>
-        /// Caller-supplied hook that actually performs generation (expected to go through
-        /// RevitExternalInvoker/ExternalEvent, per project convention - not implemented here).
-        /// The callback receives the outcome once Revit-side work completes.
+        /// Caller-supplied hook that actually performs generation (goes through
+        /// WallGenerationRequestHandler/ExternalEvent, per project convention). The bool
+        /// parameter is DeleteSourceLinesAfterCreation at the moment Generate was clicked;
+        /// the callback receives the outcome once Revit-side work completes.
         /// </summary>
-        public Action<IReadOnlyList<GroupGenerationRequest>, Action<GenerationResult>> RequestGenerate { get; set; }
+        public Action<IReadOnlyList<GroupGenerationRequest>, bool, Action<GenerationResult>> RequestGenerate { get; set; }
 
         public ObservableCollection<CurveTypeGroupViewModel> Groups { get; }
         public ObservableCollection<WallTypeOption> AvailableWallTypes { get; }
@@ -102,6 +104,19 @@ namespace BA.ViewModels.CurveToElement
         {
             get => _statusMessage;
             private set => SetProperty(ref _statusMessage, value);
+        }
+
+        /// <summary>
+        /// Global, window-level option (applies to the whole batch, not per group). When true,
+        /// WallGenerationService deletes a group's source detail lines after generation, but
+        /// only for groups where every curve in the group produced a wall - see
+        /// WallGenerationService.CollectGroupCurvesForDeletion for why partial-failure groups
+        /// are left untouched.
+        /// </summary>
+        public bool DeleteSourceLinesAfterCreation
+        {
+            get => _deleteSourceLinesAfterCreation;
+            set => SetProperty(ref _deleteSourceLinesAfterCreation, value);
         }
 
         public ICommand GenerateCommand { get; }
@@ -175,7 +190,9 @@ namespace BA.ViewModels.CurveToElement
             IsGenerating = true;
             StatusMessage = "Generating walls...";
 
-            RequestGenerate(requests, result =>
+            bool deleteSourceLines = DeleteSourceLinesAfterCreation;
+
+            RequestGenerate(requests, deleteSourceLines, result =>
             {
                 IsGenerating = false;
 
@@ -192,12 +209,24 @@ namespace BA.ViewModels.CurveToElement
 
                 if (result.Success)
                 {
-                    string summary = result.Warnings.Count > 0
-                        ? $"Created {result.CreatedWallCount} wall(s) with {result.Warnings.Count} warning(s):\n\n" + string.Join("\n", result.Warnings)
-                        : $"Created {result.CreatedWallCount} wall(s).";
+                    var summaryBuilder = new StringBuilder();
+                    summaryBuilder.Append($"Created {result.CreatedWallCount} wall(s).");
+
+                    if (result.DeletedLineCount > 0)
+                    {
+                        summaryBuilder.Append($" Removed {result.DeletedLineCount} source detail line(s).");
+                    }
+
+                    if (result.Warnings.Count > 0)
+                    {
+                        summaryBuilder.AppendLine();
+                        summaryBuilder.AppendLine();
+                        summaryBuilder.AppendLine($"{result.Warnings.Count} warning(s):");
+                        summaryBuilder.Append(string.Join("\n", result.Warnings));
+                    }
 
                     MessageBox.Show(
-                        summary,
+                        summaryBuilder.ToString(),
                         "Curve to Element",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);

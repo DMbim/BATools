@@ -100,41 +100,91 @@ namespace BA.Updates
         }
 
         /// <summary>
-        /// Shows the update dialog for a known-available update and acts on the choice.
-        /// Does not take a UIApplication: everything needed (RevitVersion, AssetName, etc.)
-        /// is already resolved into UpdateCheckResult by CheckAsync, since this is called
-        /// from ApplicationClosing where a UIApplication is not available.
+        /// Manual "Check for Updates" ribbon click, when a newer version exists. Notify only:
+        /// tells the person an update is available and that it installs automatically the next
+        /// time Revit closes. Never launches the installer itself. Offers a Skip this version
+        /// command link, which is the only way to suppress the automatic close time launch for
+        /// that specific version.
         /// </summary>
-        public static void PromptAndHandle(UpdateCheckResult r)
+        public static void NotifyOnly(UpdateCheckResult r)
         {
             if (r == null || !r.HasUpdate)
                 return;
 
-            if (string.IsNullOrWhiteSpace(r.AssetUrl) || string.IsNullOrWhiteSpace(r.AssetName))
+            if (!HasValidAsset(r))
             {
-                TaskDialog.Show("BA Tools Update",
-                    $"New version found ({r.Latest}) but asset was not found.\n\n" +
-                    $"Expected asset name:\n{r.AssetName}\n\n" +
-                    $"Fix: upload that ZIP to the GitHub Release.");
+                ShowMissingAssetDialog(r);
                 return;
             }
 
-            var choice = UpdatePrompt.Show(r);
-
-            switch (choice)
+            var td = new TaskDialog("BA Tools Update")
             {
-                case UpdateChoice.Update:
-                    InstallerLauncher.LaunchUpdate(r, silent: false);
-                    break;
+                MainInstruction = $"New BA Tools version available: {r.Latest} (installed: {r.Installed})",
+                MainContent = "It will install automatically the next time Revit closes.",
+                CommonButtons = TaskDialogCommonButtons.Close
+            };
 
-                case UpdateChoice.Later:
-                default:
-                    // Don't nag again for this exact version until a newer one is released.
-                    var state = UpdateStateStore.Load();
-                    state.DismissedVersion = r.Tag;
-                    UpdateStateStore.Save(state);
-                    break;
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "OK",
+                "Got it. The update installs automatically next time Revit closes.");
+
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Skip this version",
+                "Don't install this version automatically. You won't be asked again until a newer version is released.");
+
+            if (!string.IsNullOrWhiteSpace(r.Body))
+            {
+                var body = r.Body.Length > 1000 ? r.Body.Substring(0, 1000) + "..." : r.Body;
+                td.ExpandedContent = body;
             }
+
+            if (!string.IsNullOrWhiteSpace(r.ReleaseUrl))
+            {
+                td.FooterText = $"Release notes: {r.ReleaseUrl}";
+            }
+
+            var res = td.Show();
+
+            if (res == TaskDialogResult.CommandLink2)
+            {
+                var state = UpdateStateStore.Load();
+                state.DismissedVersion = r.Tag;
+                UpdateStateStore.Save(state);
+            }
+        }
+
+        /// <summary>
+        /// Fires from DocumentClosing (last open document only), when a newer version exists
+        /// and was not previously skipped. No dialog: launches the installer window directly,
+        /// non silent, so the person sees the installer's own UI doing the work after Revit
+        /// finishes closing. Called from UpdateService.TryAutoLaunchFromCache, which already
+        /// checked DismissedVersion before reaching here.
+        /// </summary>
+        public static void AutoLaunchOnClose(UpdateCheckResult r)
+        {
+            if (r == null || !r.HasUpdate)
+                return;
+
+            if (!HasValidAsset(r))
+            {
+                // This is the one path where the update genuinely should have happened,
+                // so still tell the person rather than failing silently.
+                ShowMissingAssetDialog(r);
+                return;
+            }
+
+            InstallerLauncher.LaunchUpdate(r, silent: false);
+        }
+
+        private static bool HasValidAsset(UpdateCheckResult r)
+            => !string.IsNullOrWhiteSpace(r.AssetUrl) && !string.IsNullOrWhiteSpace(r.AssetName);
+
+        private static void ShowMissingAssetDialog(UpdateCheckResult r)
+        {
+            TaskDialog.Show("BA Tools Update",
+                $"New version found ({r.Latest}) but asset was not found.\n\n" +
+                $"Expected asset name:\n{r.AssetName}\n\n" +
+                $"Fix: upload that ZIP to the GitHub Release.");
         }
     }
 }

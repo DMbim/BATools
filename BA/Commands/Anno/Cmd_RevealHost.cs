@@ -1,9 +1,10 @@
-﻿using System;
+﻿// BA/Commands/Cmd_RevealHost.cs
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Autodesk.Revit.UI.Selection;
 using BA.BAApplication;
 
 namespace BA.Commands
@@ -27,21 +28,32 @@ namespace BA.Commands
             }
 
             var doc = uiDoc.Document;
-            var selectedIds = uiDoc.Selection.GetElementIds();
 
-            if (selectedIds.Count != 1)
+            // ---------------------------------------------------------------- //
+            //  Pick exactly one element.
+            // ---------------------------------------------------------------- //
+            Reference pickedRef;
+            try
             {
-                TaskDialog.Show("Reveal Host", "Select exactly one element, the dimension, hosted element, or stacked wall segment.");
+                pickedRef = uiDoc.Selection.PickObject(
+                    ObjectType.Element,
+                    "Pick a dimension, hosted element, or stacked wall segment");
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+            {
                 return Result.Cancelled;
             }
 
-            var element = doc.GetElement(selectedIds.First());
+            var element = doc.GetElement(pickedRef.ElementId);
             if (element == null)
             {
                 message = "Selected element could not be resolved.";
                 return Result.Failed;
             }
 
+            // ---------------------------------------------------------------- //
+            //  Resolve host / references.
+            // ---------------------------------------------------------------- //
             var targetIds = new HashSet<ElementId>();
 
             switch (element)
@@ -65,10 +77,15 @@ namespace BA.Commands
 
             if (targetIds.Count == 0)
             {
-                TaskDialog.Show("Reveal Host", $"No host or reference found for this {element.Category?.Name ?? "element"}.");
+                TaskDialog.Show("Reveal Host",
+                    $"No host or reference found for this " +
+                    $"{element.Category?.Name ?? "element"}.");
                 return Result.Succeeded;
             }
 
+            // ---------------------------------------------------------------- //
+            //  Select and zoom to results.
+            // ---------------------------------------------------------------- //
             try
             {
                 uiDoc.Selection.SetElementIds(targetIds);
@@ -81,11 +98,20 @@ namespace BA.Commands
                 return Result.Failed;
             }
 
-            AppLogger.LogInfo($"Cmd_RevealHost: revealed {targetIds.Count} reference(s) for element {element.Id.Value}.");
+            AppLogger.LogInfo(
+                $"Cmd_RevealHost: revealed {targetIds.Count} reference(s) " +
+                $"for element {element.Id.Value}.");
+
             return Result.Succeeded;
         }
 
-        private static void CollectDimensionReferences(Dimension dimension, HashSet<ElementId> targetIds)
+        // ------------------------------------------------------------------ //
+        //  HELPERS
+        // ------------------------------------------------------------------ //
+
+        private static void CollectDimensionReferences(
+            Dimension dimension,
+            HashSet<ElementId> targetIds)
         {
             var references = dimension.References;
             if (references == null) return;

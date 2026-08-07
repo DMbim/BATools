@@ -34,6 +34,7 @@ namespace BA.Markup.ViewModels
             string currentUser,
             string currentDate,
             IEnumerable<RevisionItem> revisions,
+            IEnumerable<string> activeAssigneeUsers,
             Action refreshRevisionsCallback)
         {
             _refreshRevisionsCallback = refreshRevisionsCallback
@@ -51,6 +52,13 @@ namespace BA.Markup.ViewModels
             foreach (var a in MarkupActionOptions.All)
                 ActionOptions.Add(a);
 
+            // <- NEW: assignee options, sourced from MarkupUserRegistryService.GetActiveUsers
+            //    via PlaceMarkupCommand. Free text is always allowed regardless of this list,
+            //    enforced in the XAML by using an editable ComboBox rather than a locked
+            //    dropdown; this collection only supplies the suggestions.
+            foreach (var u in activeAssigneeUsers ?? Array.Empty<string>())
+                AssigneeOptions.Add(u);
+
             SelectedTypeOption = TypeOptions.Count > 0 ? TypeOptions[0] : string.Empty;
             SelectedActionOption = string.Empty;
 
@@ -67,6 +75,9 @@ namespace BA.Markup.ViewModels
         public ObservableCollection<string> TypeOptions { get; } = new();
         public ObservableCollection<string> ActionOptions { get; } = new();
         public ObservableCollection<RevisionItem> Revisions { get; } = new();
+
+        // <- NEW: assignee suggestions for the editable ComboBox.
+        public ObservableCollection<string> AssigneeOptions { get; } = new();
 
         // ------------------------------------------------------------------ //
         //  Mode
@@ -156,6 +167,20 @@ namespace BA.Markup.ViewModels
         }
 
         // ------------------------------------------------------------------ //
+        //  Assignee (BA_Tls_AssignedUser)
+        // ------------------------------------------------------------------ //
+
+        // <- NEW: bound to an editable ComboBox. Text is always accepted as typed;
+        //    AssigneeOptions only supplies the dropdown suggestions, it never restricts
+        //    what can be entered. Empty string is valid, means unassigned.
+        private string _assignedUser = string.Empty;
+        public string AssignedUser
+        {
+            get => _assignedUser;
+            set => Set(ref _assignedUser, value ?? string.Empty);
+        }
+
+        // ------------------------------------------------------------------ //
         //  Revision (Official mode)
         // ------------------------------------------------------------------ //
         private RevisionItem? _selectedRevision;
@@ -182,7 +207,8 @@ namespace BA.Markup.ViewModels
             BaAuthor = BaAuthor.Trim(),
             BaDate = BaDate.Trim(),
             RevisionElementId = SelectedRevision?.ElementId ?? -1,
-            RevisionDisplayName = SelectedRevision?.DisplayName ?? string.Empty
+            RevisionDisplayName = SelectedRevision?.DisplayName ?? string.Empty,
+            AssignedUser = AssignedUser.Trim()
         };
 
         // ------------------------------------------------------------------ //
@@ -249,12 +275,15 @@ namespace BA.Markup.ViewModels
 
         public RelayCommand(Action<object?> execute, Func<object?, bool>? canExecute = null)
         {
-            _execute = execute;
+            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
             _canExecute = canExecute;
         }
 
         public event EventHandler? CanExecuteChanged;
-        public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+
+        public void RaiseCanExecuteChanged()
+            => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+
         public bool CanExecute(object? parameter) => _canExecute?.Invoke(parameter) ?? true;
         public void Execute(object? parameter) => _execute(parameter);
     }

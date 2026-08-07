@@ -30,7 +30,12 @@ namespace BA.Core.Overhead
             var (cutZ, topZ) = ViewRangeResolver.ResolveCutTopZ(_doc, _view, _settings);
             double eps = UnitUtils.ConvertToInternalUnits(1.0, UnitTypeId.Millimeters);
 
-            var cats = _settings.SelectedCategories?.ToList() ?? new List<BuiltInCategory> { BuiltInCategory.OST_Walls };
+            var cats = _settings.SelectedCategories?.ToList() ?? new List<BuiltInCategory> {
+                BuiltInCategory.OST_Walls,
+                BuiltInCategory.OST_Floors,
+                BuiltInCategory.OST_Ceilings,
+                BuiltInCategory.OST_Roofs,
+                BuiltInCategory.OST_Stairs};
             var modelFilter = new ElementMulticategoryFilter(cats);
 
             var elems = new FilteredElementCollector(_doc, _view.Id)
@@ -83,11 +88,25 @@ namespace BA.Core.Overhead
             };
         }
 
+        /// <summary>
+        /// Categories treated as "cut required", flagged whenever any portion sits within
+        /// the overhead band (inOverheadBand), not only when the entire element is above
+        /// topZ. Previously only Walls and StructuralColumns were included here, which
+        /// meant Ceilings, Floors, and Roofs could only ever qualify via the
+        /// aboveCut && aboveTop branch, requiring the entire element to sit above topZ.
+        /// A normal ceiling sitting within the overhead band, above the view's cut plane
+        /// but below topZ, exactly the case Walls handle correctly, never satisfied that
+        /// condition, so it was never flagged and no proxy was ever created for it. This
+        /// was a category classification gap, not a geometry bug.
+        /// </summary>
         internal static bool IsCutRequiredCategory(Category cat)
         {
             if (cat == null) return false;
             return cat.Id == new ElementId(BuiltInCategory.OST_Walls)
-                   || cat.Id == new ElementId(BuiltInCategory.OST_StructuralColumns);
+                   || cat.Id == new ElementId(BuiltInCategory.OST_StructuralColumns)
+                   || cat.Id == new ElementId(BuiltInCategory.OST_Ceilings)
+                   || cat.Id == new ElementId(BuiltInCategory.OST_Floors)
+                   || cat.Id == new ElementId(BuiltInCategory.OST_Roofs);
         }
 
         private static bool IsTinyXY(BoundingBoxXYZ bb, double tinyMm)

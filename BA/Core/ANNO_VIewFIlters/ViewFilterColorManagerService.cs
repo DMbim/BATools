@@ -87,9 +87,6 @@ namespace BA.Core.ViewFilters
 
                 var ogs = SafeOgs(() => template.GetFilterOverrides(a.FilterId));
 
-                // Resolves to the assignment's own pattern if one was chosen,
-                // otherwise falls back to solid, identical to prior behavior
-                // when PatternId is left at its default of null. // <- NEW
                 var patternId = ResolvePatternId(a.PatternId, solidFillPatternId);
 
                 if (a.ProjR.HasValue && a.ProjG.HasValue && a.ProjB.HasValue)
@@ -164,7 +161,7 @@ namespace BA.Core.ViewFilters
                 ogs.SetSurfaceForegroundPatternColor(color);
                 ogs.SetCutForegroundPatternColor(color);
 
-                var patternId = ResolvePatternId(bucket.FillPatternId, solidFillPatternId); // <- NEW
+                var patternId = ResolvePatternId(bucket.FillPatternId, solidFillPatternId);
                 if (patternId != null)
                 {
                     ogs.SetSurfaceForegroundPatternId(patternId);
@@ -178,8 +175,66 @@ namespace BA.Core.ViewFilters
             return (applied, skippedCategory, skippedNoMatch);
         }
 
-        // Null or InvalidElementId on the bucket/assignment means "use
-        // solid", matching prior default behavior exactly. // <- NEW
+        // New. Builds one legend row entry directly from a filter's live overrides
+        // on a template, rather than from a stored ParameterColorRule. This is what
+        // lets the View Template tab build a legend from an arbitrary mix of native
+        // Revit filters and BA managed filters, since neither necessarily has a
+        // ParameterColorRule behind it anymore by the time it's sitting on the
+        // template. Color preference order: surface fill color, then projection
+        // line color, then cut line color, first one found wins. Returns a fully
+        // formed LegendEntry with black/no-pattern defaults if the filter carries
+        // no color override at all, rather than throwing, so one badly configured
+        // filter doesn't abort legend generation for the rest of the selection. // <- NEW
+        public static LegendEntry BuildLegendEntryFromFilter(Document doc, View template, ElementId filterId)
+        {
+            if (doc == null || template == null || filterId == null || filterId == ElementId.InvalidElementId)
+                return null;
+
+            var pfe = doc.GetElement(filterId) as ParameterFilterElement;
+            string label = pfe?.Name ?? "<filter>";
+
+            var ogs = SafeOgs(() => template.GetFilterOverrides(filterId));
+
+            Color color = null;
+
+            try
+            {
+                if (ogs.SurfaceForegroundPatternColor != null && ogs.SurfaceForegroundPatternColor.IsValid)
+                    color = ogs.SurfaceForegroundPatternColor;
+            }
+            catch { /* leave color null, try next source */ }
+
+            if (color == null)
+            {
+                try
+                {
+                    if (ogs.ProjectionLineColor != null && ogs.ProjectionLineColor.IsValid)
+                        color = ogs.ProjectionLineColor;
+                }
+                catch { /* leave color null, try next source */ }
+            }
+
+            if (color == null)
+            {
+                try
+                {
+                    if (ogs.CutLineColor != null && ogs.CutLineColor.IsValid)
+                        color = ogs.CutLineColor;
+                }
+                catch { /* fall through to black default below */ }
+            }
+
+            byte r = color?.Red ?? 0;
+            byte g = color?.Green ?? 0;
+            byte b = color?.Blue ?? 0;
+
+            ElementId patternId = ElementId.InvalidElementId;
+            try { patternId = ogs.SurfaceForegroundPatternId ?? ElementId.InvalidElementId; }
+            catch { /* leave InvalidElementId, LegendGenerationService falls back to solid */ }
+
+            return new LegendEntry(label, r, g, b, patternId);
+        }
+
         private static ElementId ResolvePatternId(ElementId requested, ElementId solidFallback)
         {
             if (requested != null && requested != ElementId.InvalidElementId)
@@ -228,7 +283,7 @@ namespace BA.Core.ViewFilters
             catch { return fallback; }
         }
 
-        private static (byte? r, byte? g, byte? b) TryGetOgsColor(Func<Autodesk.Revit.DB.Color> getter)
+        private static (byte? r, byte? g, byte? b) TryGetOgsColor(Func<Color> getter)
         {
             try
             {
@@ -243,9 +298,6 @@ namespace BA.Core.ViewFilters
         }
     }
 
-    // FilterColorAssignment gains an optional PatternId, defaulted to null
-    // so existing callers (the Assign Colors tab) keep compiling unchanged
-    // and keep defaulting to solid fill. // <- CHANGED
     public sealed record FilterColorAssignment(
         ElementId FilterId,
         byte? CutR, byte? CutG, byte? CutB,

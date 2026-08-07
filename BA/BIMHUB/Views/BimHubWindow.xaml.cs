@@ -28,8 +28,6 @@ namespace BA.UI.BimHub.Views
     public partial class BimHubWindow : Window, IDisposable
     {
         private readonly UIApplication _uiApp;
-        private readonly RevitActionQueueHandler _handler;
-        private readonly Autodesk.Revit.UI.ExternalEvent _externalEvent;
         private readonly RevitExternalInvoker _invoker;
         private bool _disposed;
         private LineStyleExternalInvoker? _lineStyleInvoker;
@@ -40,9 +38,10 @@ namespace BA.UI.BimHub.Views
         {
             _uiApp = uiApp ?? throw new ArgumentNullException(nameof(uiApp));
 
-            _handler = new RevitActionQueueHandler(Dispatcher.CurrentDispatcher);
-            _externalEvent = Autodesk.Revit.UI.ExternalEvent.Create(_handler);
-            _invoker = new RevitExternalInvoker(_handler, _externalEvent);
+            // App-scoped invoker: not owned by this window, safe to use after
+            // this window closes. Do NOT construct a per-window ExternalEvent
+            // here, see AppExternalInvoker.cs for why.
+            _invoker = AppExternalInvoker.Instance;
 
             InitializeComponent();
             Loaded += OnLoaded;
@@ -276,7 +275,6 @@ namespace BA.UI.BimHub.Views
             });
         }
 
-        // BimHubWindow.xaml.cs — only this handler changes, one argument added
         private void BtnTemplateChecker_Click(object sender, RoutedEventArgs e)
         {
             RunCommand("Template Checker", uiApp =>
@@ -288,7 +286,7 @@ namespace BA.UI.BimHub.Views
                     return;
                 }
 
-                var wnd = new TemplateCheckerWindow(uiApp, doc, _invoker); // <- CHANGED: added _invoker
+                var wnd = new TemplateCheckerWindow(uiApp, doc, _invoker);
                 RevitWindowHelper.SetOwnerToRevit(wnd, uiApp);
                 wnd.Show();
                 wnd.Activate();

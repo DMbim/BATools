@@ -12,6 +12,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using Newtonsoft.Json; // <- ADD this using at top of file if not already present
 using System.Windows.Data;
 using System.Windows.Input;
 using Button = System.Windows.Controls.Button;
@@ -552,9 +553,11 @@ namespace BA.UI
             var view = CollectionViewSource.GetDefaultView(Parameters);
             view.Filter = FilterRow;
             UpdateVisibleCount(view);
-
-            // Wire favorites panel
+            // existing last line:
             FavoritesList.ItemsSource = _favorites;
+
+            // ADD immediately after it:
+            LoadFavorites(); // <- ADD: populate from disk on open
         }
 
         // ===================== Filters =====================
@@ -636,6 +639,7 @@ namespace BA.UI
             var msg = $"Saved {added} favorite(s).";
             if (skipped > 0) msg += $" {skipped} already in list — skipped.";
             MessageBox.Show(msg);
+            SaveFavorites(); // <- ADD: persist after every save
         }
 
         private void BtnRemoveFavorite_Click(object sender, RoutedEventArgs e)
@@ -648,6 +652,7 @@ namespace BA.UI
             }
             foreach (var f in toRemove) _favorites.Remove(f);
             MessageBox.Show($"Removed {toRemove.Count} favorite(s).");
+            SaveFavorites(); // <- ADD: persist after every remove
         }
 
         private void BtnLoadFavorite_Click(object sender, RoutedEventArgs e)
@@ -679,6 +684,52 @@ namespace BA.UI
                 msg += $"\n{notFound} parameter name(s) not found in this family.";
 
             MessageBox.Show(msg);
+        }
+        // ===================== Favorites persistence =====================
+
+        private static readonly string FavoritesPath = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "BA", "FamilyHarmonizer", "FavoriteParams.json");
+
+        private void SaveFavorites()
+        {
+            try
+            {
+                var dir = System.IO.Path.GetDirectoryName(FavoritesPath);
+                if (!string.IsNullOrEmpty(dir) && !System.IO.Directory.Exists(dir))
+                    System.IO.Directory.CreateDirectory(dir);
+
+                var json = Newtonsoft.Json.JsonConvert.SerializeObject(
+                    _favorites, Newtonsoft.Json.Formatting.Indented);
+
+                System.IO.File.WriteAllText(FavoritesPath, json, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                // Non-fatal: favorites remain in memory for this session
+                System.Diagnostics.Debug.WriteLine($"SaveFavorites failed: {ex.Message}");
+            }
+        }
+
+        private void LoadFavorites()
+        {
+            try
+            {
+                if (!System.IO.File.Exists(FavoritesPath)) return;
+
+                var json = System.IO.File.ReadAllText(FavoritesPath, Encoding.UTF8);
+                var items = Newtonsoft.Json.JsonConvert.DeserializeObject<List<FavoriteItem>>(json);
+
+                if (items == null) return;
+
+                _favorites.Clear();
+                foreach (var item in items)
+                    _favorites.Add(item); // IsChecked defaults to false (not persisted)
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadFavorites failed: {ex.Message}");
+            }
         }
         // ===================== DataGrid editing helpers =====================
 
@@ -751,6 +802,7 @@ namespace BA.UI
         public string TargetName { get; set; } = "";
         public string MatchedShared { get; set; } = "";
 
+        [JsonIgnore]   // <- ADD: UI toggle state must not be persisted
         public bool IsChecked
         {
             get => _isChecked;
@@ -758,8 +810,7 @@ namespace BA.UI
             {
                 if (_isChecked == value) return;
                 _isChecked = value;
-                PropertyChanged?.Invoke(this,
-                    new PropertyChangedEventArgs(nameof(IsChecked)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked)));
             }
         }
 

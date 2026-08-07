@@ -9,16 +9,19 @@ using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Data;
 using System.Windows.Media;
 using Brush = System.Windows.Media.Brush;
 using Color = System.Windows.Media.Color;
 using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
+using View = Autodesk.Revit.DB.View;
 
 namespace BA.UI.Views
 {
@@ -30,20 +33,32 @@ namespace BA.UI.Views
 
         private bool _suppressCascade;
 
-        // Synthetic entry, not from ParameterEnumerationService. Represents
-        // "no pattern chosen, use solid fill", the same default behavior
-        // that already existed before pattern support was added. // <- NEW
+        private PaletteWindow _paletteWindow;
+
         private static readonly FillPatternInfo SolidPatternEntry = new FillPatternInfo(ElementId.InvalidElementId, "Solid (default)");
 
+        public ObservableCollection<TemplateFilterRowItem> TemplateFilters { get; } = new();
+        public ICollectionView NativeFilterRows { get; }
+        public ICollectionView BaManagedFilterRows { get; }
+
         public ObservableCollection<ViewTemplateItem> ViewTemplates { get; } = new();
-        public ObservableCollection<FilterRowItem> Filters { get; } = new();
         public ObservableCollection<PaletteColorItem> Palette { get; } = new();
-        public ObservableCollection<AssignRowItem> AssignRows { get; } = new();
 
         public ObservableCollection<CategoryInfo> Categories { get; } = new();
         public ObservableCollection<ParameterInfo> Parameters { get; } = new();
         public ObservableCollection<ColorBucketItem> Buckets { get; } = new();
-        public ObservableCollection<FillPatternInfo> Patterns { get; } = new(); // <- NEW
+        public ObservableCollection<FillPatternInfo> Patterns { get; } = new();
+
+        public ObservableCollection<SchemeSummary> SavedSchemes { get; } = new();
+
+        // New. Named, reusable "combined filter" groups, assembled from checked
+        // rows in either pane. A group is a list of filter NAMES, not ElementIds,
+        // same reasoning as SchemeDto: it has to resolve against whatever
+        // document/template it is shown or hidden on later. Show/Hide toggles
+        // template.SetFilterVisibility for every member filter that exists on
+        // the currently selected template, it does not add filters that are not
+        // already there, that's what "Apply Scheme to Template" is for. // <- NEW
+        public ObservableCollection<FilterGroupSummary> FilterGroups { get; } = new();
 
         private ProcessMethod _currentMethod = ProcessMethod.ValueBucket;
 
@@ -160,18 +175,51 @@ namespace BA.UI.Views
             set { if (SetProperty(ref _selectedViewTemplate, value)) RaiseCanExecChanged(); }
         }
 
-        private FilterRowItem _selectedFilter;
-        public FilterRowItem SelectedFilter
+        private TemplateFilterRowItem _selectedTemplateFilterRow;
+        public TemplateFilterRowItem SelectedTemplateFilterRow
         {
-            get => _selectedFilter;
-            set { if (SetProperty(ref _selectedFilter, value)) RaiseCanExecChanged(); }
+            get => _selectedTemplateFilterRow;
+            set { if (SetProperty(ref _selectedTemplateFilterRow, value)) RaiseCanExecChanged(); }
         }
 
-        private AssignRowItem _selectedAssignRow;
-        public AssignRowItem SelectedAssignRow
+        private SchemeSummary _selectedSavedScheme;
+        public SchemeSummary SelectedSavedScheme
         {
-            get => _selectedAssignRow;
-            set => SetProperty(ref _selectedAssignRow, value);
+            get => _selectedSavedScheme;
+            set
+            {
+                if (!SetProperty(ref _selectedSavedScheme, value)) return;
+                LoadSchemeCommand?.RaiseCanExecuteChanged();
+                AddSchemeToTemplateCommand?.RaiseCanExecuteChanged();
+            }
+        }
+
+        private string _newSchemeName = string.Empty;
+        public string NewSchemeName
+        {
+            get => _newSchemeName;
+            set => SetProperty(ref _newSchemeName, value);
+        }
+
+        // New.
+        private FilterGroupSummary _selectedFilterGroup;
+        public FilterGroupSummary SelectedFilterGroup
+        {
+            get => _selectedFilterGroup;
+            set
+            {
+                if (!SetProperty(ref _selectedFilterGroup, value)) return;
+                ShowGroupOnTemplateCommand?.RaiseCanExecuteChanged();
+                HideGroupOnTemplateCommand?.RaiseCanExecuteChanged();
+                CreateLegendFromGroupCommand?.RaiseCanExecuteChanged();
+            }
+        }
+
+        private string _newGroupName = string.Empty;
+        public string NewGroupName
+        {
+            get => _newGroupName;
+            set => SetProperty(ref _newGroupName, value);
         }
 
         private string _statusText = "Ready";
@@ -193,9 +241,10 @@ namespace BA.UI.Views
         public BA.UI.Mvvm.RelayCommand ExportPaletteCommand { get; }
         public BA.UI.Mvvm.RelayCommand CloseCommand { get; }
         public BA.UI.Mvvm.RelayCommand HelpCommand { get; }
+        public BA.UI.Mvvm.RelayCommand OpenPaletteCommand { get; }
 
         public BA.UI.Mvvm.RelayCommand LoadCategoriesCommand { get; }
-        public BA.UI.Mvvm.RelayCommand LoadPatternsCommand { get; } // <- NEW
+        public BA.UI.Mvvm.RelayCommand LoadPatternsCommand { get; }
         public BA.UI.Mvvm.RelayCommand RandomColorsCommand { get; }
         public BA.UI.Mvvm.RelayCommand GradientCommand { get; }
         public BA.UI.Mvvm.RelayCommand AddBucketCommand { get; }
@@ -208,6 +257,15 @@ namespace BA.UI.Views
         public BA.UI.Mvvm.RelayCommand ApplyToSelectionCommand { get; }
         public BA.UI.Mvvm.RelayCommand ApplyToAllInViewCommand { get; }
 
+        public BA.UI.Mvvm.RelayCommand AddSchemeToTemplateCommand { get; }
+        public BA.UI.Mvvm.RelayCommand CreateLegendFromSelectedCommand { get; }
+
+        public BA.UI.Mvvm.RelayCommand SaveGroupFromSelectedCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ShowGroupOnTemplateCommand { get; }
+        public BA.UI.Mvvm.RelayCommand HideGroupOnTemplateCommand { get; }
+        public BA.UI.Mvvm.RelayCommand CreateLegendFromGroupCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ToggleLegendCheckCommand { get; }
+
         public BAViewFilterColorManagerVm(UIApplication uiApp, RevitExternalInvoker revit, Window window)
         {
             _uiApp = uiApp ?? throw new ArgumentNullException(nameof(uiApp));
@@ -216,35 +274,48 @@ namespace BA.UI.Views
 
             SeedDefaultPalette();
 
+            NativeFilterRows = new ListCollectionView(TemplateFilters) { Filter = o => !((TemplateFilterRowItem)o).IsBaManaged };
+            BaManagedFilterRows = new ListCollectionView(TemplateFilters) { Filter = o => ((TemplateFilterRowItem)o).IsBaManaged };
+
             LoadTemplatesCommand = new BA.UI.Mvvm.RelayCommand(_ => LoadTemplates());
             LoadFiltersCommand = new BA.UI.Mvvm.RelayCommand(_ => LoadFilters(), _ => SelectedViewTemplate != null);
-            PreviewFilterCommand = new BA.UI.Mvvm.RelayCommand(_ => PreviewSelectedFilter(), _ => SelectedFilter != null);
-            ApplyToTemplateCommand = new BA.UI.Mvvm.RelayCommand(_ => ApplyOverridesToTemplate(), _ => SelectedViewTemplate != null && AssignRows.Count > 0);
-            AutoAssignCommand = new BA.UI.Mvvm.RelayCommand(_ => AutoAssignPalette(), _ => AssignRows.Count > 0 && Palette.Count > 0);
+            PreviewFilterCommand = new BA.UI.Mvvm.RelayCommand(_ => PreviewSelectedFilter(), _ => SelectedTemplateFilterRow != null);
+            ApplyToTemplateCommand = new BA.UI.Mvvm.RelayCommand(_ => ApplyOverridesToTemplate(), _ => SelectedViewTemplate != null && TemplateFilters.Count > 0);
+            AutoAssignCommand = new BA.UI.Mvvm.RelayCommand(_ => AutoAssignPalette(), _ => TemplateFilters.Count > 0 && Palette.Count > 0);
 
             EditPaletteColorCommand = new BA.UI.Mvvm.RelayCommand(p => EditPaletteColor(p as PaletteColorItem), p => p is PaletteColorItem);
-            PickCutColorCommand = new BA.UI.Mvvm.RelayCommand(p => PickCutColor(p as AssignRowItem), p => p is AssignRowItem);
-            PickProjColorCommand = new BA.UI.Mvvm.RelayCommand(p => PickProjColor(p as AssignRowItem), p => p is AssignRowItem);
+            PickCutColorCommand = new BA.UI.Mvvm.RelayCommand(p => PickCutColor(p as TemplateFilterRowItem), p => p is TemplateFilterRowItem);
+            PickProjColorCommand = new BA.UI.Mvvm.RelayCommand(p => PickProjColor(p as TemplateFilterRowItem), p => p is TemplateFilterRowItem);
 
             ImportPaletteCommand = new BA.UI.Mvvm.RelayCommand(_ => ImportPaletteJson());
             ExportPaletteCommand = new BA.UI.Mvvm.RelayCommand(_ => ExportPaletteJson(), _ => Palette.Count > 0);
 
             CloseCommand = new BA.UI.Mvvm.RelayCommand(_ => _window.Close());
             HelpCommand = new BA.UI.Mvvm.RelayCommand(_ => ShowHelp());
+            OpenPaletteCommand = new BA.UI.Mvvm.RelayCommand(_ => OpenPalette());
 
             LoadCategoriesCommand = new BA.UI.Mvvm.RelayCommand(_ => LoadCategories());
-            LoadPatternsCommand = new BA.UI.Mvvm.RelayCommand(_ => LoadPatterns()); // <- NEW
+            LoadPatternsCommand = new BA.UI.Mvvm.RelayCommand(_ => LoadPatterns());
             RandomColorsCommand = new BA.UI.Mvvm.RelayCommand(_ => RandomizeBucketColors(), _ => Buckets.Count > 0);
             GradientCommand = new BA.UI.Mvvm.RelayCommand(_ => ApplyGradient(), _ => Buckets.Count >= 2);
             AddBucketCommand = new BA.UI.Mvvm.RelayCommand(_ => AddManualBucket());
             RemoveBucketCommand = new BA.UI.Mvvm.RelayCommand(p => RemoveBucket(p as ColorBucketItem), p => p is ColorBucketItem);
             EditBucketColorCommand = new BA.UI.Mvvm.RelayCommand(p => EditBucketColor(p as ColorBucketItem), p => p is ColorBucketItem);
             SaveSchemeCommand = new BA.UI.Mvvm.RelayCommand(_ => SaveScheme(), _ => Buckets.Count > 0);
-            LoadSchemeCommand = new BA.UI.Mvvm.RelayCommand(_ => LoadScheme());
+            LoadSchemeCommand = new BA.UI.Mvvm.RelayCommand(_ => LoadSelectedScheme(), _ => SelectedSavedScheme != null);
             CreateViewFiltersCommand = new BA.UI.Mvvm.RelayCommand(_ => CreateViewFilters(), _ => SelectedViewTemplate != null && Buckets.Count > 0);
             CreateLegendCommand = new BA.UI.Mvvm.RelayCommand(_ => CreateLegendFromRule(), _ => Buckets.Count > 0);
             ApplyToSelectionCommand = new BA.UI.Mvvm.RelayCommand(_ => ApplyOverridesToSelection(), _ => Buckets.Count > 0);
             ApplyToAllInViewCommand = new BA.UI.Mvvm.RelayCommand(_ => ApplyOverridesToAllInView(), _ => Buckets.Count > 0);
+
+            AddSchemeToTemplateCommand = new BA.UI.Mvvm.RelayCommand(_ => AddSchemeToTemplate(), _ => SelectedViewTemplate != null && SelectedSavedScheme != null);
+            CreateLegendFromSelectedCommand = new BA.UI.Mvvm.RelayCommand(_ => CreateLegendFromSelected(), _ => TemplateFilters.Any(r => r.IsCheckedForLegend));
+
+            SaveGroupFromSelectedCommand = new BA.UI.Mvvm.RelayCommand(_ => SaveGroupFromSelected(), _ => TemplateFilters.Any(r => r.IsCheckedForLegend));
+            ShowGroupOnTemplateCommand = new BA.UI.Mvvm.RelayCommand(_ => ShowGroupOnTemplate(), _ => SelectedViewTemplate != null && SelectedFilterGroup != null);
+            HideGroupOnTemplateCommand = new BA.UI.Mvvm.RelayCommand(_ => HideGroupOnTemplate(), _ => SelectedViewTemplate != null && SelectedFilterGroup != null);
+            CreateLegendFromGroupCommand = new BA.UI.Mvvm.RelayCommand(_ => CreateLegendFromGroup(), _ => SelectedViewTemplate != null && SelectedFilterGroup != null);
+            ToggleLegendCheckCommand = new BA.UI.Mvvm.RelayCommand(p => ToggleLegendCheck(p as TemplateFilterRowItem), p => p is TemplateFilterRowItem);
         }
 
         public void EnsureTemplatesLoaded()
@@ -259,13 +330,32 @@ namespace BA.UI.Views
                 LoadCategoriesCommand.Execute(null);
         }
 
-        public void EnsureFillPatternsLoaded() // <- NEW
+        public void EnsureFillPatternsLoaded()
         {
             if (Patterns.Count == 0)
                 LoadPatternsCommand.Execute(null);
         }
 
-        public void Dispose() { }
+        public void EnsureSchemesLoaded()
+        {
+            if (SavedSchemes.Count == 0)
+                LoadSavedSchemes();
+        }
+
+        public void EnsureFilterGroupsLoaded()
+        {
+            if (FilterGroups.Count == 0)
+                LoadFilterGroups();
+        }
+
+        public void Dispose()
+        {
+            if (_paletteWindow != null)
+            {
+                _paletteWindow.Close();
+                _paletteWindow = null;
+            }
+        }
 
         private void RaiseCanExecChanged()
         {
@@ -275,6 +365,12 @@ namespace BA.UI.Views
             AutoAssignCommand.RaiseCanExecuteChanged();
             ExportPaletteCommand.RaiseCanExecuteChanged();
             CreateViewFiltersCommand?.RaiseCanExecuteChanged();
+            AddSchemeToTemplateCommand?.RaiseCanExecuteChanged();
+            ShowGroupOnTemplateCommand?.RaiseCanExecuteChanged();
+            HideGroupOnTemplateCommand?.RaiseCanExecuteChanged();
+            CreateLegendFromGroupCommand?.RaiseCanExecuteChanged();
+            CreateLegendFromSelectedCommand?.RaiseCanExecuteChanged(); // <- NEW
+            SaveGroupFromSelectedCommand?.RaiseCanExecuteChanged();    // <- NEW
         }
 
         private void RaiseParamColorCanExecChanged()
@@ -298,7 +394,26 @@ namespace BA.UI.Views
             Palette.Add(new PaletteColorItem("05", Color.FromRgb(200, 200, 200)));
             Palette.Add(new PaletteColorItem("06", Color.FromRgb(235, 235, 235)));
         }
+        private void ToggleLegendCheck(TemplateFilterRowItem row)
+        {
+            if (row == null) return;
 
+            // The CheckBox should normally update IsCheckedForLegend through
+            // a TwoWay binding. This command only refreshes dependent buttons,
+            // avoiding a second manual toggle when both binding and command are used.
+            RaiseLegendSelectionCanExecChanged();
+        }
+
+        private void OnLegendCheckChanged(object sender, EventArgs e)
+        {
+            RaiseLegendSelectionCanExecChanged();
+        }
+
+        private void RaiseLegendSelectionCanExecChanged()
+        {
+            CreateLegendFromSelectedCommand?.RaiseCanExecuteChanged();
+            SaveGroupFromSelectedCommand?.RaiseCanExecuteChanged();
+        }
         private void LoadTemplates()
         {
             StatusText = "Loading view templates...";
@@ -338,12 +453,11 @@ namespace BA.UI.Views
                 },
                 filters =>
                 {
-                    Filters.Clear();
-                    AssignRows.Clear();
+                    TemplateFilters.Clear();
 
                     foreach (var f in filters)
                     {
-                        Filters.Add(new FilterRowItem(f.FilterId, f.Name, f.CategorySummary, f.IsVisible));
+                        bool isBaManaged = f.Name.StartsWith("BA_", StringComparison.OrdinalIgnoreCase);
 
                         var cut = (f.CutR.HasValue && f.CutG.HasValue && f.CutB.HasValue)
                             ? Color.FromRgb(f.CutR.Value, f.CutG.Value, f.CutB.Value)
@@ -353,17 +467,20 @@ namespace BA.UI.Views
                             ? Color.FromRgb(f.ProjR.Value, f.ProjG.Value, f.ProjB.Value)
                             : (Color?)null;
 
-                        AssignRows.Add(new AssignRowItem(f.FilterId, f.Name)
+                        var row = new TemplateFilterRowItem(f.FilterId, f.Name, f.CategorySummary, f.IsVisible, isBaManaged)
                         {
                             CutBrush = cut.HasValue ? new SolidColorBrush(cut.Value) : new SolidColorBrush(Colors.Transparent),
                             ProjectionBrush = proj.HasValue ? new SolidColorBrush(proj.Value) : new SolidColorBrush(Colors.Transparent)
-                        });
+                        };
+
+                        row.LegendCheckChanged += OnLegendCheckChanged;
+                        TemplateFilters.Add(row);
                     }
 
-                    SelectedFilter = Filters.FirstOrDefault();
-                    SelectedAssignRow = AssignRows.FirstOrDefault();
+                    SelectedTemplateFilterRow = TemplateFilters.FirstOrDefault();
 
-                    StatusText = $"Loaded {Filters.Count} filters.";
+                    int baCount = TemplateFilters.Count(r => r.IsBaManaged);
+                    StatusText = $"Loaded {TemplateFilters.Count} filter(s), {baCount} BA managed, {TemplateFilters.Count - baCount} native.";
                     RaiseCanExecChanged();
                 },
                 ex => StatusText = "Filter load failed: " + ex.Message
@@ -372,26 +489,28 @@ namespace BA.UI.Views
 
         private void PreviewSelectedFilter()
         {
-            if (SelectedFilter == null) return;
+            if (SelectedTemplateFilterRow == null) return;
 
+            var row = SelectedTemplateFilterRow;
             TaskDialog.Show("BA | Filter Preview",
-                $"Filter: {SelectedFilter.FilterName}\n" +
-                $"Categories: {SelectedFilter.CategorySummary}\n" +
-                $"Visible: {SelectedFilter.VisibleText}");
+                $"Filter: {row.FilterName}\n" +
+                $"Categories: {row.CategorySummary}\n" +
+                $"Visible: {row.VisibleText}\n" +
+                $"Managed by: {(row.IsBaManaged ? "BA Tools" : "Revit (native)")}");
         }
 
         private void AutoAssignPalette()
         {
-            if (Palette.Count == 0 || AssignRows.Count == 0) return;
+            if (Palette.Count == 0 || TemplateFilters.Count == 0) return;
 
-            for (int i = 0; i < AssignRows.Count; i++)
+            for (int i = 0; i < TemplateFilters.Count; i++)
             {
                 var c = Palette[i % Palette.Count].Color;
-                AssignRows[i].ProjectionBrush = new SolidColorBrush(c);
-                AssignRows[i].CutBrush = new SolidColorBrush(c);
+                TemplateFilters[i].ProjectionBrush = new SolidColorBrush(c);
+                TemplateFilters[i].CutBrush = new SolidColorBrush(c);
             }
 
-            StatusText = $"Auto-assigned palette to {AssignRows.Count} filters (preview only).";
+            StatusText = $"Auto-assigned palette to {TemplateFilters.Count} filters (preview only).";
         }
 
         private void ApplyOverridesToTemplate()
@@ -431,7 +550,7 @@ namespace BA.UI.Views
         {
             var list = new List<FilterColorAssignment>();
 
-            foreach (var row in AssignRows)
+            foreach (var row in TemplateFilters)
             {
                 byte? cr = null, cg = null, cb = null;
                 byte? pr = null, pg = null, pb = null;
@@ -459,7 +578,7 @@ namespace BA.UI.Views
             }
         }
 
-        private void PickCutColor(AssignRowItem row)
+        private void PickCutColor(TemplateFilterRowItem row)
         {
             if (row == null) return;
 
@@ -471,7 +590,7 @@ namespace BA.UI.Views
             }
         }
 
-        private void PickProjColor(AssignRowItem row)
+        private void PickProjColor(TemplateFilterRowItem row)
         {
             if (row == null) return;
 
@@ -539,17 +658,20 @@ namespace BA.UI.Views
         private void ShowHelp()
         {
             System.Windows.MessageBox.Show(
-                "Workflow:\n" +
-                "1) View Template > Load Filters\n" +
-                "2) Palette > edit swatches > Auto-Assign (optional)\n" +
-                "3) Assign Colors > click Cut / Projection\n" +
-                "4) Apply > writes line color and matching solid fill into the selected template\n\n" +
+                "View Template tab:\n" +
+                "1) Pick a template, Load Filters\n" +
+                "2) Left pane = filters native to Revit, right pane = filters created by BA Tools\n" +
+                "3) Click a Cut/Projection swatch to recolor a filter, Apply writes it to the template\n" +
+                "4) Pick a saved scheme and click 'Apply Scheme to Template' to generate BA filters from it\n" +
+                "5) Check filters in either pane, name a group, and 'Save Group From Selected' to make a reusable combined filter\n" +
+                "6) Pick a saved group and Show/Hide it on the current template, or 'Create Legend From Group'\n" +
+                "7) Palette button opens the swatch palette for Auto-Assign\n\n" +
                 "Parameter Colors tab:\n" +
                 "1) Pick a Category, then a Parameter\n" +
                 "2) Pick Value or Range, buckets auto generate from the model\n" +
                 "3) Edit colors, patterns, labels, and range breakpoints as needed\n" +
-                "4) Create View Filters, Create Legend, Apply to Selection, or Apply to All in View\n\n" +
-                "Notes:\n. Sets Cut + Projection LINE colors and matching FILL colors and patterns.\n. Palette JSON import/export supported.",
+                "4) Name it and Save Scheme to add it to the library, or Create View Filters / Create Legend / Apply to Selection / Apply to All in View directly\n\n" +
+                "Notes:\n. Sets Cut + Projection LINE colors and matching FILL colors and patterns.\n. Palette JSON import/export supported from the Palette window.\n. A 'group' is a saved list of filter names, Show/Hide toggles visibility of whichever of those filters exist on the current template.",
                 "BA | Help", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
@@ -574,9 +696,6 @@ namespace BA.UI.Views
             );
         }
 
-        // Fill patterns are document wide, not category dependent, so this
-        // loads once per session, same as categories, rather than reloading
-        // whenever the selected category changes. // <- NEW
         private void LoadPatterns()
         {
             StatusText = "Loading fill patterns...";
@@ -597,6 +716,58 @@ namespace BA.UI.Views
                     StatusText = $"Loaded {Patterns.Count - 1} fill pattern(s).";
                 },
                 ex => StatusText = "Fill pattern load failed: " + ex.Message
+            );
+        }
+
+        private void LoadSavedSchemes()
+        {
+            StatusText = "Loading saved color schemes...";
+
+            _revit.Run(
+                app =>
+                {
+                    var doc = app.ActiveUIDocument?.Document;
+                    if (doc == null) return Array.Empty<SchemeSummary>();
+                    return ColorSchemeLibraryService.ListSchemes(doc).ToArray();
+                },
+                schemes =>
+                {
+                    SavedSchemes.Clear();
+                    foreach (var s in schemes)
+                        SavedSchemes.Add(s);
+
+                    SelectedSavedScheme = SavedSchemes.FirstOrDefault();
+                    StatusText = $"Loaded {SavedSchemes.Count} saved scheme(s).";
+                },
+                ex => StatusText = "Loading saved schemes failed: " + ex.Message
+            );
+        }
+
+        // New. Read-only enumeration, still routed through _revit.Run for the same
+        // reason LoadSavedSchemes is: FilterGroupLibraryService's folder resolution
+        // goes through ProjectSetService.GetProjectSetName, which touches the Revit
+        // API and needs the Revit thread. // <- NEW
+        private void LoadFilterGroups()
+        {
+            StatusText = "Loading saved filter groups...";
+
+            _revit.Run(
+                app =>
+                {
+                    var doc = app.ActiveUIDocument?.Document;
+                    if (doc == null) return Array.Empty<FilterGroupSummary>();
+                    return FilterGroupLibraryService.ListGroups(doc).ToArray();
+                },
+                groups =>
+                {
+                    FilterGroups.Clear();
+                    foreach (var g in groups)
+                        FilterGroups.Add(g);
+
+                    SelectedFilterGroup = FilterGroups.FirstOrDefault();
+                    StatusText = $"Loaded {FilterGroups.Count} filter group(s).";
+                },
+                ex => StatusText = "Loading filter groups failed: " + ex.Message
             );
         }
 
@@ -679,7 +850,7 @@ namespace BA.UI.Views
                         foreach (var b in coreBuckets)
                         {
                             var item = ColorBucketItem.FromCore(b);
-                            item.SelectedPattern = SolidPatternEntry; // <- NEW, newly generated buckets default to solid
+                            item.SelectedPattern = SolidPatternEntry;
                             Buckets.Add(item);
                         }
 
@@ -705,7 +876,7 @@ namespace BA.UI.Views
                         foreach (var b in coreBuckets)
                         {
                             var item = ColorBucketItem.FromCore(b);
-                            item.SelectedPattern = SolidPatternEntry; // <- NEW
+                            item.SelectedPattern = SolidPatternEntry;
                             Buckets.Add(item);
                         }
 
@@ -760,7 +931,7 @@ namespace BA.UI.Views
         {
             var item = new ColorBucketItem
             {
-                SelectedPattern = SolidPatternEntry // <- NEW
+                SelectedPattern = SolidPatternEntry
             };
 
             if (_currentMethod == ProcessMethod.RangeBucket)
@@ -863,6 +1034,445 @@ namespace BA.UI.Views
                     LoadFilters();
                 },
                 ex => StatusText = "Filter generation failed: " + ex.Message
+            );
+        }
+
+        private void AddSchemeToTemplate()
+        {
+            if (SelectedViewTemplate == null)
+            {
+                StatusText = "Select a view template first.";
+                return;
+            }
+
+            if (SelectedSavedScheme == null)
+            {
+                StatusText = "Select a saved color scheme first.";
+                return;
+            }
+
+            var templateId = SelectedViewTemplate.Id;
+            var fileName = SelectedSavedScheme.FileName;
+            var schemeName = SelectedSavedScheme.SchemeName;
+
+            StatusText = $"Applying scheme '{schemeName}' to template...";
+
+            _revit.Run(
+                app =>
+                {
+                    var doc = app.ActiveUIDocument?.Document;
+                    if (doc == null) return (Count: 0, Error: "No active document.");
+
+                    SchemeDto dto;
+                    try { dto = ColorSchemeLibraryService.LoadScheme(doc, fileName); }
+                    catch (Exception ex) { return (Count: 0, Error: ex.Message); }
+
+                    var categories = ParameterEnumerationService.GetFilterableCategories(doc);
+                    var cat = categories.FirstOrDefault(c => c.Name.Equals(dto.CategoryName, StringComparison.OrdinalIgnoreCase));
+                    if (cat == null)
+                        return (Count: 0, Error: $"Category '{dto.CategoryName}' was not found or is not filterable in this document.");
+
+                    var pars = ParameterEnumerationService.GetFilterableParameters(doc, cat.Id);
+                    var param = pars.FirstOrDefault(p => p.Name.Equals(dto.ParameterName, StringComparison.OrdinalIgnoreCase));
+                    if (param == null)
+                        return (Count: 0, Error: $"Parameter '{dto.ParameterName}' was not found for category '{dto.CategoryName}' in this document.");
+
+                    var patterns = ParameterEnumerationService.GetAvailableFillPatterns(doc);
+
+                    var method = dto.Method == ProcessMethod.RangeBucket.ToString()
+                        ? ProcessMethod.RangeBucket
+                        : ProcessMethod.ValueBucket;
+
+                    var rule = new ParameterColorRule
+                    {
+                        CategoryId = cat.Id,
+                        CategoryName = cat.Name,
+                        ParameterId = param.Id,
+                        ParameterName = param.Name,
+                        StorageType = param.StorageType,
+                        IsInstance = param.IsInstance,
+                        Method = method,
+                        Buckets = dto.Buckets.Select(b =>
+                        {
+                            var pattern = patterns.FirstOrDefault(p => p.Name.Equals(b.PatternName, StringComparison.OrdinalIgnoreCase));
+                            return new ColorBucket
+                            {
+                                Label = b.Label,
+                                Value = b.Value,
+                                RangeMin = b.RangeMin,
+                                RangeMax = b.RangeMax,
+                                R = b.R,
+                                G = b.G,
+                                B = b.B,
+                                FillPatternId = pattern?.Id ?? ElementId.InvalidElementId
+                            };
+                        }).ToList()
+                    };
+
+                    using (var t = new Transaction(doc, "BA | Apply Saved Scheme To Template"))
+                    {
+                        t.Start();
+                        int count;
+                        try
+                        {
+                            count = ParameterFilterGenerationService.GenerateAndApply(doc, templateId, rule);
+                            t.Commit();
+                        }
+                        catch
+                        {
+                            t.RollBack();
+                            throw;
+                        }
+                        return (Count: count, Error: (string)null);
+                    }
+                },
+                result =>
+                {
+                    if (!string.IsNullOrEmpty(result.Error))
+                    {
+                        StatusText = $"Apply scheme failed: {result.Error}";
+                        return;
+                    }
+
+                    StatusText = $"Applied scheme '{schemeName}', created/updated {result.Count} filter(s).";
+                    LoadFilters();
+                },
+                ex => StatusText = "Apply scheme failed: " + ex.Message
+            );
+        }
+
+        private void CreateLegendFromSelected()
+        {
+            var checkedRows = TemplateFilters.Where(r => r.IsCheckedForLegend).ToList();
+
+            if (checkedRows.Count == 0)
+            {
+                StatusText = "Check at least one filter in either pane to include on the legend.";
+                return;
+            }
+
+            if (SelectedViewTemplate == null)
+            {
+                StatusText = "Select a view template first.";
+                return;
+            }
+
+            var templateId = SelectedViewTemplate.Id;
+            var filterIds = checkedRows.Select(r => r.FilterId).ToList();
+            var title = SelectedViewTemplate.Name;
+
+            StatusText = "Creating legend from selected filters...";
+
+            _revit.Run(
+                app =>
+                {
+                    var doc = app.ActiveUIDocument?.Document;
+                    if (doc == null)
+                        return (LegendId: ElementId.InvalidElementId, EntryCount: 0, SkippedCount: filterIds.Count, Error: "No active document.");
+
+                    var template = doc.GetElement(templateId) as View;
+                    if (template == null || !template.IsTemplate)
+                        return (LegendId: ElementId.InvalidElementId, EntryCount: 0, SkippedCount: filterIds.Count, Error: "Selected element is not a valid view template.");
+
+                    var entries = filterIds
+                        .Select(id => ViewFilterColorManagerService.BuildLegendEntryFromFilter(doc, template, id))
+                        .Where(e => e != null)
+                        .ToList();
+
+                    int skippedCount = filterIds.Count - entries.Count;
+                    if (entries.Count == 0)
+                        return (LegendId: ElementId.InvalidElementId, EntryCount: 0, SkippedCount: skippedCount,
+                            Error: "None of the selected filters could be converted into legend entries.");
+
+                    using (var t = new Transaction(doc, "BA | Create Legend From Selected Filters"))
+                    {
+                        t.Start();
+                        ElementId legendId;
+                        try
+                        {
+                            legendId = LegendGenerationService.CreateLegendFromEntries(doc, title, entries);
+                            t.Commit();
+                        }
+                        catch
+                        {
+                            t.RollBack();
+                            throw;
+                        }
+
+                        return (LegendId: legendId, EntryCount: entries.Count, SkippedCount: skippedCount, Error: (string)null);
+                    }
+                },
+                result =>
+                {
+                    if (!string.IsNullOrEmpty(result.Error))
+                    {
+                        StatusText = "Legend creation failed: " + result.Error;
+                        return;
+                    }
+
+                    StatusText = result.SkippedCount == 0
+                        ? $"Legend created from {result.EntryCount} selected filter(s)."
+                        : $"Legend created from {result.EntryCount} selected filter(s); {result.SkippedCount} unsupported filter(s) were skipped.";
+                },
+                ex => StatusText = "Legend creation failed: " + ex.Message
+            );
+        }
+
+        // New. Saves whatever is currently checked, across both panes, as a named
+        // group. Filter names are what's stored, not ElementIds, matching how the
+        // group has to resolve against templates it hasn't been applied to yet. // <- NEW
+        private void SaveGroupFromSelected()
+        {
+            var checkedRows = TemplateFilters.Where(r => r.IsCheckedForLegend).ToList();
+
+            if (checkedRows.Count == 0)
+            {
+                StatusText = "Check at least one filter in either pane before saving a group.";
+                return;
+            }
+
+            string groupName = string.IsNullOrWhiteSpace(NewGroupName)
+                ? $"Group_{DateTime.Now:yyyyMMdd_HHmmss}"
+                : NewGroupName.Trim();
+
+            var dto = new FilterGroupDto
+            {
+                GroupName = groupName,
+                FilterNames = checkedRows.Select(r => r.FilterName).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+            };
+
+            StatusText = $"Saving group '{groupName}'...";
+
+            _revit.Run(
+                app =>
+                {
+                    var doc = app.ActiveUIDocument?.Document;
+                    if (doc == null) throw new InvalidOperationException("No active document.");
+                    return FilterGroupLibraryService.SaveGroup(doc, dto);
+                },
+                fileName =>
+                {
+                    StatusText = $"Group '{groupName}' saved with {dto.FilterNames.Count} filter(s).";
+                    NewGroupName = string.Empty;
+                    LoadFilterGroups();
+                },
+                ex => StatusText = "Save group failed: " + ex.Message
+            );
+        }
+
+        // New. Sets Visible = true (via SetFilterVisibility) for every member filter
+        // of the selected group that is actually present on the current template.
+        // Members not present are skipped, not added, silently, that's a deliberate
+        // choice: a group is a visibility toggle for what's already there, not
+        // another way to materialize filters (that's Apply Scheme to Template). // <- NEW
+        private void ShowGroupOnTemplate() => SetGroupVisibilityOnTemplate(true);
+
+        private void HideGroupOnTemplate() => SetGroupVisibilityOnTemplate(false);
+
+        private void SetGroupVisibilityOnTemplate(bool visible)
+        {
+            if (SelectedViewTemplate == null)
+            {
+                StatusText = "Select a view template first.";
+                return;
+            }
+
+            if (SelectedFilterGroup == null)
+            {
+                StatusText = "Select a saved filter group first.";
+                return;
+            }
+
+            var templateId = SelectedViewTemplate.Id;
+            var fileName = SelectedFilterGroup.FileName;
+            var groupName = SelectedFilterGroup.GroupName;
+
+            StatusText = $"{(visible ? "Showing" : "Hiding")} group '{groupName}' on template...";
+
+            _revit.Run(
+                app =>
+                {
+                    var doc = app.ActiveUIDocument?.Document;
+                    if (doc == null) return (Matched: 0, Missing: 0, Error: "No active document.");
+
+                    FilterGroupDto dto;
+                    try { dto = FilterGroupLibraryService.LoadGroup(doc, fileName); }
+                    catch (Exception ex) { return (Matched: 0, Missing: 0, Error: ex.Message); }
+
+                    var template = doc.GetElement(templateId) as View;
+                    if (template == null || !template.IsTemplate)
+                        return (Matched: 0, Missing: 0, Error: "Selected element is not a valid view template.");
+
+                    var templateFilterIds = template.GetFilters() ?? new List<ElementId>();
+
+                    var nameToId = templateFilterIds
+                        .Select(id => (Id: id, Elem: doc.GetElement(id)))
+                        .Where(x => x.Elem != null && !string.IsNullOrWhiteSpace(x.Elem.Name))
+                        .GroupBy(x => x.Elem.Name, StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+
+                    int matched = 0;
+                    int missing = 0;
+
+                    using (var t = new Transaction(doc, visible ? "BA | Show Filter Group" : "BA | Hide Filter Group"))
+                    {
+                        t.Start();
+                        try
+                        {
+                            foreach (var name in dto.FilterNames)
+                            {
+                                if (nameToId.TryGetValue(name, out var id))
+                                {
+                                    template.SetFilterVisibility(id, visible);
+                                    matched++;
+                                }
+                                else
+                                {
+                                    missing++;
+                                }
+                            }
+                            t.Commit();
+                        }
+                        catch
+                        {
+                            t.RollBack();
+                            throw;
+                        }
+                    }
+
+                    return (Matched: matched, Missing: missing, Error: (string)null);
+                },
+                result =>
+                {
+                    if (!string.IsNullOrEmpty(result.Error))
+                    {
+                        StatusText = $"{(visible ? "Show" : "Hide")} group failed: {result.Error}";
+                        return;
+                    }
+
+                    StatusText = result.Missing == 0
+                        ? $"Group '{groupName}' {(visible ? "shown" : "hidden")}, {result.Matched} filter(s) affected."
+                        : $"Group '{groupName}' {(visible ? "shown" : "hidden")}, {result.Matched} filter(s) affected, {result.Missing} not present on this template.";
+
+                    LoadFilters();
+                },
+                ex => StatusText = $"{(visible ? "Show" : "Hide")} group failed: " + ex.Message
+            );
+        }
+
+        // New. Same entry-building path as CreateLegendFromSelected, except the
+        // filter list comes from a saved group's names resolved against the
+        // current template instead of checked rows in the grid. // <- NEW
+        private void CreateLegendFromGroup()
+        {
+            if (SelectedViewTemplate == null)
+            {
+                StatusText = "Select a view template first.";
+                return;
+            }
+
+            if (SelectedFilterGroup == null)
+            {
+                StatusText = "Select a saved filter group first.";
+                return;
+            }
+
+            var templateId = SelectedViewTemplate.Id;
+            var fileName = SelectedFilterGroup.FileName;
+            var groupName = SelectedFilterGroup.GroupName;
+
+            StatusText = $"Creating legend from group '{groupName}'...";
+
+            _revit.Run(
+                app =>
+                {
+                    var doc = app.ActiveUIDocument?.Document;
+                    if (doc == null)
+                        return (LegendId: ElementId.InvalidElementId, EntryCount: 0, Missing: 0, Unsupported: 0, Error: "No active document.");
+
+                    FilterGroupDto dto;
+                    try
+                    {
+                        dto = FilterGroupLibraryService.LoadGroup(doc, fileName);
+                    }
+                    catch (Exception ex)
+                    {
+                        return (LegendId: ElementId.InvalidElementId, EntryCount: 0, Missing: 0, Unsupported: 0, Error: ex.Message);
+                    }
+
+                    var template = doc.GetElement(templateId) as View;
+                    if (template == null || !template.IsTemplate)
+                        return (LegendId: ElementId.InvalidElementId, EntryCount: 0, Missing: 0, Unsupported: 0,
+                            Error: "Selected element is not a valid view template.");
+
+                    var templateFilterIds = template.GetFilters() ?? new List<ElementId>();
+
+                    var nameToId = templateFilterIds
+                        .Select(id => (Id: id, Elem: doc.GetElement(id)))
+                        .Where(x => x.Elem != null && !string.IsNullOrWhiteSpace(x.Elem.Name))
+                        .GroupBy(x => x.Elem.Name, StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+
+                    var entries = new List<LegendEntry>();
+                    int missing = 0;
+                    int unsupported = 0;
+
+                    foreach (var name in dto.FilterNames)
+                    {
+                        if (!nameToId.TryGetValue(name, out var id))
+                        {
+                            missing++;
+                            continue;
+                        }
+
+                        var entry = ViewFilterColorManagerService.BuildLegendEntryFromFilter(doc, template, id);
+                        if (entry != null)
+                            entries.Add(entry);
+                        else
+                            unsupported++;
+                    }
+
+                    if (entries.Count == 0)
+                        return (LegendId: ElementId.InvalidElementId, EntryCount: 0, Missing: missing, Unsupported: unsupported,
+                            Error: "None of this group's filters could be converted into legend entries for the selected template.");
+
+                    using (var t = new Transaction(doc, "BA | Create Legend From Group"))
+                    {
+                        t.Start();
+                        ElementId legendId;
+                        try
+                        {
+                            legendId = LegendGenerationService.CreateLegendFromEntries(doc, groupName, entries);
+                            t.Commit();
+                        }
+                        catch
+                        {
+                            t.RollBack();
+                            throw;
+                        }
+
+                        return (LegendId: legendId, EntryCount: entries.Count, Missing: missing, Unsupported: unsupported, Error: (string)null);
+                    }
+                },
+                result =>
+                {
+                    if (!string.IsNullOrEmpty(result.Error))
+                    {
+                        StatusText = $"Legend from group failed: {result.Error}";
+                        return;
+                    }
+
+                    var details = new List<string>();
+                    if (result.Missing > 0)
+                        details.Add($"{result.Missing} not present");
+                    if (result.Unsupported > 0)
+                        details.Add($"{result.Unsupported} unsupported");
+
+                    StatusText = details.Count == 0
+                        ? $"Legend created from group '{groupName}' with {result.EntryCount} entr{(result.EntryCount == 1 ? "y" : "ies")}."
+                        : $"Legend created from group '{groupName}' with {result.EntryCount} entr{(result.EntryCount == 1 ? "y" : "ies")}; {string.Join(", ", details)} filter(s) skipped.";
+                },
+                ex => StatusText = "Legend from group failed: " + ex.Message
             );
         }
 
@@ -1049,32 +1659,6 @@ namespace BA.UI.Views
             );
         }
 
-        private sealed class SchemeDto
-        {
-            public string CategoryName { get; set; } = string.Empty;
-            public string ParameterName { get; set; } = string.Empty;
-            public string StorageType { get; set; } = string.Empty;
-            public bool IsInstance { get; set; }
-            public string Method { get; set; } = string.Empty;
-            public List<BucketDto> Buckets { get; set; } = new();
-        }
-
-        private sealed class BucketDto
-        {
-            public string Label { get; set; } = string.Empty;
-            public string Value { get; set; } = string.Empty;
-            public double? RangeMin { get; set; }
-            public double? RangeMax { get; set; }
-            public byte R { get; set; }
-            public byte G { get; set; }
-            public byte B { get; set; }
-            // Pattern is stored by name, not ElementId. Fill pattern ids are
-            // not stable across documents, the same as category and
-            // parameter, which is why those are also re-resolved by name on
-            // load rather than stored as raw ids. // <- NEW
-            public string PatternName { get; set; } = string.Empty;
-        }
-
         private void SaveScheme()
         {
             if (SelectedCategory == null || SelectedParameter == null || Buckets.Count == 0)
@@ -1083,90 +1667,94 @@ namespace BA.UI.Views
                 return;
             }
 
-            var dlg = new SaveFileDialog
-            {
-                Title = "Save Color Scheme",
-                Filter = "BA Color Scheme (*.bacs)|*.bacs",
-                FileName = "BA_ColorScheme.bacs"
-            };
-            if (dlg.ShowDialog() != true) return;
+            string schemeName = string.IsNullOrWhiteSpace(NewSchemeName)
+                ? $"{SelectedCategory.Name}_{SelectedParameter.Name}"
+                : NewSchemeName.Trim();
 
-            try
+            var dto = new SchemeDto
             {
-                var dto = new SchemeDto
+                SchemeName = schemeName,
+                CategoryName = SelectedCategory.Name,
+                ParameterName = SelectedParameter.Name,
+                StorageType = SelectedParameter.StorageType.ToString(),
+                IsInstance = SelectedParameter.IsInstance,
+                Method = _currentMethod.ToString(),
+                Buckets = Buckets.Select(b => new BucketDto
                 {
-                    CategoryName = SelectedCategory.Name,
-                    ParameterName = SelectedParameter.Name,
-                    StorageType = SelectedParameter.StorageType.ToString(),
-                    IsInstance = SelectedParameter.IsInstance,
-                    Method = _currentMethod.ToString(),
-                    Buckets = Buckets.Select(b => new BucketDto
-                    {
-                        Label = b.Label,
-                        Value = b.Value,
-                        RangeMin = b.RangeMin,
-                        RangeMax = b.RangeMax,
-                        R = b.R,
-                        G = b.G,
-                        B = b.B,
-                        PatternName = b.SelectedPattern?.Name ?? SolidPatternEntry.Name // <- NEW
-                    }).ToList()
-                };
-
-                var json = JsonSerializer.Serialize(dto, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(dlg.FileName, json);
-                StatusText = "Color scheme saved.";
-            }
-            catch (Exception ex)
-            {
-                StatusText = "Save failed: " + ex.Message;
-            }
-        }
-
-        private void LoadScheme()
-        {
-            var dlg = new OpenFileDialog
-            {
-                Title = "Load Color Scheme",
-                Filter = "BA Color Scheme (*.bacs)|*.bacs"
+                    Label = b.Label,
+                    Value = b.Value,
+                    RangeMin = b.RangeMin,
+                    RangeMax = b.RangeMax,
+                    R = b.R,
+                    G = b.G,
+                    B = b.B,
+                    PatternName = b.SelectedPattern?.Name ?? SolidPatternEntry.Name
+                }).ToList()
             };
-            if (dlg.ShowDialog() != true) return;
 
-            SchemeDto dto;
-            try
-            {
-                var json = File.ReadAllText(dlg.FileName);
-                dto = JsonSerializer.Deserialize<SchemeDto>(json);
-                if (dto == null) throw new InvalidDataException("Scheme file is empty or invalid.");
-            }
-            catch (Exception ex)
-            {
-                StatusText = "Load failed: " + ex.Message;
-                return;
-            }
-
-            StatusText = "Resolving category and parameter against this document...";
+            StatusText = $"Saving scheme '{schemeName}'...";
 
             _revit.Run(
                 app =>
                 {
                     var doc = app.ActiveUIDocument?.Document;
+                    if (doc == null) throw new InvalidOperationException("No active document.");
+                    return ColorSchemeLibraryService.SaveScheme(doc, dto);
+                },
+                fileName =>
+                {
+                    StatusText = $"Scheme '{schemeName}' saved.";
+                    NewSchemeName = string.Empty;
+                    LoadSavedSchemes();
+                },
+                ex => StatusText = "Save failed: " + ex.Message
+            );
+        }
+
+        private void LoadSelectedScheme()
+        {
+            if (SelectedSavedScheme == null)
+            {
+                StatusText = "Select a saved scheme first.";
+                return;
+            }
+
+            var fileName = SelectedSavedScheme.FileName;
+
+            StatusText = $"Loading scheme '{SelectedSavedScheme.SchemeName}'...";
+
+            _revit.Run(
+                app =>
+                {
+                    var doc = app.ActiveUIDocument?.Document;
+                    if (doc == null)
+                        return (Dto: (SchemeDto)null, Category: (CategoryInfo)null, Parameters: Array.Empty<ParameterInfo>(), Error: "No active document.");
+
+                    SchemeDto dto;
+                    try { dto = ColorSchemeLibraryService.LoadScheme(doc, fileName); }
+                    catch (Exception ex)
+                    {
+                        return (Dto: (SchemeDto)null, Category: (CategoryInfo)null, Parameters: Array.Empty<ParameterInfo>(), Error: ex.Message);
+                    }
+
                     var categories = ParameterEnumerationService.GetFilterableCategories(doc);
                     var cat = categories.FirstOrDefault(c => c.Name.Equals(dto.CategoryName, StringComparison.OrdinalIgnoreCase));
-
                     if (cat == null)
-                        return (Category: (CategoryInfo)null, Parameters: Array.Empty<ParameterInfo>());
+                        return (Dto: dto, Category: (CategoryInfo)null, Parameters: Array.Empty<ParameterInfo>(),
+                            Error: $"Category '{dto.CategoryName}' was not found or is not filterable in this document.");
 
                     var pars = ParameterEnumerationService.GetFilterableParameters(doc, cat.Id);
-                    return (Category: cat, Parameters: pars);
+                    return (Dto: dto, Category: cat, Parameters: pars, Error: (string)null);
                 },
                 result =>
                 {
-                    if (result.Category == null)
+                    if (!string.IsNullOrEmpty(result.Error))
                     {
-                        StatusText = $"Load failed: category '{dto.CategoryName}' was not found or is not filterable in this document.";
+                        StatusText = "Load failed: " + result.Error;
                         return;
                     }
+
+                    var dto = result.Dto;
 
                     var param = result.Parameters.FirstOrDefault(p => p.Name.Equals(dto.ParameterName, StringComparison.OrdinalIgnoreCase));
                     if (param == null)
@@ -1200,11 +1788,6 @@ namespace BA.UI.Views
                     Buckets.Clear();
                     foreach (var b in dto.Buckets)
                     {
-                        // Pattern resolved by name against the currently
-                        // loaded Patterns collection. If the saved pattern
-                        // no longer exists in this document, or Patterns
-                        // hasn't loaded yet, this falls back to solid rather
-                        // than leaving the bucket in a broken state. // <- NEW
                         var resolvedPattern = Patterns.FirstOrDefault(p =>
                             p.Name.Equals(b.PatternName, StringComparison.OrdinalIgnoreCase)) ?? SolidPatternEntry;
 
@@ -1221,11 +1804,26 @@ namespace BA.UI.Views
                         });
                     }
 
+                    NewSchemeName = dto.SchemeName;
+
                     RaiseParamColorCanExecChanged();
-                    StatusText = $"Loaded scheme, {Buckets.Count} bucket(s).";
+                    StatusText = $"Loaded scheme '{dto.SchemeName}', {Buckets.Count} bucket(s).";
                 },
                 ex => StatusText = "Load failed: " + ex.Message
             );
+        }
+
+        private void OpenPalette()
+        {
+            if (_paletteWindow != null && _paletteWindow.IsLoaded)
+            {
+                _paletteWindow.Activate();
+                return;
+            }
+
+            _paletteWindow = new PaletteWindow(this) { Owner = _window };
+            _paletteWindow.Closed += (_, __) => _paletteWindow = null;
+            _paletteWindow.Show();
         }
 
         private sealed class PaletteDto { public List<ColorDto> Colors { get; set; } = new(); }
@@ -1240,11 +1838,12 @@ namespace BA.UI.Views
         public override string ToString() => Name;
     }
 
-    public sealed class FilterRowItem : BA.UI.Mvvm.ObservableObject
+    public sealed class TemplateFilterRowItem : BA.UI.Mvvm.ObservableObject
     {
         public ElementId FilterId { get; }
         public string FilterName { get; }
         public string CategorySummary { get; }
+        public bool IsBaManaged { get; }
 
         private bool _visible;
         public bool Visible
@@ -1255,12 +1854,32 @@ namespace BA.UI.Views
 
         public string VisibleText => Visible ? "Yes" : "No";
 
-        public FilterRowItem(ElementId filterId, string filterName, string categorySummary, bool visible)
+        public event EventHandler LegendCheckChanged;
+
+        private bool _isCheckedForLegend;
+        public bool IsCheckedForLegend
+        {
+            get => _isCheckedForLegend;
+            set
+            {
+                if (SetProperty(ref _isCheckedForLegend, value))
+                    LegendCheckChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        private Brush _cutBrush = new SolidColorBrush(Colors.Transparent);
+        public Brush CutBrush { get => _cutBrush; set => SetProperty(ref _cutBrush, value); }
+
+        private Brush _projectionBrush = new SolidColorBrush(Colors.Transparent);
+        public Brush ProjectionBrush { get => _projectionBrush; set => SetProperty(ref _projectionBrush, value); }
+
+        public TemplateFilterRowItem(ElementId filterId, string filterName, string categorySummary, bool visible, bool isBaManaged)
         {
             FilterId = filterId;
             FilterName = filterName;
             CategorySummary = categorySummary;
             _visible = visible;
+            IsBaManaged = isBaManaged;
         }
     }
 
@@ -1281,24 +1900,6 @@ namespace BA.UI.Views
         {
             Name = name;
             _color = color;
-        }
-    }
-
-    public sealed class AssignRowItem : BA.UI.Mvvm.ObservableObject
-    {
-        public ElementId FilterId { get; }
-        public string FilterName { get; }
-
-        private Brush _cutBrush = new SolidColorBrush(Colors.Transparent);
-        public Brush CutBrush { get => _cutBrush; set => SetProperty(ref _cutBrush, value); }
-
-        private Brush _projectionBrush = new SolidColorBrush(Colors.Transparent);
-        public Brush ProjectionBrush { get => _projectionBrush; set => SetProperty(ref _projectionBrush, value); }
-
-        public AssignRowItem(ElementId filterId, string filterName)
-        {
-            FilterId = filterId;
-            FilterName = filterName;
         }
     }
 
@@ -1325,7 +1926,6 @@ namespace BA.UI.Views
         private byte _b;
         public byte B { get => _b; set { if (SetProperty(ref _b, value)) OnPropertyChanged(nameof(Swatch)); } }
 
-        // New. Bound directly to the pattern ComboBox in the bucket grid. // <- NEW
         private FillPatternInfo _selectedPattern;
         public FillPatternInfo SelectedPattern { get => _selectedPattern; set => SetProperty(ref _selectedPattern, value); }
 
@@ -1342,9 +1942,6 @@ namespace BA.UI.Views
                 R = core.R,
                 G = core.G,
                 B = core.B
-                // SelectedPattern intentionally not set here, callers assign
-                // it explicitly (defaulting to solid) since this method has
-                // no access to the live Patterns collection.
             };
         }
 
@@ -1361,7 +1958,7 @@ namespace BA.UI.Views
                 B = B,
                 FillPatternId = (SelectedPattern != null && SelectedPattern.Id != ElementId.InvalidElementId)
                     ? SelectedPattern.Id
-                    : ElementId.InvalidElementId // <- NEW
+                    : ElementId.InvalidElementId
             };
         }
     }

@@ -9,9 +9,21 @@ using BA.Settings;
 namespace BA.Core.Export.Services
 {
     /// <summary>
-    /// Resolves {Token} and {Token:format} placeholders against a specific
-    /// ViewSheet. Read-only Document access, must still be called from a
+    /// Resolves {Token} and {Token:format} placeholders against either a
+    /// specific ViewSheet or an arbitrary View, depending on the job's
+    /// SourceMode. Read-only Document access, must still be called from a
     /// valid Revit API thread context, never directly from WPF UI code.
+    ///
+    /// {Revision} only exists for the Sheets path. Revit tracks revisions
+    /// per sheet, not per view, a bare view exported directly has no
+    /// revision of its own, so {Revision} throws a clear, actionable
+    /// exception if used against a view rather than silently resolving to
+    /// something misleading, the same "fail loudly, not silently" approach
+    /// already used everywhere else in this class (missing revision
+    /// parameter, missing Project Information value, and so on).
+    /// {SheetNumber}/{SheetName} are the same, sheet-only, throwing
+    /// clearly if used in Views mode. {ViewName}/{ViewType} are the view
+    /// equivalents.
     ///
     /// The {Revision} token deliberately does not point at a hardcoded
     /// parameter. It reads BA.Settings.DateToolSettings.SelectedRevParam,
@@ -28,8 +40,20 @@ namespace BA.Core.Export.Services
     /// </summary>
     public static class NamingTemplateEngine
     {
+        // Token name allows any character except { } or :, not just
+        // [A-Za-z0-9_]. Confirmed bug: many real Revit parameter names
+        // contain spaces (Project Issue Date, Client Name, and so on),
+        // the old pattern silently failed to match those at all, meaning
+        // {Project Issue Date} passed through as literal unresolved text
+        // in the output filename rather than throwing or resolving,
+        // Regex.Replace only touches what actually matches. Colon still
+        // has to stay reserved to separate the name from an optional
+        // :format override; a parameter name that itself contains a
+        // colon (extremely rare in practice) would misparse, an
+        // acknowledged limitation rather than something worth
+        // overengineered escaping logic for.
         private static readonly Regex TokenPattern =
-            new Regex(@"\{([A-Za-z0-9_]+)(?::([^{}]+))?\}", RegexOptions.Compiled);
+            new Regex(@"\{([^{}:]+)(?::([^{}]+))?\}", RegexOptions.Compiled);
 
         private static readonly char[] InvalidFileNameChars = Path.GetInvalidFileNameChars();
 
@@ -43,6 +67,8 @@ namespace BA.Core.Export.Services
             var settings = DateToolSettings.LoadWithMigration();
             return settings.SelectedRevParam;
         }
+
+        // ---- Sheets mode ----
 
         public static string ResolveFileName(string template, ViewSheet sheet, ExportJobSettings jobSettings, DateTime exportDate, string revisionParamName)
         {
@@ -103,25 +129,102 @@ namespace BA.Core.Export.Services
                             "No revision parameter is configured. Run 'Sheet Date + Rev > Settings' first to set one.");
                     }
 
-                    return ResolveParameterByName(revisionParamName, sheet, doc, formatOverride, tokenName);
+                    return ResolveParameterByName(revisionParamName, sheet, doc, formatOverride, tokenName, sheet.SheetNumber);
 
                 case "Date":
                     var dateFormat = string.IsNullOrEmpty(formatOverride) ? jobSettings.DateFormat : formatOverride;
                     return exportDate.ToString(dateFormat);
 
                 default:
-                    return ResolveParameterByName(tokenName, sheet, doc, formatOverride, tokenName);
+                    return ResolveParameterByName(tokenName, sheet, doc, formatOverride, tokenName, sheet.SheetNumber);
             }
         }
 
-        private static string GetProjectInfoParameterAsString(Document doc, BuiltInParameter builtInParameter, string tokenName, string sheetNumber)
+        // ---- Views mode ----
+
+        /// <summary>
+        /// Resolves a naming or folder template against an arbitrary View
+        /// (a plan, section, elevation, 3D view, and so on, not exported as
+        /// part of a sheet). {SheetNumber}, {SheetName}, and {Revision} are
+        /// deliberately not available here, they throw a clear, actionable
+        /// exception rather than silently resolving to something
+        /// misleading, since none of them mean anything for a bare view.
+        /// {ViewName} and {ViewType} are the view equivalents.
+        /// </summary>
+        public static string ResolveFileNameForView(string template, View view, ExportJobSettings jobSettings, DateTime exportDate)
+        {
+            return ResolveForView(template, view, jobSettings, exportDate);
+        }
+
+        public static string ResolveFolderForView(string template, View view, ExportJobSettings jobSettings, DateTime exportDate)
+        {
+            return ResolveForView(template, view, jobSettings, exportDate);
+        }
+
+        private static string ResolveForView(string template, View view, ExportJobSettings jobSettings, DateTime exportDate)
+        {
+            if (string.IsNullOrWhiteSpace(template))
+            {
+                throw new ArgumentException("Template cannot be empty.", nameof(template));
+            }
+
+            var doc = view.Document;
+
+            return TokenPattern.Replace(template, match =>
+            {
+                var tokenName = match.Groups[1].Value;
+                var formatOverride = match.Groups[2].Success ? match.Groups[2].Value : null;
+
+                var resolvedValue = ResolveViewToken(tokenName, formatOverride, view, doc, jobSettings, exportDate);
+
+                return SanitizeToken(resolvedValue);
+            });
+        }
+
+        private static string ResolveViewToken(string tokenName, string formatOverride, View view, Document doc, ExportJobSettings jobSettings, DateTime exportDate)
+        {
+            switch (tokenName)
+            {
+                case "ViewName":
+                    return view.Name ?? string.Empty;
+
+                case "ViewType":
+                    return view.ViewType.ToString();
+
+                case "ProjectNumber":
+                    return GetProjectInfoParameterAsString(doc, BuiltInParameter.PROJECT_NUMBER, tokenName, view.Name);
+
+                case "ProjectName":
+                    return GetProjectInfoParameterAsString(doc, BuiltInParameter.PROJECT_NAME, tokenName, view.Name);
+
+                case "Date":
+                    var dateFormat = string.IsNullOrEmpty(formatOverride) ? jobSettings.DateFormat : formatOverride;
+                    return exportDate.ToString(dateFormat);
+
+                case "Revision":
+                    throw new NamingTemplateResolutionException(tokenName, view.Name,
+                        "{Revision} is not available when exporting views directly, Revit tracks revisions per sheet, not per view. Use {ViewName} or {ViewType} instead, or export this content as part of a sheet job.");
+
+                case "SheetNumber":
+                case "SheetName":
+                    throw new NamingTemplateResolutionException(tokenName, view.Name,
+                        $"{{{tokenName}}} is not available when exporting views directly, this view is not being exported as part of a sheet. Use {{ViewName}} instead.");
+
+                default:
+                    return ResolveParameterByName(tokenName, view, doc, formatOverride, tokenName, view.Name);
+            }
+        }
+
+        // ---- Shared ----
+
+        private static string GetProjectInfoParameterAsString(Document doc, BuiltInParameter builtInParameter, string tokenName, string identifier)
         {
             var projectInfo = doc.ProjectInformation;
             var parameter = projectInfo?.get_Parameter(builtInParameter);
 
             if (parameter == null || !parameter.HasValue)
             {
-                throw new NamingTemplateResolutionException(tokenName, sheetNumber,
+                throw new NamingTemplateResolutionException(tokenName, identifier,
                     $"Project Information parameter for token '{{{tokenName}}}' has no value.");
             }
 
@@ -132,17 +235,20 @@ namespace BA.Core.Export.Services
         /// Looks up a parameter by its real Revit name (either the literal
         /// token name for arbitrary tokens, or the DateToolSettings-configured
         /// name for {Revision}) and resolves it generically across storage
-        /// types. tokenName is only used for error messages, paramNameToLookUp
-        /// is what's actually passed to LookupParameter.
+        /// types. Works against any Element with LookupParameter, ViewSheet
+        /// and View both qualify, identifier is only used for error
+        /// messages (sheet number for sheets, view name for views).
         /// </summary>
-        private static string ResolveParameterByName(string paramNameToLookUp, ViewSheet sheet, Document doc, string formatOverride, string tokenName)
+        private static string ResolveParameterByName(string paramNameToLookUp, Element element, Document doc, string formatOverride, string tokenName, string identifier)
         {
-            var parameter = sheet.LookupParameter(paramNameToLookUp) ?? doc.ProjectInformation?.LookupParameter(paramNameToLookUp);
+            var parameter = element.LookupParameter(paramNameToLookUp) ?? doc.ProjectInformation?.LookupParameter(paramNameToLookUp);
 
             if (parameter == null)
             {
-                throw new NamingTemplateResolutionException(tokenName, sheet.SheetNumber,
-                    $"No parameter named '{paramNameToLookUp}' was found on sheet {sheet.SheetNumber} or in Project Information. " +
+                var elementKind = element is ViewSheet ? "sheet" : "view";
+
+                throw new NamingTemplateResolutionException(tokenName, identifier,
+                    $"No parameter named '{paramNameToLookUp}' was found on {elementKind} {identifier} or in Project Information. " +
                     "Check spelling, this must match a real parameter name, not a display label.");
             }
 
@@ -170,7 +276,7 @@ namespace BA.Core.Export.Services
                     return parameter.AsValueString() ?? parameter.AsElementId().ToString();
 
                 default:
-                    throw new NamingTemplateResolutionException(tokenName, sheet.SheetNumber,
+                    throw new NamingTemplateResolutionException(tokenName, identifier,
                         $"Parameter '{paramNameToLookUp}' has an unsupported storage type '{parameter.StorageType}'.");
             }
         }

@@ -120,15 +120,19 @@
 	  <None Remove="Application\Resources\Icons16\lib_16.png" />
 	  <None Remove="Application\Resources\Icons16\LineS16.png" />
 	  <None Remove="Application\Resources\Icons16\LineStyles16.png" />
+	  <None Remove="Application\Resources\Icons16\LWall_16.png" />
 	  <None Remove="Application\Resources\Icons16\ManageIssues_16.png" />
 	  <None Remove="Application\Resources\Icons16\Markup16.png" />
 	  <None Remove="Application\Resources\Icons16\men16.png" />
 	  <None Remove="Application\Resources\Icons16\Menu_16.png" />
+	  <None Remove="Application\Resources\Icons16\Orient_16.png" />
 	  <None Remove="Application\Resources\Icons16\OverheadCommand16.png" />
 	  <None Remove="Application\Resources\Icons16\OverheadCommand_OverheadCommand166.png" />
+	  <None Remove="Application\Resources\Icons16\PDF16.png" />
 	  <None Remove="Application\Resources\Icons16\RayBounceCeiling16.png" />
 	  <None Remove="Application\Resources\Icons16\RevPar16.png" />
 	  <None Remove="Application\Resources\Icons16\RoomClassification16.png" />
+	  <None Remove="Application\Resources\Icons16\RoomCl_16.png" />
 	  <None Remove="Application\Resources\Icons16\SaveFamilies16.png" />
 	  <None Remove="Application\Resources\Icons16\SB16.png" />
 	  <None Remove="Application\Resources\Icons16\scd_16.png" />
@@ -140,7 +144,10 @@
 	  <None Remove="Application\Resources\Icons16\Standards16.png" />
 	  <None Remove="Application\Resources\Icons16\Sub16.png" />
 	  <None Remove="Application\Resources\Icons16\SubmitIssue_16.png" />
+	  <None Remove="Application\Resources\Icons16\superS16.png" />
+	  <None Remove="Application\Resources\Icons16\ta16.png" />
 	  <None Remove="Application\Resources\Icons16\Tag16.png" />
+	  <None Remove="Application\Resources\Icons16\tags16.png" />
 	  <None Remove="Application\Resources\Icons16\Temp16.png" />
 	  <None Remove="Application\Resources\Icons16\TextHub16.png" />
 	  <None Remove="Application\Resources\Icons16\TRA_16.png" />
@@ -210,14 +217,17 @@
 	  <None Remove="Application\Resources\Icons32\lib_32.png" />
 	  <None Remove="Application\Resources\Icons32\LineS32.png" />
 	  <None Remove="Application\Resources\Icons32\LineStyles32.png" />
+	  <None Remove="Application\Resources\Icons32\LWall_32.png" />
 	  <None Remove="Application\Resources\Icons32\ManageIssues_32.png" />
 	  <None Remove="Application\Resources\Icons32\Markup32.png" />
 	  <None Remove="Application\Resources\Icons32\Menu_32.png" />
 	  <None Remove="Application\Resources\Icons32\Orient_32.png" />
 	  <None Remove="Application\Resources\Icons32\OverheadCommand32.png" />
+	  <None Remove="Application\Resources\Icons32\PDF32.png" />
 	  <None Remove="Application\Resources\Icons32\RayBounceCeiling32.png" />
 	  <None Remove="Application\Resources\Icons32\RevPar32.png" />
 	  <None Remove="Application\Resources\Icons32\RoomClassification32.png" />
+	  <None Remove="Application\Resources\Icons32\RoomCl_32.png" />
 	  <None Remove="Application\Resources\Icons32\SaveFamilies32.png" />
 	  <None Remove="Application\Resources\Icons32\SB32.png" />
 	  <None Remove="Application\Resources\Icons32\scd_32.png" />
@@ -248,6 +258,7 @@
 	  <None Remove="Application\Resources\Icons32\Standards32.png" />
 	  <None Remove="Application\Resources\Icons32\Sub32.png" />
 	  <None Remove="Application\Resources\Icons32\SubmitIssue_32.png" />
+	  <None Remove="Application\Resources\Icons32\superS32.png" />
 	  <None Remove="Application\Resources\Icons32\Temp32.png" />
 	  <None Remove="Application\Resources\Icons32\TextHub32.png" />
 	  <None Remove="Application\Resources\Icons32\TRA_32.png" />
@@ -302,7 +313,6 @@
 	</ItemGroup>
 	
 	<ItemGroup>
-		<Folder Include="Commands\Classification\" />
 		<Folder Include="Core\BIM\Overhead\" />
 		<Folder Include="Models" />
 		<Folder Include="NewFolder\" />
@@ -463,6 +473,9 @@
 	  <Resource Include="Application\Resources\Icons16\LineStyles16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\LWall_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\ManageIssues_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -475,10 +488,16 @@
 	  <Resource Include="Application\Resources\Icons16\Menu_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\Orient_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\OverheadCommand16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\OverheadCommand_OverheadCommand166.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\PDF16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\RayBounceCeiling16.png">
@@ -488,6 +507,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\RoomClassification16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\RoomCl_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\SaveFamilies16.png">
@@ -523,7 +545,16 @@
 	  <Resource Include="Application\Resources\Icons16\SubmitIssue_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\superS16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ta16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\Tag16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\tags16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\Temp16.png">
@@ -716,6 +747,9 @@
 	  <Resource Include="Application\Resources\Icons32\LineStyles32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\LWall_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\ManageIssues_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -731,6 +765,9 @@
 	  <Resource Include="Application\Resources\Icons32\OverheadCommand32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\PDF32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\RayBounceCeiling32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -738,6 +775,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\RoomClassification32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\RoomCl_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\SaveFamilies32.png">
@@ -788,6 +828,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\SubmitIssue_32.png" />
+	  <Resource Include="Application\Resources\Icons32\superS32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\Temp32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -830,7 +873,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Compile Update="Application\Ribbon\RibbonExtensions.cs">
+		<Compile Update="Application\Ribbon\Core\RibbonExtensions.cs">
 			<Generator>MSBuild:Compile</Generator>
 		</Compile>
 	</ItemGroup>

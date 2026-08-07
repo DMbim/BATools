@@ -28,7 +28,6 @@ namespace BA.Commands
 
             var doc = uiDoc.Document;
             var view = doc.ActiveView;
-
             if (view == null || view.IsTemplate)
             {
                 message = "Active view is invalid or is a view template.";
@@ -44,8 +43,24 @@ namespace BA.Commands
             List<ElementId> targetIds;
             try
             {
-                targetIds = new FilteredElementCollector(doc, view.Id)
+                // CHANGED: document-wide collector instead of a view-scoped one.
+                // FilteredElementCollector(doc, view.Id) silently excludes any
+                // element hidden in the view (by element, category, filter, or
+                // temporary hide/isolate) — already a confirmed pitfall in this
+                // codebase (title block detection hit the same issue). That
+                // caused hidden elements to be skipped from targetIds entirely,
+                // undercounting both Cleared and Skipped.
+                //
+                // e.OwnerViewId == InvalidElementId  -> model elements, not
+                //   owned by any specific view, always eligible.
+                // e.OwnerViewId == view.Id           -> view-specific annotation
+                //   elements (text notes, filled regions, detail lines, etc.)
+                //   that belong to exactly this view.
+                targetIds = new FilteredElementCollector(doc)
                     .WhereElementIsNotElementType()
+                    .Where(e => e.Category != null)
+                    .Where(e => e.OwnerViewId == ElementId.InvalidElementId
+                             || e.OwnerViewId == view.Id)
                     .Select(e => e.Id)
                     .ToList();
             }
@@ -58,7 +73,7 @@ namespace BA.Commands
 
             if (targetIds.Count == 0)
             {
-                TaskDialog.Show("Clear Overrides", "No elements found in the active view.");
+                TaskDialog.Show("Clear Overrides", "No elements found for the active view.");
                 return Result.Succeeded;
             }
 
@@ -80,6 +95,9 @@ namespace BA.Commands
                         }
                         catch (Autodesk.Revit.Exceptions.ArgumentException)
                         {
+                            // Element is not applicable to this view (e.g. not
+                            // visible/relevant to the view's category rules,
+                            // or from a different document context).
                             skippedCount++;
                         }
                     }
@@ -94,8 +112,11 @@ namespace BA.Commands
                 }
             }
 
-            AppLogger.LogInfo($"Cleared overrides on {clearedCount} element(s) in view '{view.Name}' ({skippedCount} skipped).");
-            TaskDialog.Show("Clear Overrides", $"Cleared overrides on {clearedCount} element(s).\n{skippedCount} skipped (unsupported).");
+            AppLogger.LogInfo(
+                $"Cleared overrides on {clearedCount} element(s) in view '{view.Name}' ({skippedCount} skipped).");
+            TaskDialog.Show("Clear Overrides",
+                $"Cleared overrides on {clearedCount} element(s).\n{skippedCount} skipped (unsupported).");
+
             return Result.Succeeded;
         }
     }
