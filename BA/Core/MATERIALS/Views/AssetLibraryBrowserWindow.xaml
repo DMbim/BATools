@@ -1,0 +1,86 @@
+﻿<!-- Path: BA\Materials\UI\AssetLibraryBrowserWindow.xaml -->
+<Window x:Class="BA.Materials.UI.AssetLibraryBrowserWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:BA.Materials.UI"
+        Title="Load from asset library"
+        Style="{DynamicResource BaWindow}"
+        Width="640" Height="480"
+        WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox Grid.Column="0" Style="{DynamicResource BaDarkTextBox}"
+                     Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     Tag="Search assets" />
+            <CheckBox Grid.Column="1" Content="Favorites only" Style="{DynamicResource BaDarkPanelCheckBox}"
+                      IsChecked="{Binding ShowFavoritesOnly, Mode=TwoWay}"
+                      Margin="10,0,0,0" VerticalAlignment="Center" />
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="180" />
+            </Grid.ColumnDefinitions>
+
+            <ListBox Grid.Column="0"
+                     ItemsSource="{Binding FilteredAssets}"
+                     SelectedItem="{Binding SelectedAsset, Mode=TwoWay}"
+                     BorderThickness="0" Background="Transparent">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                        <Setter Property="Foreground" Value="#F2F2F2" />
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="★" Foreground="#E0C060" Margin="0,0,6,0"
+                                       Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVis}}" />
+                            <TextBlock Text="{Binding Name}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                <ui:MaterialPreviewHost x:Name="PreviewHost" Height="150" />
+                <Button Content="Toggle favorite" Style="{DynamicResource BaSecondaryButton}"
+                        Command="{Binding ToggleFavoriteCommand}" Margin="0,10,0,0" HorizontalAlignment="Stretch" />
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="2" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" Foreground="#D8D8D8" FontSize="11"
+                       VerticalAlignment="Center" />
+            <Button Grid.Column="1" Content="Cancel" Style="{DynamicResource BaSecondaryButton}"
+                    Click="Cancel_Click" Margin="0,0,6,0" />
+            <Button Grid.Column="2" Content="Apply" Style="{DynamicResource BaPrimaryButton}"
+                    Command="{Binding ApplyCommand}" />
+        </Grid>
+    </Grid>
+</Window>

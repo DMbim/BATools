@@ -1,0 +1,201 @@
+﻿<Window x:Class="BA.UI.LoadedFamilyBrowser.LoadedFamilyBrowserWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="clr-namespace:BA.Core.Content.Models;assembly=BA"
+        xmlns:local="clr-namespace:BA.UI.LoadedFamilyBrowser"
+        Title="Loaded Family Browser"
+        Style="{DynamicResource BaWindow}"
+        Width="900"
+        Height="640"
+        WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <local:PreviewPathToImageSourceConverter x:Key="PreviewPathToImageSourceConverter" />
+            <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+
+            <Style x:Key="BaTreeViewItemVisibilityStyle" TargetType="TreeViewItem">
+                <Setter Property="Visibility" Value="{Binding IsVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
+                <Setter Property="IsExpanded" Value="True" />
+            </Style>
+
+            <HierarchicalDataTemplate DataType="{x:Type models:LoadedTypeNode}">
+                <StackPanel Orientation="Horizontal" Margin="2">
+                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                              VerticalAlignment="Center"
+                              Margin="0,0,6,0" />
+                    <TextBlock Text="&#9733;"
+                               Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVisibilityConverter}}"
+                               Foreground="Gold"
+                               Margin="0,0,4,0"
+                               VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding DisplayText}" VerticalAlignment="Center" />
+                </StackPanel>
+            </HierarchicalDataTemplate>
+
+            <HierarchicalDataTemplate DataType="{x:Type models:LoadedFamilyNode}"
+                                       ItemsSource="{Binding Types}"
+                                       ItemContainerStyle="{StaticResource BaTreeViewItemVisibilityStyle}">
+                <StackPanel Orientation="Horizontal" Margin="2">
+                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                              VerticalAlignment="Center"
+                              Margin="0,0,6,0" />
+                    <TextBlock Text="{Binding DisplayText}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                    <TextBlock Text=" (unused)"
+                               Foreground="OrangeRed"
+                               Visibility="{Binding IsUnused, Converter={StaticResource BoolToVisibilityConverter}}"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+            </HierarchicalDataTemplate>
+
+            <HierarchicalDataTemplate DataType="{x:Type models:LoadedCategoryNode}"
+                                       ItemsSource="{Binding Families}"
+                                       ItemContainerStyle="{StaticResource BaTreeViewItemVisibilityStyle}">
+                <StackPanel Orientation="Horizontal" Margin="2">
+                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                              VerticalAlignment="Center"
+                              Margin="0,0,6,0" />
+                    <TextBlock Text="{Binding DisplayText}"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+            </HierarchicalDataTemplate>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBox Grid.Column="0"
+                      Style="{StaticResource BaDarkTextBox}"
+                      Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                      Tag="Search families and types..."
+                      MinHeight="28"
+                      Margin="0,0,8,0" />
+
+            <CheckBox Grid.Column="1"
+                      Content="Favorites only"
+                      IsChecked="{Binding FavoritesOnly, Mode=TwoWay}"
+                      Style="{StaticResource BaDarkPanelCheckBox}"
+                      VerticalAlignment="Center"
+                      Margin="0,0,8,0" />
+
+            <Button Grid.Column="2"
+                    Content="Settings"
+                    Style="{StaticResource BaSecondaryButton}"
+                    Width="90"
+                    Command="{Binding OpenSettingsCommand}" />
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="1*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource BaDarkPanelBorder}">
+                <TreeView x:Name="FamilyTreeView"
+                          ItemsSource="{Binding Categories}"
+                          ItemContainerStyle="{StaticResource BaTreeViewItemVisibilityStyle}"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          SelectedItemChanged="FamilyTreeView_SelectedItemChanged" />
+            </Border>
+
+            <GridSplitter Grid.Column="1"
+                          Width="8"
+                          HorizontalAlignment="Stretch"
+                          Background="Transparent" />
+
+            <Border Grid.Column="2" Style="{StaticResource BaDarkPanelBorder}">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="220" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0"
+                               Text="Preview"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,4" />
+
+                    <Border Grid.Row="1"
+                            BorderThickness="1"
+                            BorderBrush="Gray">
+                        <Grid>
+                            <Image Source="{Binding SelectedNode.PreviewPath, Converter={StaticResource PreviewPathToImageSourceConverter}}"
+                                   Stretch="Uniform" />
+                            <TextBlock Text="No preview available"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Foreground="Gray"
+                                       Visibility="{Binding SelectedNodePreviewMissing, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Grid.Row="2" Margin="0,8,0,0">
+                        <Button Content="Rename"
+                                Style="{StaticResource BaSecondaryButton}"
+                                Margin="0,0,0,4"
+                                Command="{Binding RenameCommand}" />
+                        <Button Content="Edit Parameters"
+                                Style="{StaticResource BaSecondaryButton}"
+                                Margin="0,0,0,4"
+                                Command="{Binding EditParametersCommand}" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <Button Content="Favorite (Me)"
+                                    Style="{StaticResource BaSecondaryButton}"
+                                    Width="130"
+                                    Margin="0,0,4,0"
+                                    Command="{Binding ToggleUserFavoriteCommand}" />
+                            <Button Content="Favorite (Project)"
+                                    Style="{StaticResource BaSecondaryButton}"
+                                    Width="130"
+                                    Command="{Binding ToggleProjectFavoriteCommand}" />
+                        </StackPanel>
+                        <Button Content="Purge Checked"
+                                Style="{StaticResource BaPrimaryButton}"
+                                Margin="0,8,0,0"
+                                Command="{Binding PurgeCheckedCommand}" />
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="3"
+                               Text="{Binding StatusMessage}"
+                               Foreground="Orange"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Top"
+                               Margin="0,8,0,0" />
+                </Grid>
+            </Border>
+        </Grid>
+
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="0,8,0,0">
+            <Button Content="Refresh"
+                    Style="{StaticResource BaSecondaryButton}"
+                    Width="90"
+                    Command="{Binding RefreshCommand}" />
+        </StackPanel>
+    </Grid>
+</Window>

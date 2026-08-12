@@ -13,7 +13,7 @@
     SizeToContent="Height"
     ResizeMode="NoResize"
     WindowStartupLocation="CenterOwner"
-    Style="{DynamicResource {x:Type Window}}">
+    Style="{DynamicResource BaWindow}">
 
     <Window.Resources>
         <ResourceDictionary>
@@ -30,20 +30,22 @@
         <TextBlock Text="Markup Mode"
                    FontWeight="SemiBold"
                    Margin="0,0,0,4"
-                   Foreground="{DynamicResource Brush.PanelText}"/>
+                   Foreground="{DynamicResource Brush.WindowFg}"/>
         <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
             <RadioButton Content="Internal Comment"
-                         IsChecked="{Binding IsInternalMode}"
-                         Margin="0,0,16,0"/>
+                 IsChecked="{Binding IsInternalMode}"
+                 Style="{StaticResource BaRadioButton}"
+                 Margin="0,0,16,0"/>
             <RadioButton Content="Official Revision"
-                         IsChecked="{Binding IsOfficialMode}"/>
+                 IsChecked="{Binding IsOfficialMode}"
+                 Style="{StaticResource BaRadioButton}"/>
         </StackPanel>
 
         <!-- BA_TYPE -->
         <TextBlock Text="Type (BA_Type)"
                    FontWeight="SemiBold"
                    Margin="0,0,0,4"
-                   Foreground="{DynamicResource Brush.PanelText}"/>
+                   Foreground="{DynamicResource Brush.WindowFg}"/>
         <ComboBox ItemsSource="{Binding TypeOptions}"
                   SelectedItem="{Binding SelectedTypeOption}"
                   Margin="0,0,0,12"
@@ -53,7 +55,7 @@
         <TextBlock Text="Action (BA_Comments)"
                    FontWeight="SemiBold"
                    Margin="0,0,0,4"
-                   Foreground="{DynamicResource Brush.PanelText}"/>
+                   Foreground="{DynamicResource Brush.WindowFg}"/>
         <ComboBox ItemsSource="{Binding ActionOptions}"
                   SelectedItem="{Binding SelectedActionOption}"
                   Margin="0,0,0,6"
@@ -62,7 +64,7 @@
         <!-- BA_COMMENTS — free text -->
         <TextBlock Text="Additional comment"
                    Margin="0,0,0,4"
-                   Foreground="{DynamicResource Brush.PanelText}"/>
+                   Foreground="{DynamicResource Brush.WindowFg}"/>
         <TextBox Text="{Binding CommentFreeText, UpdateSourceTrigger=PropertyChanged}"
                  AcceptsReturn="False"
                  MaxLength="500"
@@ -73,7 +75,7 @@
         <TextBlock Text="Author (BA_Markup_Author)"
                    FontWeight="SemiBold"
                    Margin="0,0,0,4"
-                   Foreground="{DynamicResource Brush.PanelText}"/>
+                   Foreground="{DynamicResource Brush.WindowFg}"/>
         <TextBox Text="{Binding BaAuthor, UpdateSourceTrigger=PropertyChanged}"
                  Margin="0,0,0,12"
                  Style="{StaticResource BaDarkTextBox}"/>
@@ -82,7 +84,7 @@
         <TextBlock Text="Date (BA_Markup_Date)"
                    FontWeight="SemiBold"
                    Margin="0,0,0,4"
-                   Foreground="{DynamicResource Brush.PanelText}"/>
+                   Foreground="{DynamicResource Brush.WindowFg}"/>
         <TextBox Text="{Binding BaDate, UpdateSourceTrigger=PropertyChanged}"
                  Margin="0,0,0,12"
                  Style="{StaticResource BaDarkTextBox}"/>
@@ -96,7 +98,7 @@
         <TextBlock Text="Assigned To (BA_Tls_AssignedUser)"
                    FontWeight="SemiBold"
                    Margin="0,0,0,4"
-                   Foreground="{DynamicResource Brush.PanelText}"/>
+                   Foreground="{DynamicResource Brush.WindowFg}"/>
         <ComboBox ItemsSource="{Binding AssigneeOptions}"
                   Text="{Binding AssignedUser, UpdateSourceTrigger=PropertyChanged}"
                   IsEditable="True"
@@ -112,7 +114,7 @@
             <TextBlock Text="Revision"
                        FontWeight="SemiBold"
                        Margin="0,0,0,4"
-                       Foreground="{DynamicResource Brush.PanelText}"/>
+                       Foreground="{DynamicResource Brush.WindowFg}"/>
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>

@@ -14,12 +14,7 @@ namespace BA.UI.Rooms
         private readonly Document _doc;
 
         // Cached parameter lists built once at load time
-        private List<string> _roomStringParams = new List<string>();
         private List<string> _roomDoubleParams = new List<string>();
-        private List<string> _areaStringParams = new List<string>();
-
-        // Cached raw area elements for distinct-value queries
-        private List<Area> _placedAreas = new List<Area>();
 
         public AreaTransferSettingsWindow(AreaTransferSettings settings, Document doc)
         {
@@ -38,11 +33,8 @@ namespace BA.UI.Rooms
 
         private void CollectParameters()
         {
-            // Grab one live placed Room to enumerate its parameters.
-            // We use a live element rather than walking BindingMap because
-            // BindingMap does not expose StorageType reliably without a binding
-            // lookup per definition, and it includes type params mixed with
-            // instance params with no clean separation flag.
+            // Grab one live placed Room to enumerate its Double-storage parameters,
+            // which are the valid write targets for the summed UP/PP area values.
             Room sampleRoom = new FilteredElementCollector(_doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
                 .WhereElementIsNotElementType()
@@ -57,45 +49,11 @@ namespace BA.UI.Rooms
                     string name = p.Definition.Name;
                     if (string.IsNullOrWhiteSpace(name)) continue;
 
-                    if (p.StorageType == StorageType.String)
-                        _roomStringParams.Add(name);
-                    else if (p.StorageType == StorageType.Double)
+                    if (p.StorageType == StorageType.Double)
                         _roomDoubleParams.Add(name);
                 }
 
-                _roomStringParams = _roomStringParams.Distinct()
-                    .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
                 _roomDoubleParams = _roomDoubleParams.Distinct()
-                    .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
-
-            // Grab one live placed Area for string params (Area Number, Area Type)
-            // and cache all placed areas for distinct-value population.
-            _placedAreas = new FilteredElementCollector(_doc)
-                .OfCategory(BuiltInCategory.OST_Areas)
-                .WhereElementIsNotElementType()
-                .Cast<Area>()
-                .Where(a => a.Area > 0)
-                .ToList();
-
-            Area sampleArea = _placedAreas.FirstOrDefault();
-
-            if (sampleArea != null)
-            {
-                foreach (Parameter p in sampleArea.Parameters)
-                {
-                    if (p.Definition == null) continue;
-                    string name = p.Definition.Name;
-                    if (string.IsNullOrWhiteSpace(name)) continue;
-
-                    if (p.StorageType == StorageType.String)
-                        _areaStringParams.Add(name);
-                }
-
-                _areaStringParams = _areaStringParams.Distinct()
                     .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
                     .ToList();
             }
@@ -107,43 +65,8 @@ namespace BA.UI.Rooms
 
         private void PopulateDropdowns()
         {
-            RoomNumberParamBox.ItemsSource = _roomStringParams;
-            AreaNumberParamBox.ItemsSource = _areaStringParams;
-            AreaTypeParamBox.ItemsSource = _areaStringParams;
             RoomAreaUpParamBox.ItemsSource = _roomDoubleParams;
             RoomAreaPpParamBox.ItemsSource = _roomDoubleParams;
-        }
-
-        // Called at load time and whenever the Area Type param selection changes.
-        // Collects distinct non-null values of the selected parameter across all
-        // placed areas and uses them as the suggested items for the UP/PP value boxes.
-        private void RefreshAreaTypeValueSuggestions(string selectedAreaTypeParamName)
-        {
-            var distinctValues = new List<string>();
-
-            if (!string.IsNullOrWhiteSpace(selectedAreaTypeParamName))
-            {
-                distinctValues = _placedAreas
-                    .Select(a =>
-                    {
-                        Parameter p = a.LookupParameter(selectedAreaTypeParamName);
-                        return p?.StorageType == StorageType.String ? p.AsString() : null;
-                    })
-                    .Where(v => !string.IsNullOrWhiteSpace(v))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(v => v, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
-
-            // Preserve whatever the user has already typed or selected
-            string currentUp = AreaTypeUpValueBox.Text;
-            string currentPp = AreaTypePpValueBox.Text;
-
-            AreaTypeUpValueBox.ItemsSource = distinctValues;
-            AreaTypePpValueBox.ItemsSource = distinctValues;
-
-            AreaTypeUpValueBox.Text = currentUp;
-            AreaTypePpValueBox.Text = currentPp;
         }
 
         // -----------------------------------------------------------------------
@@ -153,17 +76,11 @@ namespace BA.UI.Rooms
 
         private void RestoreSavedValues()
         {
-            SelectOrFallback(RoomNumberParamBox, _settings.RoomNumberParam);
-            SelectOrFallback(AreaNumberParamBox, _settings.AreaNumberParam);
-            SelectOrFallback(AreaTypeParamBox, _settings.AreaTypeParam);
             SelectOrFallback(RoomAreaUpParamBox, _settings.RoomAreaUpParam);
             SelectOrFallback(RoomAreaPpParamBox, _settings.RoomAreaPpParam);
 
-            // Trigger the value suggestions for the restored Area Type param
-            RefreshAreaTypeValueSuggestions(_settings.AreaTypeParam);
-
-            AreaTypeUpValueBox.Text = _settings.AreaTypeUpValue;
-            AreaTypePpValueBox.Text = _settings.AreaTypePpValue;
+            AreaSchemeSuffixUpBox.Text = _settings.AreaSchemeSuffixUp;
+            AreaSchemeSuffixPpBox.Text = _settings.AreaSchemeSuffixPp;
         }
 
         // Selects the item matching savedValue if it exists in the dropdown,
@@ -189,36 +106,19 @@ namespace BA.UI.Rooms
         // Event handlers
         // -----------------------------------------------------------------------
 
-        private void AreaTypeParamBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
-        {
-            string selected = AreaTypeParamBox.SelectedItem as string;
-            RefreshAreaTypeValueSuggestions(selected);
-        }
-
         private void OkButton_Click(object sender, RoutedEventArgs e)
         {
-            string roomNumberParam = AreaTypeParamBox.SelectedItem as string ?? string.Empty; // wrong — see below
-            string areaTypeUpValue = AreaTypeUpValueBox.Text?.Trim() ?? string.Empty;
-            string areaTypePpValue = AreaTypePpValueBox.Text?.Trim() ?? string.Empty;
-
-            // Read all seven values explicitly to give clear per-field error context
-            string v_roomNumber = RoomNumberParamBox.SelectedItem as string ?? string.Empty;
-            string v_areaNumber = AreaNumberParamBox.SelectedItem as string ?? string.Empty;
-            string v_areaType = AreaTypeParamBox.SelectedItem as string ?? string.Empty;
             string v_roomUp = RoomAreaUpParamBox.SelectedItem as string ?? string.Empty;
             string v_roomPp = RoomAreaPpParamBox.SelectedItem as string ?? string.Empty;
-            string v_upValue = AreaTypeUpValueBox.Text?.Trim() ?? string.Empty;
-            string v_ppValue = AreaTypePpValueBox.Text?.Trim() ?? string.Empty;
+            string v_suffixUp = AreaSchemeSuffixUpBox.Text?.Trim() ?? string.Empty;
+            string v_suffixPp = AreaSchemeSuffixPpBox.Text?.Trim() ?? string.Empty;
 
             var fields = new (string Label, string Value)[]
             {
-                ("Room Number Parameter",    v_roomNumber),
-                ("Area Number Parameter",    v_areaNumber),
-                ("Area Type Parameter",      v_areaType),
-                ("Room Area UP Parameter",   v_roomUp),
-                ("Room Area PP Parameter",   v_roomPp),
-                ("UP value",                 v_upValue),
-                ("PP value",                 v_ppValue),
+                ("Room Area UP Parameter",              v_roomUp),
+                ("Room Area PP Parameter",              v_roomPp),
+                ("Area Scheme suffix for UP",           v_suffixUp),
+                ("Area Scheme suffix for PP",           v_suffixPp),
             };
 
             foreach (var (label, value) in fields)
@@ -234,13 +134,20 @@ namespace BA.UI.Rooms
                 }
             }
 
-            _settings.RoomNumberParam = v_roomNumber;
-            _settings.AreaNumberParam = v_areaNumber;
-            _settings.AreaTypeParam = v_areaType;
+            if (string.Equals(v_suffixUp, v_suffixPp, StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show(
+                    "UP and PP scheme suffixes cannot be identical, they would match the same Area Scheme.",
+                    "Area Transfer Settings",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
             _settings.RoomAreaUpParam = v_roomUp;
             _settings.RoomAreaPpParam = v_roomPp;
-            _settings.AreaTypeUpValue = v_upValue;
-            _settings.AreaTypePpValue = v_ppValue;
+            _settings.AreaSchemeSuffixUp = v_suffixUp;
+            _settings.AreaSchemeSuffixPp = v_suffixPp;
 
             DialogResult = true;
             Close();

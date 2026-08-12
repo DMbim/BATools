@@ -1,0 +1,215 @@
+﻿<!-- Path: BA\Materials\UI\MaterialLibraryWindow.xaml -->
+<Window x:Class="BA.Materials.UI.MaterialLibraryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:BA.Materials.UI"
+        Title="BA material library"
+        Style="{DynamicResource BaWindow}"
+        Width="1060" Height="560"
+        WindowStartupLocation="Manual"
+        ShowInTaskbar="False">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="140" MinWidth="90" />
+            <ColumnDefinition Width="5" />
+            <ColumnDefinition Width="240" MinWidth="140" />
+            <ColumnDefinition Width="5" />
+            <ColumnDefinition Width="220" MinWidth="140" />
+            <ColumnDefinition Width="5" />
+            <ColumnDefinition Width="260" MinWidth="180" />
+            <ColumnDefinition Width="5" />
+            <ColumnDefinition Width="*" MinWidth="180" />
+        </Grid.ColumnDefinitions>
+
+        <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                      Background="#141415" Cursor="SizeWE" ShowsPreview="True" />
+        <GridSplitter Grid.Column="3" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                      Background="#141415" Cursor="SizeWE" ShowsPreview="True" />
+        <GridSplitter Grid.Column="5" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                      Background="#141415" Cursor="SizeWE" ShowsPreview="True" />
+        <GridSplitter Grid.Column="7" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                      Background="#141415" Cursor="SizeWE" ShowsPreview="True" />
+
+        <!-- Categories -->
+        <Border Grid.Column="0" Style="{DynamicResource BaDarkPanelBorder}">
+            <StackPanel Margin="8">
+                <TextBlock Text="Categories" Margin="4,2,4,6" FontSize="11" Foreground="#D0D3D7" />
+                <ListBox x:Name="CategoriesListBox" ItemsSource="{Binding Categories}"
+                         SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
+                         BorderThickness="0" Background="Transparent"
+                         AllowDrop="True" Drop="CategoriesListBox_Drop">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                            <Setter Property="Foreground" Value="#F2F2F2" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
+            </StackPanel>
+        </Border>
+
+        <!-- Material list -->
+        <Border Grid.Column="2" Style="{DynamicResource BaDarkPanelBorder}">
+            <Grid Margin="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBox Grid.Row="0" Style="{DynamicResource BaDarkTextBox}"
+                         Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         Margin="0,0,0,6"
+                         Tag="Search materials" />
+
+                <ListBox x:Name="MaterialsListBox" Grid.Row="1"
+                         ItemsSource="{Binding FilteredMaterials}"
+                         SelectedItem="{Binding SelectedMaterial, Mode=TwoWay}"
+                         DisplayMemberPath="Name"
+                         SelectionMode="Extended"
+                         BorderThickness="0" Background="Transparent"
+                         PreviewMouseLeftButtonDown="MaterialsListBox_PreviewMouseLeftButtonDown"
+                         PreviewMouseMove="MaterialsListBox_PreviewMouseMove">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                            <Setter Property="Foreground" Value="#F2F2F2" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
+
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,6,0,0">
+                    <TextBox Style="{DynamicResource BaDarkTextBox}" Width="110"
+                             Text="{Binding NewMaterialName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Tag="New material name" />
+                    <Button Content="New" Style="{DynamicResource BaSecondaryButton}"
+                            Command="{Binding NewMaterialCommand}" Margin="4,0,0,0" />
+                </StackPanel>
+
+                <Button Grid.Row="3" Content="Load into project" Style="{DynamicResource BaPrimaryButton}"
+                        Command="{Binding LoadIntoProjectCommand}" Margin="0,6,0,0" />
+            </Grid>
+        </Border>
+
+        <!-- Identity -->
+        <Border Grid.Column="4" Style="{DynamicResource BaDarkPanelBorder}">
+            <StackPanel Margin="8">
+                <TextBlock Text="Identity" Margin="4,2,4,8" FontSize="11" Foreground="#D0D3D7" />
+
+                <TextBlock Text="Name" FontSize="11" Foreground="#E8EAED" Margin="4,0,0,2" />
+                <TextBox Style="{DynamicResource BaDarkTextBox}"
+                         Text="{Binding IdentityName, Mode=TwoWay}"
+                         LostFocus="IdentityField_LostFocus" Margin="0,0,0,8" />
+
+                <TextBlock Text="Class" FontSize="11" Foreground="#E8EAED" Margin="4,0,0,2" />
+                <TextBlock Text="{Binding IdentityClass}" Foreground="#F2F2F2" Margin="4,0,0,8" />
+
+                <TextBlock Text="Description" FontSize="11" Foreground="#E8EAED" Margin="4,0,0,2" />
+                <TextBox Style="{DynamicResource BaDarkTextBox}"
+                         Text="{Binding IdentityDescription, Mode=TwoWay}"
+                         AcceptsReturn="True" Height="48" TextWrapping="Wrap"
+                         LostFocus="IdentityField_LostFocus" Margin="0,0,0,8" />
+
+                <TextBlock Text="Keynote" FontSize="11" Foreground="#E8EAED" Margin="4,0,0,2" />
+                <TextBox Style="{DynamicResource BaDarkTextBox}"
+                         Text="{Binding IdentityKeynote, Mode=TwoWay}"
+                         LostFocus="IdentityField_LostFocus" />
+            </StackPanel>
+        </Border>
+
+        <!-- Graphics -->
+        <Border Grid.Column="6" Style="{DynamicResource BaDarkPanelBorder}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="8">
+                    <TextBlock Text="Graphics" Margin="4,2,4,8" FontSize="11" Foreground="#D0D3D7" />
+
+                    <TextBlock Text="Shading" FontSize="11" Foreground="#FFFFFF" Margin="4,0,0,4" FontWeight="Bold" />
+                    <CheckBox Content="Use render appearance" Style="{DynamicResource BaDarkPanelCheckBox}"
+                              IsChecked="{Binding UseRenderAppearanceForShading, Mode=TwoWay}"
+                              Checked="GraphicsField_Changed" Unchecked="GraphicsField_Changed" Margin="4,0,0,6" />
+                    <TextBlock Text="Transparency" FontSize="11" Foreground="#E8EAED" Margin="4,0,0,2" />
+                    <Slider Minimum="0" Maximum="100"
+                            Value="{Binding GraphicsTransparency, Mode=TwoWay}"
+                            ValueChanged="GraphicsSlider_ValueChanged" Margin="0,0,0,10" />
+
+                    <TextBlock Text="Surface pattern" FontSize="11" Foreground="#FFFFFF" Margin="4,0,0,4" FontWeight="Bold" />
+                    <TextBlock Text="Foreground" FontSize="11" Foreground="#D6D9DC" Margin="4,0,0,2" />
+                    <ComboBox Style="{DynamicResource BaDarkComboBox}"
+                              ItemsSource="{Binding AvailableDraftingPatterns}"
+                              SelectedItem="{Binding SurfaceForegroundPattern, Mode=TwoWay}"
+                              DisplayMemberPath="DisplayName"
+                              SelectionChanged="GraphicsField_Changed" Margin="0,0,0,4" />
+                    <Button Content="Texture alignment..." Style="{DynamicResource BaSecondaryButton}"
+                            IsEnabled="False" HorizontalAlignment="Left" Margin="0,0,0,8"
+                            ToolTip="Not available here yet, edit texture alignment in native Revit's Material Browser for now." />
+                    <TextBlock Text="Background" FontSize="11" Foreground="#D6D9DC" Margin="4,0,0,2" />
+                    <ComboBox Style="{DynamicResource BaDarkComboBox}"
+                              ItemsSource="{Binding AvailableDraftingPatterns}"
+                              SelectedItem="{Binding SurfaceBackgroundPattern, Mode=TwoWay}"
+                              DisplayMemberPath="DisplayName"
+                              SelectionChanged="GraphicsField_Changed" Margin="0,0,0,10" />
+
+                    <TextBlock Text="Cut pattern" FontSize="11" Foreground="#FFFFFF" Margin="4,0,0,4" FontWeight="Bold" />
+                    <TextBlock Text="Foreground" FontSize="11" Foreground="#D6D9DC" Margin="4,0,0,2" />
+                    <ComboBox Style="{DynamicResource BaDarkComboBox}"
+                              ItemsSource="{Binding AvailableDraftingPatterns}"
+                              SelectedItem="{Binding CutForegroundPattern, Mode=TwoWay}"
+                              DisplayMemberPath="DisplayName"
+                              SelectionChanged="GraphicsField_Changed" Margin="0,0,0,4" />
+                    <TextBlock Text="Background" FontSize="11" Foreground="#D6D9DC" Margin="4,0,0,2" />
+                    <ComboBox Style="{DynamicResource BaDarkComboBox}"
+                              ItemsSource="{Binding AvailableDraftingPatterns}"
+                              SelectedItem="{Binding CutBackgroundPattern, Mode=TwoWay}"
+                              DisplayMemberPath="DisplayName"
+                              SelectionChanged="GraphicsField_Changed" />
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Appearance -->
+        <Border Grid.Column="8" Style="{DynamicResource BaDarkPanelBorder}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="8">
+                    <TextBlock Text="Appearance" Margin="4,2,4,8" FontSize="11" Foreground="#D0D3D7" />
+
+                    <ui:MaterialPreviewHost x:Name="PreviewHost" Height="150" Margin="0,0,0,10" />
+
+                    <TextBlock Text="Roughness" FontSize="11" Foreground="#E8EAED" Margin="4,0,0,2" />
+                    <Slider Minimum="0" Maximum="1" Value="{Binding Roughness, Mode=TwoWay}" Margin="0,0,0,8" />
+
+                    <TextBlock Text="Reflectivity" FontSize="11" Foreground="#E8EAED" Margin="4,0,0,2" />
+                    <Slider Minimum="0" Maximum="1" Value="{Binding Reflectivity, Mode=TwoWay}" Margin="0,0,0,8" />
+
+                    <TextBlock Text="Bump amount" FontSize="11" Foreground="#E8EAED" Margin="4,0,0,2" />
+                    <Slider Minimum="0" Maximum="1" Value="{Binding BumpAmount, Mode=TwoWay}" Margin="0,0,0,8" />
+
+                    <TextBlock Text="Emissive luminance (cd/m²)" FontSize="11" Foreground="#E8EAED" Margin="4,0,0,2" />
+                    <Slider Minimum="0" Maximum="20000" Value="{Binding EmissiveLuminanceCdM2, Mode=TwoWay}" Margin="0,0,0,8" />
+
+                    <TextBlock Text="Transparency" FontSize="11" Foreground="#E8EAED" Margin="4,0,0,2" />
+                    <Slider Minimum="0" Maximum="1" Value="{Binding AppearanceTransparency, Mode=TwoWay}" Margin="0,0,0,8" />
+
+                    <TextBlock Text="Cutout opacity" FontSize="11" Foreground="#E8EAED" Margin="4,0,0,2" />
+                    <Slider Minimum="0" Maximum="1" Value="{Binding CutoutOpacity, Mode=TwoWay}" Margin="0,0,0,8" />
+
+                    <Button Content="Load from asset library" Style="{DynamicResource BaSecondaryButton}"
+                            Command="{Binding LoadFromAssetLibraryCommand}" HorizontalAlignment="Left" />
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Status bar -->
+        <Border Grid.Column="0" Grid.ColumnSpan="9" VerticalAlignment="Bottom" Height="24"
+                Background="#141415" Opacity="0.9">
+            <TextBlock Text="{Binding StatusMessage}" Foreground="#D8D8D8" FontSize="11"
+                       VerticalAlignment="Center" Margin="10,0,0,0" />
+        </Border>
+    </Grid>
+</Window>

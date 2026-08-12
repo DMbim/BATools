@@ -1,0 +1,86 @@
+<!-- Path: BA\Materials\UI\Resources\MaterialPreview\preview.html -->
+<!-- Ships alongside three.min.js (r128) in the same folder. Both must be marked as
+     Content, Copy to Output Directory in the project, and the folder path here must
+     match the virtual host mapping set up in MaterialPreviewHost.xaml.cs
+     (SetVirtualHostNameToFolderMapping). Do not point this at a CDN, Revit's hosted
+     process should not depend on outbound internet access to render a material preview. -->
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="sphereCanvas"></canvas>
+<script src="three.min.js"></script>
+<script>
+  var renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('sphereCanvas'), antialias: true, alpha: true });
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(35, 1, 0.1, 10);
+  camera.position.set(0, 0, 3.2);
+
+  var key = new THREE.DirectionalLight(0xffffff, 1.1);
+  key.position.set(2, 2, 3);
+  scene.add(key);
+
+  var fill = new THREE.DirectionalLight(0xffffff, 0.4);
+  fill.position.set(-2, -1, 2);
+  scene.add(fill);
+
+  scene.add(new THREE.AmbientLight(0x404040, 0.6));
+
+  var geometry = new THREE.SphereGeometry(1, 48, 48);
+  var material = new THREE.MeshStandardMaterial({ color: 0xc8c8c8, roughness: 0.5, metalness: 0.0 });
+  var sphere = new THREE.Mesh(geometry, material);
+  scene.add(sphere);
+
+  function resize() {
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // NOTE: BumpAmount currently has no visible effect, per the flagged limitation from
+  // the earlier mockup review, this needs a real normal/bump perturbation in the
+  // fragment shader or a THREE.NormalMapType-driven texture to actually do anything.
+  // Left as a documented gap rather than faked with a cosmetic-only effect.
+  function applyChannels(c) {
+    material.color.setRGB(c.albedoR / 255, c.albedoG / 255, c.albedoB / 255);
+    material.roughness = c.roughness;
+    material.metalness = c.reflectivity;
+    material.emissive.setRGB(c.emissiveR / 255, c.emissiveG / 255, c.emissiveB / 255);
+    // EmissiveLuminanceCdM2 is a real photometric value (0 to ~20000), normalize it
+    // into Three.js's emissiveIntensity range so the sphere doesn't blow out white
+    // at realistic luminance values. This normalization is a preview approximation,
+    // not a physically accurate luminance-to-intensity conversion.
+    material.emissiveIntensity = Math.min(c.emissiveLuminanceCdM2 / 5000, 1.0);
+    material.transparent = c.transparency > 0;
+    material.opacity = 1 - c.transparency;
+    material.needsUpdate = true;
+  }
+
+  window.chrome.webview.addEventListener('message', function (event) {
+    try {
+      var channels = JSON.parse(event.data);
+      applyChannels(channels);
+    } catch (e) {
+      // Malformed payload, ignore rather than throw and kill the render loop.
+    }
+  });
+
+  function animate() {
+    requestAnimationFrame(animate);
+    sphere.rotation.y += 0.006;
+    renderer.render(scene, camera);
+  }
+  animate();
+</script>
+</body>
+</html>

@@ -15,7 +15,7 @@
     MinHeight="320"
     ResizeMode="CanResize"
     WindowStartupLocation="CenterOwner"
-    Style="{DynamicResource {x:Type Window}}">
+    Style="{DynamicResource BaWindow}">
 
     <Window.Resources>
         <ResourceDictionary>
@@ -44,9 +44,10 @@
                 <TextBlock Text="You have open markup assignments"
                            FontWeight="SemiBold"
                            FontSize="13"
-                           Foreground="White"/>
+                           Foreground="{DynamicResource Brush.PanelFg}"/>
                 <TextBlock Text="Rows marked NEW changed since your last sync."
                            FontSize="11"
+                           Foreground="{DynamicResource Brush.PanelFg}"
                            Opacity="0.7"
                            Margin="0,2,0,0"/>
             </StackPanel>
@@ -71,10 +72,6 @@
                   BorderThickness="1">
 
             <DataGrid.Columns>
-                <DataGridTextColumn Header=""
-                                    Binding="{Binding IsNew, Converter={StaticResource BoolToVis}}"
-                                    Width="0"
-                                    Visibility="Collapsed"/>
                 <DataGridTemplateColumn Header="New" Width="45">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
@@ -119,9 +116,11 @@
             <StackPanel Grid.Column="0" VerticalAlignment="Center">
                 <TextBlock Text="{Binding StatusMessage}"
                            FontSize="11"
+                           Foreground="{DynamicResource Brush.WindowFg}"
                            TextTrimming="CharacterEllipsis"/>
                 <TextBlock Text="Go To View is unavailable, this markup was not synced from your active document."
                            FontSize="10"
+                           Foreground="{DynamicResource Brush.WindowFg}"
                            Opacity="0.6"
                            Visibility="{Binding GoToViewUnavailable, Converter={StaticResource BoolToVis}}"/>
             </StackPanel>

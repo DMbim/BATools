@@ -42,5 +42,17 @@ namespace BA.UI
             DialogResult = false;
             Close();
         }
+
+        // Plain Enter submits the dialog (same as clicking OK).
+        // Shift+Enter inserts a newline, since InputTextBox allows multi-line input.
+        private void InputTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && Keyboard.Modifiers != ModifierKeys.Shift)
+            {
+                e.Handled = true;
+                DialogResult = true;
+                Close();
+            }
+        }
     }
 }

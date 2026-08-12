@@ -1,6 +1,8 @@
 ﻿// FILE: BA_Tools/BAApplication/Ribbon/LayoutPlanningPanelFactory.cs
 using Autodesk.Revit.UI;
+using BA.Commands.Diagnostics;
 using BA.KeyplanGrid;
+using BA.Materials;
 using BA.Ribbon;
 using BATools.ParamCopy.Commands;
 
@@ -41,6 +43,15 @@ namespace BA.BAApplication.Ribbon
                 "CopyTypeParams", "Copy Type\nParameters",
                 "Copy type parameters from a source element to one or more target elements.",
                 IconResources.CopyP16, IconResources.CopyP32);
+
+            panel.AddPushButton< DiagRoomNumberParamCommand>(
+                "DiagRoomNumberParam", "Room Number\nDiagnostics",
+                "Check for missing or duplicate room number parameters in the model.",
+                IconResources.Markup16, IconResources.Markup32);
+            panel.AddPushButton<Cmd_OpenMaterialLibrary>(
+                "OpenMaterialLibrary", "Material Library\nDiagnostics",
+                "Open the material library for inspection and management.",
+                IconResources.Markup16, IconResources.Markup32);    
         }
     }
 }

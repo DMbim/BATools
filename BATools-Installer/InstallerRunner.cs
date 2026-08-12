@@ -10,7 +10,7 @@ namespace BATools_Installer
     {
         public static async Task RunAsync(InstallerArgs args, Action<string> log)
         {
-            log($"Mode: {args.Mode}, Revit: {args.RevitYear}, Asset: {args.AssetName}, WaitPid: {args.WaitPid}, Silent: {args.Silent}");
+            log($"Mode: {args.Mode}, Revit: {args.RevitYear}, Asset: {args.AssetName}, Tag: {args.Tag ?? "(none)"}, WaitPid: {args.WaitPid}, Silent: {args.Silent}");
 
             if (args.WaitPid > 0)
             {
@@ -63,12 +63,28 @@ namespace BATools_Installer
 
             log(isUpdate ? "Updating..." : "Installing...");
 
-
-
             // ── Download ──────────────────────────────────────────────────────
             var client = new GitHubReleaseClient(InstallerConfig.RepoOwner, InstallerConfig.RepoName);
-            var payloadZip = await client.DownloadLatestAssetToTempAsync(args.AssetName)
-                                          .ConfigureAwait(false);
+
+            string payloadZip;
+            if (!string.IsNullOrWhiteSpace(args.AssetUrl))
+            {
+                // BA already resolved this exact asset during its version check. Using the
+                // pinned URL avoids a second "latest release" query that could resolve to a
+                // different asset if a new release went out in between.
+                log($"Using pinned asset URL: {args.AssetUrl}");
+                payloadZip = await client
+                    .DownloadAssetUrlToTempAsync(args.AssetUrl, args.AssetName, log)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                log("No asset URL provided. Resolving latest release asset by name.");
+                payloadZip = await client
+                    .DownloadLatestAssetToTempAsync(args.AssetName)
+                    .ConfigureAwait(false);
+            }
+
             var extractedDir = ZipPayload.ExtractToTempFolder(payloadZip);
 
             Directory.CreateDirectory(installDir);

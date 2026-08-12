@@ -1,0 +1,51 @@
+﻿<Window x:Class="BA.UI.LoadedFamilyBrowser.RenamePromptWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Rename"
+        Style="{DynamicResource BaWindow}"
+        SizeToContent="Height"
+        Width="420"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="PromptLabel"
+                   Grid.Row="0"
+                   Text="Enter new name:"
+                   Margin="0,0,0,8" />
+
+        <TextBox x:Name="NameTextBox"
+                 Grid.Row="1"
+                 Style="{StaticResource BaDarkTextBox}"
+                 MinHeight="30"
+                 Margin="0,0,0,16" />
+
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Content="Cancel"
+                    Style="{StaticResource BaSecondaryButton}"
+                    Width="90"
+                    Margin="0,0,8,0"
+                    Click="CancelButton_Click" />
+            <Button Content="OK"
+                    Style="{StaticResource BaPrimaryButton}"
+                    Width="90"
+                    Click="OkButton_Click"
+                    IsDefault="True" />
+        </StackPanel>
+    </Grid>
+</Window>

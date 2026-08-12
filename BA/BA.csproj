@@ -32,6 +32,7 @@
 	<ItemGroup>
 		<PackageReference Include="Clipper2" Version="2.0.0" />
 		<PackageReference Include="ClosedXML" Version="0.105.0" />
+		<PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4129.50" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
 		<PackageReference Include="Nice3point.Revit.Build.Tasks" Version="3.0.1" />
 		<PackageReference Include="Nice3point.Revit.Toolkit" Version="$(RevitVersion).*" />
@@ -314,8 +315,11 @@
 	
 	<ItemGroup>
 		<Folder Include="Core\BIM\Overhead\" />
+		<Folder Include="Core\MATERIALS\REsources\" />
 		<Folder Include="Models" />
 		<Folder Include="NewFolder\" />
+		<Folder Include="UI\ContentBrowser\" />
+		<Folder Include="UI\ExternalEvents\" />
 		<Folder Include="ViewModels\" />
 	</ItemGroup>
 

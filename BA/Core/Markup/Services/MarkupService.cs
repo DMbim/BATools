@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using BA.Core.Parameters;
 using BA.Markup.Models;
 using BA.Markup.Settings;
 
@@ -20,9 +21,13 @@ namespace BA.Markup.Services
         private const string ParamBaComments = "BA_Comments";
         private const string ParamBaMarkupDate = "BA_Markup_Date";
         private const string ParamBaMarkupAuthor = "BA_Markup_Author";
-        private const string ParamBaAssignedUser = "BA.Tls_AssignedUser"; // <- NEW
+        private const string ParamBaAssignedUser = "BA.Tls_AssignedUser";
         private const string ParamX = "x";
         private const string ParamY = "y";
+
+        // <- NEW: shared parameter group name, matches this project's convention per
+        //    BA_SharedParametersWIP2 (group "BA_Tools").
+        private const string SharedParamGroupName = "BA_Tools";
 
         public MarkupService(UIDocument uiDoc, MarkupSettings settings)
         {
@@ -59,12 +64,6 @@ namespace BA.Markup.Services
             SetStringParameter(instance, ParamBaComments, input.BaComments);
             SetStringParameter(instance, ParamBaMarkupDate, input.BaDate);
             SetStringParameter(instance, ParamBaMarkupAuthor, input.BaAuthor);
-
-            // <- NEW: BA_Tls_AssignedUser. Empty string is a valid value, means
-            //    unassigned, matching MarkupInputModel.AssignedUser's own convention.
-            //    BA_Tls_WIP and BA_Tls_Solved are intentionally NOT set here — they
-            //    default to their family's own default value (false/unchecked) and
-            //    are only ever toggled later via MarkupNotificationViewModel.
             SetStringParameter(instance, ParamBaAssignedUser, input.AssignedUser);
 
             PlaceMarkupTag(instance, boundingBox, activeView);
@@ -103,10 +102,6 @@ namespace BA.Markup.Services
             SetStringParameterIfExists(cloud, ParamBaComments, input.BaComments);
             SetStringParameterIfExists(cloud, ParamBaMarkupDate, input.BaDate);
             SetStringParameterIfExists(cloud, ParamBaMarkupAuthor, input.BaAuthor);
-
-            // <- NEW: lenient, same convention as the other BA_* writes on RevisionCloud
-            //    above. If BA_Tls_AssignedUser isn't bound to the Revision Clouds
-            //    category this silently no-ops rather than failing cloud placement.
             SetStringParameterIfExists(cloud, ParamBaAssignedUser, input.AssignedUser);
 
             // Place the BA_TAG_Revision tag on the cloud inside the same transaction.
@@ -326,11 +321,6 @@ namespace BA.Markup.Services
         }
 
         // Places BA_TAG_Revision on a RevisionCloud element.
-        // Called from PlaceRevisionCloud inside the same transaction.
-        // Non-fatal if the tag family is missing — logs the skip silently.
-        // RevisionCloud is tagged via IndependentTag.Create using a Reference
-        // to the cloud element. The tag point is offset from the top-right
-        // corner of the bounding box, same convention as the markup tag.
         private void PlaceRevisionTag(
             RevisionCloud cloud,
             BoundingBoxXYZ boundingBox,
@@ -430,26 +420,83 @@ namespace BA.Markup.Services
             param.Set(internalValue);
         }
 
-        private static void SetStringParameter(
+        // <- CHANGED: instance method now (was static), needs _doc/_settings to attempt
+        //    auto-binding via SharedParameterBindingService before giving up.
+        private void SetStringParameter(
             Element element, string paramName, string value)
         {
             var param = element.LookupParameter(paramName);
+
+            if (param == null)
+            {
+                TryAutoBind(element, paramName);
+                param = element.LookupParameter(paramName);
+            }
+
             if (param == null)
                 throw new InvalidOperationException(
-                    $"Shared parameter '{paramName}' not found on element {element.Id}. " +
-                    "Verify the parameter is bound to the correct category.");
+                    $"Shared parameter '{paramName}' could not be found on element " +
+                    $"{element.Id}, and automatic binding did not resolve it. Verify the " +
+                    "parameter exists in the shared parameter file and is compatible with " +
+                    "this category.");
+
             if (param.IsReadOnly)
                 throw new InvalidOperationException(
                     $"Shared parameter '{paramName}' is read-only on element {element.Id}.");
+
             param.Set(value);
         }
 
-        private static void SetStringParameterIfExists(
+        // <- CHANGED: instance method now (was static), same auto-bind attempt as
+        //    SetStringParameter, but stays non-fatal, if binding also fails this still
+        //    silently skips rather than throwing, preserving RevisionCloud's original
+        //    lenient behavior.
+        private void SetStringParameterIfExists(
             Element element, string paramName, string value)
         {
             var param = element.LookupParameter(paramName);
+
+            if (param == null)
+            {
+                try
+                {
+                    TryAutoBind(element, paramName);
+                    param = element.LookupParameter(paramName);
+                }
+                catch
+                {
+                    // Lenient path: swallow bind failures too, revision cloud placement
+                    // must not fail just because an optional field couldn't be bound.
+                    return;
+                }
+            }
+
             if (param == null || param.IsReadOnly) return;
             param.Set(value);
+        }
+
+        /// <summary>
+        /// Attempts to auto-bind paramName to element's category via
+        /// SharedParameterBindingService. Rethrows with added context on failure; callers
+        /// decide whether that's fatal (SetStringParameter) or swallowed
+        /// (SetStringParameterIfExists).
+        /// </summary>
+        private void TryAutoBind(Element element, string paramName)
+        {
+            if (element.Category == null)
+                throw new InvalidOperationException(
+                    $"Element {element.Id} has no Category, cannot determine which " +
+                    "category to bind the parameter to.");
+
+            var builtInCategory = (BuiltInCategory)element.Category.Id.Value;
+
+            SharedParameterBindingService.EnsureBound(
+                _doc,
+                _settings.SharedParameterFilePath,
+                SharedParamGroupName,
+                paramName,
+                builtInCategory,
+                instanceBinding: true);
         }
     }
 }

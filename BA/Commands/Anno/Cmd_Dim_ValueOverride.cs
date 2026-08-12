@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -13,6 +14,8 @@ namespace BA.Commands
     /// <summary>
     /// Overrides selected dimensions by appending a line of text
     /// below the current value (dimension or segment).
+    /// User can specify which segments (by index) to affect.
+    /// If dimension has no segments, the value is applied to the whole dimension.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class Cmd_Dim_ValueOverride : ExternalCommand
@@ -27,12 +30,24 @@ namespace BA.Commands
                 // 1) Pick dimensions
                 var refs = uiDoc.Selection.PickObjects(
                     ObjectType.Element,
-                    new BA.Filters.DimensionSelectionFilter(),
+                    new DimensionSelectionFilter(),
                     "Select dimensions to override");
 
                 if (refs == null || !refs.Any())
                 {
                     TaskDialog.Show("BA", "No dimensions selected.");
+                    return;
+                }
+
+                // Resolve all dimensions once
+                var dims = refs
+                    .Select(r => doc.GetElement(r) as Dimension)
+                    .Where(d => d != null)
+                    .ToList();
+
+                if (!dims.Any())
+                {
+                    TaskDialog.Show("BA", "No valid dimensions were selected.");
                     return;
                 }
 
@@ -49,28 +64,65 @@ namespace BA.Commands
 
                 string additionalText = dialog.InputText.Trim();
 
-                // 3) Apply override
+                // 3) Determine max segment count across all dimensions
+                int maxSegments = dims
+                    .Select(d => d.Segments?.Size ?? 0)
+                    .DefaultIfEmpty(0)
+                    .Max();
+
+                // If there are any segmented dimensions, ask for indices.
+                // If user leaves it empty, we treat it as "all segments".
+                List<int> segmentIndices = null;
+                if (maxSegments > 0)
+                {
+                    segmentIndices = SegmentIndexPrompt.AskSegmentIndices(maxSegments);
+                    if (segmentIndices != null && segmentIndices.Count == 0)
+                    {
+                        // User input was invalid and we already showed a message
+                        return;
+                    }
+                    // segmentIndices == null => "all segments"
+                }
+
+                // 4) Apply override
                 using (Transaction t = new Transaction(doc, "Dimension text override"))
                 {
                     t.Start();
 
-                    foreach (var r in refs)
+                    foreach (var dim in dims)
                     {
-                        Dimension dim = doc.GetElement(r) as Dimension;
-                        if (dim == null) continue;
+                        int segCount = dim.Segments?.Size ?? 0;
 
-                        if (dim.Segments != null && dim.Segments.Size > 0)
+                        if (segCount > 0)
                         {
-                            foreach (DimensionSegment seg in dim.Segments)
+                            // Decide which indices to use for this dimension
+                            IEnumerable<int> indicesToUse;
+                            if (segmentIndices == null)
                             {
+                                // All segments
+                                indicesToUse = Enumerable.Range(0, segCount);
+                            }
+                            else
+                            {
+                                // Filter out indices that are out of range for this dimension
+                                indicesToUse = segmentIndices.Where(i => i >= 0 && i < segCount);
+                            }
+
+                            foreach (int i in indicesToUse)
+                            {
+                                DimensionSegment seg = dim.Segments.get_Item(i);
+                                if (seg == null) continue;
+
                                 string current = seg.ValueOverride ?? string.Empty;
                                 seg.ValueOverride = string.IsNullOrEmpty(current)
                                     ? additionalText
                                     : current + "\n" + additionalText;
                             }
+                            // Segments not in indicesToUse are left completely untouched.
                         }
                         else
                         {
+                            // No segments – apply to the whole dimension
                             string current = dim.ValueOverride ?? string.Empty;
                             dim.ValueOverride = string.IsNullOrEmpty(current)
                                 ? additionalText

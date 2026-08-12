@@ -23,6 +23,10 @@ namespace BATools_Installer
         // Optional: BA-side can pass direct asset URL to avoid “latest changed” issues
         public string? AssetUrl { get; set; }
 
+        // Optional: the release tag (e.g. "v1.4.0") that BA resolved when it decided to
+        // launch this update. Not used to fetch anything, logging/diagnostics only.
+        public string? Tag { get; set; }
+
         // If > 0, installer waits for that process to exit (Revit PID)
         public int WaitPid { get; set; } = 0;
 
@@ -85,6 +89,13 @@ namespace BATools_Installer
                         {
                             var url = Next();
                             if (!string.IsNullOrWhiteSpace(url)) a.AssetUrl = url.Trim().Trim('"');
+                            break;
+                        }
+
+                    case "--tag":
+                        {
+                            var tag = Next();
+                            if (!string.IsNullOrWhiteSpace(tag)) a.Tag = tag.Trim().Trim('"');
                             break;
                         }
 

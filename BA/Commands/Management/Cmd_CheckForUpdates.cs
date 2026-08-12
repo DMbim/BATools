@@ -22,14 +22,15 @@ namespace BA.Commands.Management
         {
             try
             {
-                Task.Run(() => UpdateService.ForceCheckAsync(uiapp))
+                var result = Task.Run(() => UpdateService.ForceCheckAsync(uiapp))
                     .GetAwaiter()
                     .GetResult();
 
                 // Back on the Revit UI thread here (GetResult() returned control to the
                 // caller, it did not hop threads), so TaskDialog / Revit API calls are safe.
-                UpdateService.TryPromptFromCache();
-
+                // Passing the result explicitly, instead of relying on the cache, so a
+                // failed or throttled check can't accidentally show a stale prior result.
+                UpdateService.HandleForceCheckResult(result);
                 return Result.Succeeded;
             }
             catch (Exception ex)

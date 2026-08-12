@@ -59,7 +59,7 @@ namespace BA.UI.Views
         // the currently selected template, it does not add filters that are not
         // already there, that's what "Apply Scheme to Template" is for. // <- NEW
         public ObservableCollection<FilterGroupSummary> FilterGroups { get; } = new();
-
+        private bool _suppressSelectionSync;
         private ProcessMethod _currentMethod = ProcessMethod.ValueBucket;
 
         private CategoryInfo _selectedCategory;
@@ -180,6 +180,59 @@ namespace BA.UI.Views
         {
             get => _selectedTemplateFilterRow;
             set { if (SetProperty(ref _selectedTemplateFilterRow, value)) RaiseCanExecChanged(); }
+        }
+
+        // Each DataGrid gets its own SelectedItem now, since NativeFilterRows and
+        // BaManagedFilterRows are different filtered ICollectionViews over the same
+        // underlying TemplateFilters collection. Binding both grids' SelectedItem to
+        // one shared property caused the second grid to coerce that property back to
+        // null the instant it received a value not present in its own filtered view,
+        // silently clearing whatever was just selected in the other grid. These two
+        // properties are mutually exclusive, selecting in one clears the other, and
+        // both feed SelectedTemplateFilterRow, which is what PreviewFilterCommand and
+        // anything else that needs "the current selection" actually reads. // <- NEW
+        private TemplateFilterRowItem _selectedNativeFilterRow;
+        public TemplateFilterRowItem SelectedNativeFilterRow
+        {
+            get => _selectedNativeFilterRow;
+            set
+            {
+                if (!SetProperty(ref _selectedNativeFilterRow, value)) return;
+
+                if (value != null)
+                {
+                    _suppressSelectionSync = true;
+                    SelectedBaManagedFilterRow = null;
+                    _suppressSelectionSync = false;
+                    SelectedTemplateFilterRow = value;
+                }
+                else if (!_suppressSelectionSync)
+                {
+                    SelectedTemplateFilterRow = SelectedBaManagedFilterRow;
+                }
+            }
+        }
+
+        private TemplateFilterRowItem _selectedBaManagedFilterRow;
+        public TemplateFilterRowItem SelectedBaManagedFilterRow
+        {
+            get => _selectedBaManagedFilterRow;
+            set
+            {
+                if (!SetProperty(ref _selectedBaManagedFilterRow, value)) return;
+
+                if (value != null)
+                {
+                    _suppressSelectionSync = true;
+                    SelectedNativeFilterRow = null;
+                    _suppressSelectionSync = false;
+                    SelectedTemplateFilterRow = value;
+                }
+                else if (!_suppressSelectionSync)
+                {
+                    SelectedTemplateFilterRow = SelectedNativeFilterRow;
+                }
+            }
         }
 
         private SchemeSummary _selectedSavedScheme;
@@ -398,9 +451,12 @@ namespace BA.UI.Views
         {
             if (row == null) return;
 
-            // The CheckBox should normally update IsCheckedForLegend through
-            // a TwoWay binding. This command only refreshes dependent buttons,
-            // avoiding a second manual toggle when both binding and command are used.
+            // Corrected. VfLegendCheckTemplate uses a Button, not a CheckBox, so
+            // there is no TwoWay IsChecked binding anywhere flipping this property
+            // automatically, the button's Click only ever reaches this command. The
+            // previous comment here described CheckBox behavior that was never
+            // actually wired up for this Button based implementation. // <- CHANGED
+            row.IsCheckedForLegend = !row.IsCheckedForLegend;
             RaiseLegendSelectionCanExecChanged();
         }
 
@@ -477,7 +533,13 @@ namespace BA.UI.Views
                         TemplateFilters.Add(row);
                     }
 
-                    SelectedTemplateFilterRow = TemplateFilters.FirstOrDefault();
+                    // No longer auto-selecting the first loaded filter. With two grids now
+                    // owning independent selection state, picking a single "first" item and
+                    // trying to route it into the correct one of two properties adds
+                    // complexity for no real benefit, the user clicks what they want. // <- CHANGED
+                    SelectedNativeFilterRow = null;
+                    SelectedBaManagedFilterRow = null;
+                    SelectedTemplateFilterRow = null;
 
                     int baCount = TemplateFilters.Count(r => r.IsBaManaged);
                     StatusText = $"Loaded {TemplateFilters.Count} filter(s), {baCount} BA managed, {TemplateFilters.Count - baCount} native.";

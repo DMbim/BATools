@@ -12,7 +12,7 @@ namespace BA.Markup.ViewModels
     /// Populated from a RevisionItem (edit) or blank (create).
     /// Call BuildEditModel() to extract the DTO for the handler.
     /// </summary>
-    public sealed class RevisionEditorViewModel : INotifyPropertyChanged
+    public sealed class         RevisionEditorViewModel : INotifyPropertyChanged
     {
         // ------------------------------------------------------------------ //
         //  INotifyPropertyChanged
@@ -171,7 +171,7 @@ namespace BA.Markup.ViewModels
 
             DateError = DateTime.TryParse(_revisionDate, out _)
                 ? string.Empty
-                : "Date format not recognised. Use yyyy-MM-dd.";
+                : "Date format not recognised. Use yyMMdd.";
         }
 
         // ------------------------------------------------------------------ //
