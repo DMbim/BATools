@@ -136,7 +136,179 @@ namespace BA.Core.Content.Services
             foreach (var f in sorted)
                 categoryNode.Families.Add(f);
         }
+        public static List<LoadedDisciplineTabNode> BuildGrouped(Document doc, LoadedFamilyBrowserSettings settings)
+        {
+            List<LoadedCategoryNode> flatCategories = Build(doc, settings);
 
+            var tabs = new Dictionary<string, LoadedDisciplineTabNode>(StringComparer.OrdinalIgnoreCase);
+            var subgroupLookup = new Dictionary<(string Tab, string Sub), LoadedSubgroupNode>();
+
+            // Fixed tab order regardless of which tabs actually have content,
+            // so the UI doesn't reorder itself between refreshes.
+            string[] tabOrder =
+            {
+                LoadedFamilyDisciplineClassifier.TabAnnotation,
+                LoadedFamilyDisciplineClassifier.TabArchitecture,
+                LoadedFamilyDisciplineClassifier.TabMep
+            };
+
+            foreach (string tabName in tabOrder)
+            {
+                tabs[tabName] = new LoadedDisciplineTabNode { Name = tabName };
+            }
+
+            foreach (LoadedCategoryNode category in flatCategories)
+            {
+                CategoryType categoryType = ResolveCategoryType(doc, category.CategoryId);
+
+                (string tabName, string subgroupName) =
+                    LoadedFamilyDisciplineClassifier.Classify(category.Name, categoryType);
+
+                if (!tabs.TryGetValue(tabName, out LoadedDisciplineTabNode? tab))
+                {
+                    tab = new LoadedDisciplineTabNode { Name = tabName };
+                    tabs[tabName] = tab;
+                }
+
+                var key = (tabName, subgroupName);
+                if (!subgroupLookup.TryGetValue(key, out LoadedSubgroupNode? subgroup))
+                {
+                    subgroup = new LoadedSubgroupNode { Name = subgroupName };
+                    subgroupLookup[key] = subgroup;
+                    tab.Subgroups.Add(subgroup);
+                }
+
+                subgroup.Categories.Add(category);
+            }
+
+            var result = new List<LoadedDisciplineTabNode>();
+            foreach (string tabName in tabOrder)
+            {
+                LoadedDisciplineTabNode tab = tabs[tabName];
+
+                // Sort subgroups alphabetically within each tab, categories
+                // within each subgroup are already alphabetically sorted by
+                // the existing Build() call.
+                var sortedSubgroups = new List<LoadedSubgroupNode>(tab.Subgroups);
+                sortedSubgroups.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+
+                tab.Subgroups.Clear();
+                foreach (var sub in sortedSubgroups)
+                    tab.Subgroups.Add(sub);
+
+                result.Add(tab);
+            }
+            result.Add(BuildSystemFamilyTab(doc, settings));
+            return result;
+        }
+        private static readonly BuiltInCategory[] SystemFamilyCategories =
+        {
+            BuiltInCategory.OST_Walls,
+            BuiltInCategory.OST_Floors,
+            BuiltInCategory.OST_Roofs,
+            BuiltInCategory.OST_Ceilings
+        };
+
+        /// <summary>
+        /// Builds the System Families tab (Walls, Floors, Roofs, Ceilings).
+        /// These are ElementType-based, not FamilySymbol-based, so they get
+        /// their own collection path. Each category gets exactly one
+        /// synthetic LoadedFamilyNode (FamilyId = InvalidElementId, name
+        /// matches the category) so the existing Category -> Family -> Type
+        /// tree shape, XAML templates, and purge/favorite logic work
+        /// unchanged. Stairs and Railings deliberately excluded for now.
+        /// </summary>
+        public static LoadedDisciplineTabNode BuildSystemFamilyTab(Document doc, LoadedFamilyBrowserSettings settings)
+        {
+            var tab = new LoadedDisciplineTabNode { Name = "System Families" };
+            var subgroup = new LoadedSubgroupNode { Name = "System Types" };
+            tab.Subgroups.Add(subgroup);
+
+            foreach (BuiltInCategory bic in SystemFamilyCategories)
+            {
+                Category? category = Category.GetCategory(doc, bic);
+                if (category == null)
+                    continue;
+
+                string categoryName = category.Name;
+                if (settings.CategoryFilter.TryGetValue(categoryName, out bool enabled) && !enabled)
+                    continue;
+
+                var instanceCounts = new Dictionary<long, int>();
+
+                var instanceCollector = new FilteredElementCollector(doc)
+                    .OfCategoryId(category.Id)
+                    .WhereElementIsNotElementType();
+
+                foreach (Element instance in instanceCollector)
+                {
+                    ElementId typeId = instance.GetTypeId();
+                    if (typeId == ElementId.InvalidElementId)
+                        continue;
+
+                    long key = typeId.Value;
+                    instanceCounts[key] = instanceCounts.TryGetValue(key, out int existing) ? existing + 1 : 1;
+                }
+
+                var typeCollector = new FilteredElementCollector(doc)
+                    .OfCategoryId(category.Id)
+                    .WhereElementIsElementType();
+
+                var familyNode = new LoadedFamilyNode
+                {
+                    Name = categoryName,
+                    FamilyId = ElementId.InvalidElementId,
+                    CategoryName = categoryName
+                };
+
+                foreach (ElementType elementType in typeCollector.Cast<ElementType>())
+                {
+                    int count = instanceCounts.TryGetValue(elementType.Id.Value, out int c) ? c : 0;
+
+                    familyNode.Types.Add(new LoadedTypeNode
+                    {
+                        TypeId = elementType.Id,
+                        FamilyId = ElementId.InvalidElementId,
+                        ParentFamilyName = categoryName,
+                        CategoryName = categoryName,
+                        Name = elementType.Name,
+                        InstanceCount = count
+                    });
+                }
+
+                if (familyNode.Types.Count == 0)
+                    continue;
+
+                var sortedTypes = familyNode.Types
+                    .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                familyNode.Types.Clear();
+                foreach (var t in sortedTypes)
+                    familyNode.Types.Add(t);
+
+                familyNode.RecomputeUnusedState();
+
+                var categoryNode = new LoadedCategoryNode
+                {
+                    Name = categoryName,
+                    CategoryId = category.Id
+                };
+                categoryNode.Families.Add(familyNode);
+
+                subgroup.Categories.Add(categoryNode);
+            }
+
+            return tab;
+        }
+        private static CategoryType ResolveCategoryType(Document doc, ElementId categoryId)
+        {
+            if (categoryId == ElementId.InvalidElementId)
+                return CategoryType.Model;
+
+            Category? category = Category.GetCategory(doc, categoryId);
+            return category?.CategoryType ?? CategoryType.Model;
+        }
         public static IEnumerable<string> GetDistinctCategoryNames(List<LoadedCategoryNode> tree)
         {
             return tree.Select(c => c.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase);

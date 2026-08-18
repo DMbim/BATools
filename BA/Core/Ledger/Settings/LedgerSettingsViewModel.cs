@@ -1,3 +1,4 @@
+/// LedgerSettingsViewModel.cs
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -9,7 +10,6 @@ using System.Windows;
 using System.Windows.Input;
 using BA.BAApplication;
 using BA.Core.Ledger;
-using BA.Core.Mvvm;
 using BA.Settings;
 
 namespace BA.ViewModels

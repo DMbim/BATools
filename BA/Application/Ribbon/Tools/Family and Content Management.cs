@@ -4,6 +4,7 @@ using BA.App.Commands;
 using BA.BIM.Commands.Anno;
 using BA.Classification;
 using BA.Commands;
+using BA.Commands.Content;
 using BA.Commands.Export;
 using BA.Commands.Families;
 using BA.Families.Commands;
@@ -17,10 +18,12 @@ namespace BA.BAApplication.Ribbon
     {
         internal static void Build(RibbonPanel panel)
         {
-            var (Load, Save) = panel.AddStackedButtons<Cmd_OpenContentBrowserCommand, SaveFamiliesCommand>(
+            var (Load, Save, LoadedFamilyBrowser) = panel.AddStackedButtons<Cmd_OpenContentBrowserCommand, SaveFamiliesCommand, Cmd_LoadedFamilyBrowser>(
                 "ContentBrowser", "Load\nFamilies",
                 "SaveFamilies", "Save\nFamilies",
-                IconResources.SaveFamilies16, IconResources.ContentBrowser16,
+                "LoadedFamilyBrowser", "Loaded\nFamily Browser",
+                IconResources.SaveFamilies16, IconResources.ContentBrowser16, IconResources.ContentBrowser16,
+                "Browse the BA content library and place family types directly into the model.",
                 "Browse the BA content library and place family types directly into the model.",
                 "Browse the BA content library and place family types directly into the model.");
 

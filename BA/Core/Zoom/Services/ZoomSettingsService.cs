@@ -1,10 +1,10 @@
 ﻿using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using BATools.Zoom.Settings;
-using BATools.Zoom.Views;
+using BA.Zoom.Settings;
+using BA.Zoom.Views;
 
-namespace BATools.Zoom.Services
+namespace BA.Zoom.Services
 {
     /// <summary>
     /// Owns validation and interactive configuration of ZoomToRoomSettings.

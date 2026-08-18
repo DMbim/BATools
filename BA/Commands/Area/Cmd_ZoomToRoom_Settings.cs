@@ -1,10 +1,10 @@
 ﻿using Autodesk.Revit.Attributes;
 using Autodesk.Revit.UI;
 using BA.UI.Helpers;
-using BATools.Zoom.Settings;
-using BATools.Zoom.Views;
+using BA.Zoom.Settings;
+using BA.Zoom.Views;
 
-namespace BATools.Zoom.Commands
+namespace BA.Zoom.Commands
 {
     [Transaction(TransactionMode.ReadOnly)]
     public sealed class Cmd_ZoomToRoom_Settings : IExternalCommand

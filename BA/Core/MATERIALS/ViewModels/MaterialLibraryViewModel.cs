@@ -70,12 +70,12 @@ namespace BA.Materials.UI
 
             _selectedCategory = AllCategoriesLabel;
 
-            LoadLibraryCommand = new BA.Core.Mvvm.RelayCommand(ExecuteLoadLibrary, () => !IsBusy);
-            NewMaterialCommand = new BA.Core.Mvvm.RelayCommand(ExecuteNewMaterial, () => !IsBusy && IsLibraryLoaded && !string.IsNullOrWhiteSpace(NewMaterialName));
-            LoadIntoProjectCommand = new BA.Core.Mvvm.RelayCommand(ExecuteLoadIntoProject, () => !IsBusy && SelectedMaterial != null);
-            CommitIdentityCommand = new BA.Core.Mvvm.RelayCommand(ExecuteCommitIdentity, () => !IsBusy && SelectedMaterial != null);
-            CommitGraphicsCommand = new BA.Core.Mvvm.RelayCommand(ExecuteCommitGraphics, () => !IsBusy && SelectedMaterial != null);
-            LoadFromAssetLibraryCommand = new BA.Core.Mvvm.RelayCommand(ExecuteLoadFromAssetLibrary, () => !IsBusy && SelectedMaterial != null);
+            LoadLibraryCommand = new BA.UI.Mvvm.RelayCommand(ExecuteLoadLibrary, () => !IsBusy);
+            NewMaterialCommand = new BA.UI.Mvvm.RelayCommand(ExecuteNewMaterial, () => !IsBusy && IsLibraryLoaded && !string.IsNullOrWhiteSpace(NewMaterialName));
+            LoadIntoProjectCommand = new BA.UI.Mvvm.RelayCommand(ExecuteLoadIntoProject, () => !IsBusy && SelectedMaterial != null);
+            CommitIdentityCommand = new BA.UI.Mvvm.RelayCommand(ExecuteCommitIdentity, () => !IsBusy && SelectedMaterial != null);
+            CommitGraphicsCommand = new BA.UI.Mvvm.RelayCommand(ExecuteCommitGraphics, () => !IsBusy && SelectedMaterial != null);
+            LoadFromAssetLibraryCommand = new BA.UI.Mvvm.RelayCommand(ExecuteLoadFromAssetLibrary, () => !IsBusy && SelectedMaterial != null);
         }
 
         /// <summary>
@@ -232,12 +232,12 @@ namespace BA.Materials.UI
         // Commands
         // ------------------------------------------------------------------
 
-        public BA.Core.Mvvm.RelayCommand LoadLibraryCommand { get; }
-        public BA.Core.Mvvm.RelayCommand NewMaterialCommand { get; }
-        public BA.Core.Mvvm.RelayCommand LoadIntoProjectCommand { get; }
-        public BA.Core.Mvvm.RelayCommand CommitIdentityCommand { get; }
-        public BA.Core.Mvvm.RelayCommand CommitGraphicsCommand { get; }
-        public BA.Core.Mvvm.RelayCommand LoadFromAssetLibraryCommand { get; }
+        public BA.UI.Mvvm.RelayCommand LoadLibraryCommand { get; }
+        public BA.UI.Mvvm.RelayCommand NewMaterialCommand { get; }
+        public BA.UI.Mvvm.RelayCommand LoadIntoProjectCommand { get; }
+        public BA.UI.Mvvm.RelayCommand CommitIdentityCommand { get; }
+        public BA.UI.Mvvm.RelayCommand CommitGraphicsCommand { get; }
+        public BA.UI.Mvvm.RelayCommand LoadFromAssetLibraryCommand { get; }
 
         private void RaiseCommandsCanExecuteChanged()
         {
@@ -264,7 +264,7 @@ namespace BA.Materials.UI
             _invoker.Run(
                 uiApp =>
                 {
-                    var openResult = _libraryDocumentService.OpenForEditing(uiApp.Application, requestWriteAccess: true, allowStaleOverride: false);
+                    var openResult = _libraryDocumentService.OpenForEditing(uiApp, requestWriteAccess: true, allowStaleOverride: false);
 
                     var result = new LoadLibraryResult { Success = openResult.Success, FailureReason = openResult.FailureReason };
 
@@ -675,14 +675,30 @@ namespace BA.Materials.UI
             IsBusy = true;
 
             _invoker.Run(
-                uiApp => _copyService.FindExistingMaterialByName(uiApp.ActiveUIDocument.Document, materialName),
-                onCompleted: (ElementId conflictId) =>
+                uiApp =>
+                {
+                    Document activeDoc = uiApp.ActiveUIDocument?.Document;
+                    if (_libraryDocumentService.IsLibraryDocument(activeDoc))
+                        return new ConflictCheck { ActiveDocumentIsLibrary = true };
+
+                    return new ConflictCheck
+                    {
+                        ConflictMaterialId = _copyService.FindExistingMaterialByName(activeDoc, materialName)
+                    };
+                },
+                onCompleted: (ConflictCheck check) =>
                 {
                     RunOnUiThread(() =>
                     {
                         IsBusy = false;
 
-                        if (conflictId == ElementId.InvalidElementId)
+                        if (check.ActiveDocumentIsLibrary)
+                        {
+                            StatusMessage = "Switch to your project window first, the material library is currently the active document.";
+                            return;
+                        }
+
+                        if (check.ConflictMaterialId == ElementId.InvalidElementId)
                         {
                             RunCopyAsNew(libraryMaterialId);
                             return;
@@ -691,7 +707,7 @@ namespace BA.Materials.UI
                         ConflictDetected?.Invoke(
                             materialName,
                             () => StatusMessage = $"Kept existing project version of '{materialName}'.",
-                            () => RunOverwriteExisting(libraryMaterialId, conflictId));
+                            () => RunOverwriteExisting(libraryMaterialId, check.ConflictMaterialId));
                     });
                 },
                 onError: ex =>
@@ -704,12 +720,31 @@ namespace BA.Materials.UI
                 });
         }
 
+        private sealed class ConflictCheck
+        {
+            public bool ActiveDocumentIsLibrary;
+            public ElementId ConflictMaterialId = ElementId.InvalidElementId;
+        }
+
         private void RunCopyAsNew(ElementId libraryMaterialId)
         {
             IsBusy = true;
 
             _invoker.Run(
-                uiApp => _copyService.CopyIntoProjectAsNew(_libraryDocumentService.LibraryDocument, uiApp.ActiveUIDocument.Document, libraryMaterialId),
+                uiApp =>
+                {
+                    Document activeDoc = uiApp.ActiveUIDocument?.Document;
+                    if (_libraryDocumentService.IsLibraryDocument(activeDoc))
+                    {
+                        return new CopyIntoProjectResult
+                        {
+                            Success = false,
+                            FailureReason = "Switch to your project window first, the material library is currently the active document."
+                        };
+                    }
+
+                    return _copyService.CopyIntoProjectAsNew(_libraryDocumentService.LibraryDocument, activeDoc, libraryMaterialId);
+                },
                 onCompleted: result =>
                 {
                     RunOnUiThread(() =>
@@ -732,7 +767,20 @@ namespace BA.Materials.UI
             IsBusy = true;
 
             _invoker.Run(
-                uiApp => _copyService.OverwriteExisting(_libraryDocumentService.LibraryDocument, uiApp.ActiveUIDocument.Document, libraryMaterialId, targetMaterialId),
+                uiApp =>
+                {
+                    Document activeDoc = uiApp.ActiveUIDocument?.Document;
+                    if (_libraryDocumentService.IsLibraryDocument(activeDoc))
+                    {
+                        return new CopyIntoProjectResult
+                        {
+                            Success = false,
+                            FailureReason = "Switch to your project window first, the material library is currently the active document."
+                        };
+                    }
+
+                    return _copyService.OverwriteExisting(_libraryDocumentService.LibraryDocument, activeDoc, libraryMaterialId, targetMaterialId);
+                },
                 onCompleted: result =>
                 {
                     RunOnUiThread(() =>

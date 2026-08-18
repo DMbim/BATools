@@ -1,0 +1,123 @@
+// File: BA_Tools/CAD Purge/Config/corporate_standards.json
+{
+  "templateFilePath": "C:\\BA\\Templates\\BA_RevitTemplate_v26.rte",
+  "standardPrefix": "BA_",
+  "rules": [
+
+    // ---- LinePattern rules: standard AutoCAD ACAD.lin names (English-language DWG sources) ----
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "ACAD_ISO02*",
+      "isRegex": false,
+      "targetName": "BA_Dash 100"
+    },
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "ACAD_ISO03*",
+      "isRegex": false,
+      "targetName": "BA_03_DashedSpacedLine"
+    },
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "ACAD_ISO04*",
+      "isRegex": false,
+      "targetName": "BA_Dash dot 100"
+    },
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "ACAD_ISO05*",
+      "isRegex": false,
+      "targetName": "BA_05_Long-dashedDouble-dottedLine"
+    },
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "ACAD_ISO06*",
+      "isRegex": false,
+      "targetName": "BA_06_Long-dashedTriplicate-dottedLine"
+    },
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "ACAD_ISO07*",
+      "isRegex": false,
+      "targetName": "BA_Dot 50"
+    },
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "CENTER*",
+      "isRegex": false,
+      "targetName": "BA_04_Long-dashedDottedLine"
+    },
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "HIDDEN*",
+      "isRegex": false,
+      "targetName": "BA_02_DasheLine"
+    },
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "PHANTOM*",
+      "isRegex": false,
+      "targetName": "BA_Dash dot dot 100"
+    },
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "DASHDOT*",
+      "isRegex": false,
+      "targetName": "BA_Dash dot 100"
+    },
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "DASHED*",
+      "isRegex": false,
+      "targetName": "BA_Dash 100"
+    },
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "DOT*",
+      "isRegex": false,
+      "targetName": "BA_Dot 50"
+    },
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "DIVIDE*",
+      "isRegex": false,
+      "targetName": "BA_Dash dot dot 100"
+    },
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "BORDER*",
+      "isRegex": false,
+      "targetName": "BA_11_Double-dashedDottedLine"
+    },
+
+    // ---- LinePattern rules: real IMPORT- names from your Slovak-language AutoCAD sources ----
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "IMPORT-BA_04_Long-dashedDottedLine",
+      "isRegex": false,
+      "targetName": "BA_04_Long-dashedDottedLine"
+    },
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "*Bodko-čiarkovaná*",
+      "isRegex": false,
+      "targetName": "BA_Dash dot 100"
+    },
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "*Bodkovaná*",
+      "isRegex": false,
+      "targetName": "BA_Dot 50"
+    },
+    {
+      "itemType": "LinePattern",
+      "sourceNamePattern": "*Čiarkovaná*",
+      "isRegex": false,
+      "targetName": "BA_Dash 100"
+    }
+
+    // ---- TextStyle rules ----
+    // Still none. Send me the Text Note Types equivalent of your line pattern screenshots and I
+    // will fill this section the same way.
+  ]
+}

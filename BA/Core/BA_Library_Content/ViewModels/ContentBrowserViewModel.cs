@@ -59,13 +59,12 @@ namespace BA.UI.ContentBrowser
         public ObservableCollection<string> Categories { get; } = new();
         public ObservableCollection<string> Roots { get; } = new();
 
-        public RelayCommand RefreshIndexCommand { get; }
-        public RelayCommand LoadSelectedCommand { get; }
-        public RelayCommand LoadAndPlaceCommand { get; }
-        public RelayCommand ToggleFavoriteCommand { get; }
-        public RelayCommand OpenFolderCommand { get; }
-        public RelayCommand ExportPreviewCommand { get; }
-
+        public BA.UI.Mvvm.RelayCommand RefreshIndexCommand { get; }
+        public BA.UI.Mvvm.RelayCommand LoadSelectedCommand { get; }
+        public BA.UI.Mvvm.RelayCommand LoadAndPlaceCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ToggleFavoriteCommand { get; }
+        public BA.UI.Mvvm.RelayCommand OpenFolderCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ExportPreviewCommand { get; }
         public ContentBrowserViewModel(
             ContentIndexService indexService,
             ContentSearchService searchService,
@@ -79,12 +78,12 @@ namespace BA.UI.ContentBrowser
             _recentService = recentService ?? throw new ArgumentNullException(nameof(recentService));
             _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
 
-            RefreshIndexCommand = new RelayCommand(_ => RefreshIndex());
-            LoadSelectedCommand = new RelayCommand(_ => LoadSelected(false), _ => SelectedItem != null && !_previewRunning && !_loadRunning);
-            LoadAndPlaceCommand = new RelayCommand(_ => LoadSelected(true), _ => SelectedItem != null && !_previewRunning && !_loadRunning);
-            ToggleFavoriteCommand = new RelayCommand(_ => ToggleFavorite(), _ => SelectedItem != null);
-            OpenFolderCommand = new RelayCommand(_ => OpenFolder(), _ => SelectedItem != null);
-            ExportPreviewCommand = new RelayCommand(_ => ExportPreview(), _ => SelectedItem != null && !_previewRunning && !_loadRunning);
+            RefreshIndexCommand = new BA.UI.Mvvm.RelayCommand(_ => RefreshIndex());
+            LoadSelectedCommand = new BA.UI.Mvvm.RelayCommand(_ => LoadSelected(false), _ => SelectedItem != null && !_previewRunning && !_loadRunning);
+            LoadAndPlaceCommand = new BA.UI.Mvvm.RelayCommand(_ => LoadSelected(true), _ => SelectedItem != null && !_previewRunning && !_loadRunning);
+            ToggleFavoriteCommand = new BA.UI.Mvvm.RelayCommand(_ => ToggleFavorite(), _ => SelectedItem != null);
+            OpenFolderCommand = new BA.UI.Mvvm.RelayCommand(_ => OpenFolder(), _ => SelectedItem != null);
+            ExportPreviewCommand = new BA.UI.Mvvm.RelayCommand(_ => ExportPreview(), _ => !_previewRunning && !_loadRunning);
 
             LoadInitial();
             RebuildTree();

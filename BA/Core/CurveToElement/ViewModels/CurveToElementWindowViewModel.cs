@@ -6,7 +6,6 @@ using BA.BAApplication;
 using BA.Core.CurveToElement.Infrastructure;
 using BA.Core.CurveToElement.Models;
 using BA.Core.CurveToElement.Services;
-using BA.Core.Mvvm;
 using BA.UI.Mvvm;
 using System;
 using System.Collections.Generic;
@@ -72,8 +71,8 @@ namespace BA.ViewModels.CurveToElement
 
             _previewHandler.ResultReady += OnPreviewResultReady;
 
-            GenerateCommand = new BA.Core.Mvvm.RelayCommand(ExecuteGenerate, CanExecuteGenerate);
-            CancelCommand = new BA.Core.Mvvm.RelayCommand(ExecuteCancel);
+            GenerateCommand = new BA.UI.Mvvm.RelayCommand(_ => ExecuteGenerate (), _ => CanExecuteGenerate());
+            CancelCommand = new BA.UI.Mvvm.RelayCommand(_ => ExecuteCancel());
         }
 
         /// <summary>

@@ -150,17 +150,17 @@ namespace BA.ViewModels.Export
             private set => SetProperty(ref _isBusy, value);
         }
 
-        public BA.Core.Mvvm.RelayCommand BrowseOutputFolderCommand { get; }
-        public BA.Core.Mvvm.RelayCommand SelectAllCommand { get; }
-        public BA.Core.Mvvm.RelayCommand SelectNoneCommand { get; }
-        public BA.Core.Mvvm.RelayCommand RunExportCommand { get; }
+        public BA.UI.Mvvm.RelayCommand BrowseOutputFolderCommand { get; }
+        public BA.UI.Mvvm.RelayCommand SelectAllCommand { get; }
+        public BA.UI.Mvvm.RelayCommand SelectNoneCommand { get; }
+        public BA.UI.Mvvm.RelayCommand RunExportCommand { get; }
 
         public FamilyExportViewModel()
         {
-            BrowseOutputFolderCommand = new BA.Core.Mvvm.RelayCommand(_ => BrowseOutputFolder());
-            SelectAllCommand = new BA.Core.Mvvm.RelayCommand(_ => SetAllSelected(true));
-            SelectNoneCommand = new BA.Core.Mvvm.RelayCommand(_ => SetAllSelected(false));
-            RunExportCommand = new BA.Core.Mvvm.RelayCommand(_ => RunExport());
+            BrowseOutputFolderCommand = new BA.UI.Mvvm.RelayCommand(_ => BrowseOutputFolder());
+            SelectAllCommand = new BA.UI.Mvvm.RelayCommand(_ => SetAllSelected(true));
+            SelectNoneCommand = new BA.UI.Mvvm.RelayCommand(_ => SetAllSelected(false));
+            RunExportCommand = new BA.UI.Mvvm.RelayCommand(_ => RunExport());
 
             LoadFamilies();
         }

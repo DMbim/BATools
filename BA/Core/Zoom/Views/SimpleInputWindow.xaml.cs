@@ -1,6 +1,6 @@
 ﻿using System.Windows;
 
-namespace BATools.Zoom.Views
+namespace BA.Zoom.Views
 {
     public partial class SimpleInputWindow : Window
     {

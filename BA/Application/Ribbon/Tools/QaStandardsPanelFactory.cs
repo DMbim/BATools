@@ -1,5 +1,6 @@
 ﻿// FILE: BA_Tools/BAApplication/Ribbon/QaStandardsPanelFactory.cs
 using Autodesk.Revit.UI;
+using BA.CadPurge.Commands;
 using BA.Classification;
 using BA.Commands;
 using BA.Commands.Management;
@@ -70,6 +71,10 @@ namespace BA.BAApplication.Ribbon
                 "Remove all graphic overrides applied by Change Monitor.",
                 IconResources.ChangeMonitorClear16, IconResources.ChangeMonitorClear32);
             #endregion
+            panel.AddPushButton<CadPurgeCommand>(
+                "CadPurge", "CAD\nPurge",
+                "Remove unused CAD imports and linked CAD files.",
+                IconResources.CADPurge16, IconResources.CADPurge32);  
         }
     }
 }

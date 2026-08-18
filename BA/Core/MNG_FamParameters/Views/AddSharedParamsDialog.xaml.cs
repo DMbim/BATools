@@ -2,6 +2,7 @@
 using Autodesk.Revit.UI;
 using BA.UI;
 using BA.Core;
+using BA.Core.Parameters;
 using Newtonsoft.Json;
 using Nice3point.Revit.Extensions;
 using System;
@@ -13,6 +14,7 @@ using System.Windows.Controls;
 using System.Xml;
 using MessageBox = System.Windows.MessageBox;
 using Formatting = Newtonsoft.Json.Formatting;
+using BA.UI.Parameters;
 
 namespace BA.UI
 {

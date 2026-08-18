@@ -62,14 +62,14 @@ namespace BA.Markup.ViewModels
             _selectedGroupField = GroupFields.Count > 0 ? GroupFields[0] : string.Empty;
 
             // Build commands before calling RebuildView.
-            RefreshCommand = new BA.Core.Mvvm.RelayCommand(_ => ExecuteRefresh());
-            EditCommand = new BA.Core.Mvvm.RelayCommand(_ => ExecuteEdit(),
+            RefreshCommand = new BA.UI.Mvvm.RelayCommand(_ => ExecuteRefresh());
+            EditCommand = new BA.UI.Mvvm.RelayCommand(_ => ExecuteEdit(),
                                     _ => SelectedRevision != null);
-            NewCommand = new BA.Core.Mvvm.RelayCommand(_ => ExecuteNew());
-            SaveCommand = new BA.Core.Mvvm.RelayCommand(_ => ExecuteSave(),
+            NewCommand = new BA.UI.Mvvm.RelayCommand(_ => ExecuteNew());
+            SaveCommand = new BA.UI.Mvvm.RelayCommand(_ => ExecuteSave(),
                                     _ => EditorViewModel?.CanSave == true);
-            CancelEditCommand = new BA.Core.Mvvm.RelayCommand(_ => ExecuteCancelEdit());
-            SelectCommand = new BA.Core.Mvvm.RelayCommand(_ => ExecuteSelect(),
+            CancelEditCommand = new BA.UI.Mvvm.RelayCommand(_ => ExecuteCancelEdit());
+            SelectCommand = new BA.UI.Mvvm.RelayCommand(_ => ExecuteSelect(),
                                     _ => SelectedRevision != null);
 
             RebuildView();
@@ -367,10 +367,10 @@ namespace BA.Markup.ViewModels
 
         private void RaiseCommandsCanExecuteChanged()
         {
-            ((BA.Core.Mvvm.RelayCommand)EditCommand).RaiseCanExecuteChanged();
-            ((BA.Core.Mvvm.RelayCommand)NewCommand).RaiseCanExecuteChanged();
-            ((BA.Core.Mvvm.RelayCommand)SelectCommand).RaiseCanExecuteChanged();
-            ((BA.Core.Mvvm.RelayCommand)SaveCommand).RaiseCanExecuteChanged();
+            ((BA.UI.Mvvm.RelayCommand)EditCommand).RaiseCanExecuteChanged();
+            ((BA.UI.Mvvm.RelayCommand)NewCommand).RaiseCanExecuteChanged();
+            ((BA.UI.Mvvm.RelayCommand)SelectCommand).RaiseCanExecuteChanged();
+            ((BA.UI.Mvvm.RelayCommand)SaveCommand).RaiseCanExecuteChanged();
         }
 
         // ------------------------------------------------------------------ //

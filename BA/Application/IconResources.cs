@@ -161,5 +161,10 @@ namespace BA.BAApplication
         public const string RoomCl_32 = "/BA;component/Application/Resources/Icons32/RoomCl_32.png";
         public const string tags16 = "/BA;component/Application/Resources/Icons16/tags16.png";
         public const string ta16 = "/BA;component/Application/Resources/Icons16/ta16.png";
+        public const string ta32 = "/BA;component/Application/Resources/Icons32/ta32.png";
+        public const string CADPurge16 = "/BA;component/Application/Resources/Icons16/CADPurge16.png";
+        public const string CADPurge32 = "/BA;component/Application/Resources/Icons32/CADPurge32.png";
+        public const string Warn16 = "/BA;component/Application/Resources/Icons16/Warn16.png";
+        public const string Warn32 = "/BA;component/Application/Resources/Icons32/Warn32.png";  
     }
 }

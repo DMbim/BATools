@@ -461,13 +461,13 @@ namespace BA.ViewModels.Export
 
         // ---- Commands ----
 
-        public BA.Core.Mvvm.RelayCommand PreviewCommand { get; }
-        public BA.Core.Mvvm.RelayCommand RunNowCommand { get; }
-        public BA.Core.Mvvm.RelayCommand PickSheetsCommand { get; }
-        public BA.Core.Mvvm.RelayCommand PickViewsCommand { get; }
-        public BA.Core.Mvvm.RelayCommand EditNamingCommand { get; }
-        public BA.Core.Mvvm.RelayCommand BrowseOutputFolderCommand { get; }
-        public BA.Core.Mvvm.RelayCommand RefreshPredefinedDwgSetupsCommand { get; }
+        public BA.UI.Mvvm.RelayCommand PreviewCommand { get; }
+        public BA.UI.Mvvm.RelayCommand RunNowCommand { get; }
+        public BA.UI.Mvvm.RelayCommand PickSheetsCommand { get; }
+        public BA.UI.Mvvm.RelayCommand PickViewsCommand { get; }
+        public BA.UI.Mvvm.RelayCommand EditNamingCommand { get; }
+        public BA.UI.Mvvm.RelayCommand BrowseOutputFolderCommand { get; }
+        public BA.UI.Mvvm.RelayCommand RefreshPredefinedDwgSetupsCommand { get; }
 
         public ExportJobEditorViewModel(ExportJobSettings model)
         {
@@ -517,13 +517,13 @@ namespace BA.ViewModels.Export
                     .Cast<DayOfWeek>()
                     .Select(d => new DayToggleViewModel(d) { IsSelected = model.ScheduledDays.Contains(d) }));
 
-            PreviewCommand = new BA.Core.Mvvm.RelayCommand(_ => RunPreview());
-            RunNowCommand = new BA.Core.Mvvm.RelayCommand(_ => RunNow());
-            PickSheetsCommand = new BA.Core.Mvvm.RelayCommand(_ => PickSheets());
-            PickViewsCommand = new BA.Core.Mvvm.RelayCommand(_ => PickViews());
-            EditNamingCommand = new BA.Core.Mvvm.RelayCommand(_ => EditNaming());
-            BrowseOutputFolderCommand = new BA.Core.Mvvm.RelayCommand(_ => BrowseOutputFolder());
-            RefreshPredefinedDwgSetupsCommand = new BA.Core.Mvvm.RelayCommand(_ => LoadPredefinedDwgSetups());
+            PreviewCommand = new BA.UI.Mvvm.RelayCommand(_ => RunPreview());
+            RunNowCommand = new BA.UI.Mvvm.RelayCommand(_ => RunNow());
+            PickSheetsCommand = new BA.UI.Mvvm.RelayCommand(_ => PickSheets());
+            PickViewsCommand = new BA.UI.Mvvm.RelayCommand(_ => PickViews());
+            EditNamingCommand = new BA.UI.Mvvm.RelayCommand(_ => EditNaming());
+            BrowseOutputFolderCommand = new BA.UI.Mvvm.RelayCommand(_ => BrowseOutputFolder());
+            RefreshPredefinedDwgSetupsCommand = new BA.UI.Mvvm.RelayCommand(_ => LoadPredefinedDwgSetups());
 
             LoadPredefinedDwgSetups();
 

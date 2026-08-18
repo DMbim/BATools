@@ -27,6 +27,17 @@ namespace BA.Core.ViewFilters
             return list.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToArray();
         }
 
+        // Changed. No longer caps the sample scan. Some parameters, Wall's
+        // "Unconnected Height" being the case that surfaced this, are conditionally
+        // absent from Element.Parameters entirely depending on another parameter's
+        // value (Top Constraint must be "Unconnected" for Unconnected Height to
+        // even appear as a Parameter object, not just be read-only). If most
+        // instances in the model have their top constrained to a level, which is
+        // typical, a bounded sample can miss every instance where the parameter
+        // is actually present, even if such instances exist. Scanning the full
+        // category guarantees correctness. This runs once per category/parameter
+        // selection, not per element per frame, so the cost is acceptable even
+        // though it is no longer bounded. // <- CHANGED
         public static ParameterInfo[] GetFilterableParameters(Document doc, ElementId categoryId)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
@@ -41,40 +52,40 @@ namespace BA.Core.ViewFilters
             if (filterableParamIds == null || filterableParamIds.Count == 0)
                 return Array.Empty<ParameterInfo>();
 
-            Element sampleInstance = new FilteredElementCollector(doc)
+            var instances = new FilteredElementCollector(doc)
                 .OfCategoryId(categoryId)
                 .WhereElementIsNotElementType()
-                .FirstOrDefault();
+                .ToList();
 
-            Element sampleType = null;
-            if (sampleInstance != null)
-            {
-                var typeId = sampleInstance.GetTypeId();
-                if (typeId != null && typeId != ElementId.InvalidElementId)
-                    sampleType = doc.GetElement(typeId);
-            }
-            else
-            {
-                sampleType = new FilteredElementCollector(doc)
-                    .OfCategoryId(categoryId)
-                    .WhereElementIsElementType()
-                    .FirstOrDefault();
-            }
+            var types = new FilteredElementCollector(doc)
+                .OfCategoryId(categoryId)
+                .WhereElementIsElementType()
+                .ToList();
 
-            if (sampleInstance == null && sampleType == null)
+            if (instances.Count == 0 && types.Count == 0)
                 return Array.Empty<ParameterInfo>();
 
             var results = new List<ParameterInfo>();
 
             foreach (var paramId in filterableParamIds)
             {
+                Parameter found = null;
                 bool isInstance = true;
-                Parameter found = sampleInstance != null ? FindParameterById(sampleInstance, paramId) : null;
 
-                if (found == null && sampleType != null)
+                foreach (var inst in instances)
                 {
-                    found = FindParameterById(sampleType, paramId);
+                    found = FindParameterById(inst, paramId);
+                    if (found != null) break;
+                }
+
+                if (found == null)
+                {
                     isInstance = false;
+                    foreach (var typeElem in types)
+                    {
+                        found = FindParameterById(typeElem, paramId);
+                        if (found != null) break;
+                    }
                 }
 
                 if (found == null || found.Definition == null)
@@ -85,84 +96,8 @@ namespace BA.Core.ViewFilters
 
             return results.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToArray();
         }
-        // New. Multi-category counterpart to GetFilterableParameters, for the
-        // Super Selector tab. Instance/type resolution mirrors the single
-        // category version exactly: try to find the parameter on a sample
-        // instance first, fall back to a sample type. Built-in parameters are
-        // not present in doc.ParameterBindings, so which side an element
-        // exposes them on is the only reliable signal, same reasoning as the
-        // existing single category method. // <- NEW
-        public static ParameterInfo[] GetFilterableParametersForCategories(Document doc, ICollection<ElementId> categoryIds)
-        {
-            if (doc == null) throw new ArgumentNullException(nameof(doc));
-            if (categoryIds == null || categoryIds.Count == 0)
-                return Array.Empty<ParameterInfo>();
 
-            var filterableParamIds = ParameterFilterUtilities.GetFilterableParametersInCommon(doc, categoryIds);
-            if (filterableParamIds == null || filterableParamIds.Count == 0)
-                return Array.Empty<ParameterInfo>();
-
-            var sampleInstances = new List<Element>();
-            var sampleTypes = new List<Element>();
-
-            foreach (var catId in categoryIds)
-            {
-                var inst = new FilteredElementCollector(doc)
-                    .OfCategoryId(catId)
-                    .WhereElementIsNotElementType()
-                    .FirstOrDefault();
-                if (inst != null) sampleInstances.Add(inst);
-
-                Element type = null;
-                if (inst != null)
-                {
-                    var typeId = inst.GetTypeId();
-                    if (typeId != null && typeId != ElementId.InvalidElementId)
-                        type = doc.GetElement(typeId);
-                }
-                else
-                {
-                    type = new FilteredElementCollector(doc)
-                        .OfCategoryId(catId)
-                        .WhereElementIsElementType()
-                        .FirstOrDefault();
-                }
-                if (type != null) sampleTypes.Add(type);
-            }
-
-            if (sampleInstances.Count == 0 && sampleTypes.Count == 0)
-                return Array.Empty<ParameterInfo>();
-
-            var results = new List<ParameterInfo>();
-
-            foreach (var paramId in filterableParamIds)
-            {
-                bool isInstance = true;
-                Parameter found = null;
-
-                foreach (var el in sampleInstances)
-                {
-                    found = FindParameterById(el, paramId);
-                    if (found != null) break;
-                }
-
-                if (found == null)
-                {
-                    foreach (var el in sampleTypes)
-                    {
-                        found = FindParameterById(el, paramId);
-                        if (found != null) { isInstance = false; break; }
-                    }
-                }
-
-                if (found == null || found.Definition == null) continue;
-
-                results.Add(new ParameterInfo(paramId, found.Definition.Name, found.StorageType, isInstance));
-            }
-
-            return results.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToArray();
-        }
-        // New. Super Selector's own category and parameter enumeration.
+        // Super Selector's own category and parameter enumeration.
         // Deliberately does not use ParameterFilterUtilities, which scopes
         // itself to categories/parameters usable in a ParameterFilterElement
         // - a constraint Super Selector has no reason to inherit since it
@@ -182,17 +117,17 @@ namespace BA.Core.ViewFilters
 
                 // Deliberately does not filter on AllowsBoundParameters.
                 // That property means "can a shared/project parameter be
-                // bound here," not "is this a legitimate pick target" -
-                // Tag categories are false for it (they display values from
-                // the tagged element, not their own bound parameters) but
-                // are completely valid things to select. This was wrongly
-                // excluding them. // <- FIXED
+                // bound here," not "is this a legitimate pick target" - Tag
+                // categories are false for it (they display values from the
+                // tagged element, not their own bound parameters) but are
+                // completely valid pick targets.
                 list.Add(new CategoryInfo(cat.Id, cat.Name));
             }
 
             return list.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToArray();
         }
 
+        // New. // <- NEW
         public static ParameterInfo[] GetCommonParametersForCategories(Document doc, ICollection<ElementId> categoryIds)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
@@ -259,13 +194,18 @@ namespace BA.Core.ViewFilters
 
             return intersection.Values.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToArray();
         }
+
         public static List<(string Value, int Count)> DiscoverDistinctValues(
-            Document doc, ElementId categoryId, ParameterInfo parameterInfo)
+            Document doc, ElementId categoryId, ParameterInfo parameterInfo, ElementId viewId = null)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
             if (parameterInfo == null) throw new ArgumentNullException(nameof(parameterInfo));
 
-            var elements = new FilteredElementCollector(doc)
+            var collector = viewId != null
+                ? new FilteredElementCollector(doc, viewId)
+                : new FilteredElementCollector(doc);
+
+            var elements = collector
                 .OfCategoryId(categoryId)
                 .WhereElementIsNotElementType()
                 .ToElements();
@@ -292,8 +232,9 @@ namespace BA.Core.ViewFilters
                 .ToList();
         }
 
+        // Changed. Same viewId scoping as DiscoverDistinctValues, same reasoning. // <- CHANGED
         public static (double Min, double Max) DiscoverRangeExtent(
-            Document doc, ElementId categoryId, ParameterInfo parameterInfo)
+            Document doc, ElementId categoryId, ParameterInfo parameterInfo, ElementId viewId = null)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
             if (parameterInfo == null) throw new ArgumentNullException(nameof(parameterInfo));
@@ -302,7 +243,11 @@ namespace BA.Core.ViewFilters
                 throw new NotSupportedException(
                     $"Range extent discovery only supports Double or Integer parameters, not {parameterInfo.StorageType}.");
 
-            var elements = new FilteredElementCollector(doc)
+            var collector = viewId != null
+                ? new FilteredElementCollector(doc, viewId)
+                : new FilteredElementCollector(doc);
+
+            var elements = collector
                 .OfCategoryId(categoryId)
                 .WhereElementIsNotElementType()
                 .ToElements();
@@ -328,7 +273,8 @@ namespace BA.Core.ViewFilters
 
             if (!found)
                 throw new InvalidOperationException(
-                    $"No elements of this category have a value set for '{parameterInfo.Name}'.");
+                    $"No elements of this category have a value set for '{parameterInfo.Name}'" +
+                    (viewId != null ? " in the active view." : "."));
 
             return (min, max);
         }
@@ -450,9 +396,6 @@ namespace BA.Core.ViewFilters
             }
         }
 
-        // New. Every FillPatternElement in the document, regardless of
-        // drafting or model target. Callers, not this method, decide how to
-        // present a "use solid" default option. // <- NEW
         public static List<FillPatternInfo> GetAvailableFillPatterns(Document doc)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));

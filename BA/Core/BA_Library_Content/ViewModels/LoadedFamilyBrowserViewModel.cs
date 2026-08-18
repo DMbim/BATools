@@ -41,7 +41,8 @@ namespace BA.UI.LoadedFamilyBrowser
         public bool SelectedNodePreviewMissing =>
     SelectedNode is not LoadedTypeNode typeNode || string.IsNullOrWhiteSpace(typeNode.PreviewPath);
         public ObservableCollection<LoadedCategoryNode> Categories { get; } = new();
-
+        public ObservableCollection<LoadedDisciplineTabNode> Tabs { get; } = new();
+        public BA.UI.Mvvm.RelayCommand GeneratePreviewCommand { get; }
         public string SearchText
         {
             get => _searchText;
@@ -91,16 +92,15 @@ namespace BA.UI.LoadedFamilyBrowser
         }
 
         public bool ProjectFavoritesAvailable => _favoritesService.ProjectScopeAvailable;
-        public bool SelectedNodePreviewMissing =>
-    SelectedNode is not LoadedTypeNode typeNode || string.IsNullOrWhiteSpace(typeNode.PreviewPath);
 
-        public BA.Core.Mvvm.RelayCommand RefreshCommand { get; }
-        public BA.Core.Mvvm.RelayCommand RenameCommand { get; }
-        public BA.Core.Mvvm.RelayCommand PurgeCheckedCommand { get; }
-        public BA.Core.Mvvm.RelayCommand ToggleUserFavoriteCommand { get; }
-        public BA.Core.Mvvm.RelayCommand ToggleProjectFavoriteCommand { get; }
-        public BA.Core.Mvvm.RelayCommand EditParametersCommand { get; }
-        public BA.Core.Mvvm.RelayCommand OpenSettingsCommand { get; }
+        public BA.UI.Mvvm.RelayCommand SelectInModelCommand { get; }
+        public BA.UI.Mvvm.RelayCommand RefreshCommand { get; }
+        public BA.UI.Mvvm.RelayCommand RenameCommand { get; }
+        public BA.UI.Mvvm.RelayCommand PurgeCheckedCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ToggleUserFavoriteCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ToggleProjectFavoriteCommand { get; }
+        public BA.UI.Mvvm.RelayCommand EditParametersCommand { get; }
+        public BA.UI.Mvvm.RelayCommand OpenSettingsCommand { get; }
 
         public LoadedFamilyBrowserViewModel(
             UIApplication uiApp,
@@ -134,17 +134,75 @@ namespace BA.UI.LoadedFamilyBrowser
 
             _revitApplication.DocumentChanged += OnDocumentChanged;
 
-            RefreshCommand = new BA.Core.Mvvm.RelayCommand(_ => Refresh(), _ => !IsBusy);
-            RenameCommand = new BA.Core.Mvvm.RelayCommand(_ => Rename(), _ => !IsBusy && CanRename());
-            PurgeCheckedCommand = new BA.Core.Mvvm.RelayCommand(_ => PurgeChecked(), _ => !IsBusy && GetCheckedTargets().Count > 0);
-            ToggleUserFavoriteCommand = new BA.Core.Mvvm.RelayCommand(_ => ToggleFavorite(FavoriteScope.User), _ => SelectedNode is LoadedTypeNode);
-            ToggleProjectFavoriteCommand = new BA.Core.Mvvm.RelayCommand(_ => ToggleFavorite(FavoriteScope.Project), _ => SelectedNode is LoadedTypeNode && ProjectFavoritesAvailable);
-            EditParametersCommand = new BA.Core.Mvvm.RelayCommand(_ => EditParameters(), _ => !IsBusy && SelectedNode is LoadedTypeNode);
-            OpenSettingsCommand = new BA.Core.Mvvm.RelayCommand(_ => OpenSettings());
-
+            RefreshCommand = new BA.UI.Mvvm.RelayCommand(_ => Refresh(), _ => !IsBusy);
+            RenameCommand = new BA.UI.Mvvm.RelayCommand(_ => Rename(), _ => !IsBusy && CanRename());
+            PurgeCheckedCommand = new BA.UI.Mvvm.RelayCommand(_ => PurgeChecked(), _ => !IsBusy && GetCheckedTargets().Count > 0);
+            ToggleUserFavoriteCommand = new BA.UI.Mvvm.RelayCommand(_ => ToggleFavorite(FavoriteScope.User), _ => SelectedNode is LoadedTypeNode);
+            ToggleProjectFavoriteCommand = new BA.UI.Mvvm.RelayCommand(_ => ToggleFavorite(FavoriteScope.Project), _ => SelectedNode is LoadedTypeNode && ProjectFavoritesAvailable);
+            EditParametersCommand = new BA.UI.Mvvm.RelayCommand(_ => EditParameters(), _ => !IsBusy && SelectedNode is LoadedTypeNode);
+            OpenSettingsCommand = new BA.UI.Mvvm.RelayCommand(_ => OpenSettings());
+            SelectInModelCommand = new BA.UI.Mvvm.RelayCommand(_ => SelectInModel(), _ => SelectedNode is LoadedTypeNode);
+            GeneratePreviewCommand = new BA.UI.Mvvm.RelayCommand(_ => GeneratePreview(), _ => !IsBusy && SelectedNode is LoadedTypeNode);
             Refresh();
         }
+        private void GeneratePreview()
+        {
+            if (SelectedNode is not LoadedTypeNode typeNode)
+                return;
 
+            IsBusy = true;
+            StatusMessage = "Generating preview...";
+
+            string cacheKey = LoadedFamilyFavoritesService.BuildKey(typeNode.ParentFamilyName, typeNode.Name)
+                .Replace(':', '_');
+
+            AppExternalInvoker.Instance.Run(
+                uiApp => LoadedFamilyPreviewExportService.ExportPreview(_document, typeNode.TypeId, cacheKey),
+                onCompleted: path =>
+                {
+                    IsBusy = false;
+                    StatusMessage = string.Empty;
+                    typeNode.PreviewPath = path;
+                    OnPropertyChanged(nameof(SelectedNodePreviewMissing));
+                },
+                onError: HandleUnexpectedError);
+        }
+        private void SelectInModel()
+        {
+            if (SelectedNode is not LoadedTypeNode typeNode)
+                return;
+
+            AppExternalInvoker.Instance.Run(
+                uiApp =>
+                {
+                    var instanceIds = new List<ElementId>();
+
+                    if (_document.GetElement(typeNode.TypeId) is ElementType elementType && elementType.Category != null)
+                    {
+                        var collector = new FilteredElementCollector(_document)
+                            .OfCategoryId(elementType.Category.Id)
+                            .WhereElementIsNotElementType();
+
+                        foreach (Element instance in collector)
+                        {
+                            if (instance.GetTypeId() == typeNode.TypeId)
+                                instanceIds.Add(instance.Id);
+                        }
+                    }
+
+                    if (instanceIds.Count > 0)
+                        uiApp.ActiveUIDocument.Selection.SetElementIds(instanceIds);
+
+                    return instanceIds.Count;
+                },
+                onCompleted: count =>
+                {
+                    StatusMessage = count == 0
+                        ? $"No placed instances of '{typeNode.Name}' found."
+                        : $"Selected {count} instance(s) of '{typeNode.Name}' in the model.";
+                },
+                onError: HandleUnexpectedError);
+        }
         private void OnDocumentChanged(object? sender, Autodesk.Revit.DB.Events.DocumentChangedEventArgs e)
         {
             if (e.GetDocument().Title != _document.Title)
@@ -166,14 +224,19 @@ namespace BA.UI.LoadedFamilyBrowser
             StatusMessage = "Refreshing loaded families...";
 
             AppExternalInvoker.Instance.Run(
-                uiApp => LoadedFamilyTreeBuilder.Build(_document, _settings),
-                onCompleted: tree =>
+                uiApp => LoadedFamilyTreeBuilder.BuildGrouped(_document, _settings),
+                onCompleted: tabs =>
                 {
-                    Categories.Clear();
-                    foreach (var category in tree)
+                    Tabs.Clear();
+                    foreach (var tab in tabs)
                     {
-                        ApplyFavoritesAndPreviews(category);
-                        Categories.Add(category);
+                        foreach (var subgroup in tab.Subgroups)
+                        {
+                            foreach (var category in subgroup.Categories)
+                                ApplyFavoritesAndPreviews(category);
+                        }
+
+                        Tabs.Add(tab);
                     }
 
                     IsBusy = false;
@@ -216,33 +279,39 @@ namespace BA.UI.LoadedFamilyBrowser
         {
             string search = SearchText?.Trim().ToLowerInvariant() ?? string.Empty;
 
-            foreach (var category in Categories)
+            foreach (var tab in Tabs)
             {
-                bool categoryHasVisible = false;
-
-                foreach (var family in category.Families)
+                foreach (var subgroup in tab.Subgroups)
                 {
-                    bool familyHasVisible = false;
-
-                    foreach (var type in family.Types)
+                    foreach (var category in subgroup.Categories)
                     {
-                        bool matchesSearch = string.IsNullOrEmpty(search)
-                            || type.Name.ToLowerInvariant().Contains(search)
-                            || family.Name.ToLowerInvariant().Contains(search);
+                        bool categoryHasVisible = false;
 
-                        bool matchesFavorites = !FavoritesOnly || type.IsFavorite;
+                        foreach (var family in category.Families)
+                        {
+                            bool familyHasVisible = false;
 
-                        bool visible = matchesSearch && matchesFavorites;
-                        type.IsVisible = visible;
+                            foreach (var type in family.Types)
+                            {
+                                bool matchesSearch = string.IsNullOrEmpty(search)
+                                    || type.Name.ToLowerInvariant().Contains(search)
+                                    || family.Name.ToLowerInvariant().Contains(search);
 
-                        familyHasVisible |= visible;
+                                bool matchesFavorites = !FavoritesOnly || type.IsFavorite;
+
+                                bool visible = matchesSearch && matchesFavorites;
+                                type.IsVisible = visible;
+
+                                familyHasVisible |= visible;
+                            }
+
+                            family.IsVisible = familyHasVisible;
+                            categoryHasVisible |= familyHasVisible;
+                        }
+
+                        category.IsVisible = categoryHasVisible;
                     }
-
-                    family.IsVisible = familyHasVisible;
-                    categoryHasVisible |= familyHasVisible;
                 }
-
-                category.IsVisible = categoryHasVisible;
             }
         }
 
@@ -316,28 +385,34 @@ namespace BA.UI.LoadedFamilyBrowser
         {
             var targets = new List<ElementId>();
 
-            foreach (var category in Categories)
+            foreach (var tab in Tabs)
             {
-                foreach (var family in category.Families)
+                foreach (var subgroup in tab.Subgroups)
                 {
-                    bool allTypesChecked = family.Types.Count > 0 && family.Types.All(t => t.IsChecked);
-
-                    if (allTypesChecked)
+                    foreach (var category in subgroup.Categories)
                     {
-                        // Whole family checked: target the Family element,
-                        // which removes every type under it in one delete.
-                        targets.Add(family.FamilyId);
-                        continue;
-                    }
+                        foreach (var family in category.Families)
+                        {
+                            bool allTypesChecked = family.Types.Count > 0 && family.Types.All(t => t.IsChecked);
 
-                    foreach (var type in family.Types.Where(t => t.IsChecked))
-                        targets.Add(type.TypeId);
+                            // Synthetic system-family nodes (FamilyId == InvalidElementId)
+                            // have no real Family element to target as a whole; always
+                            // resolve to individual checked types for those.
+                            if (allTypesChecked && family.FamilyId != ElementId.InvalidElementId)
+                            {
+                                targets.Add(family.FamilyId);
+                                continue;
+                            }
+
+                            foreach (var type in family.Types.Where(t => t.IsChecked))
+                                targets.Add(type.TypeId);
+                        }
+                    }
                 }
             }
 
             return targets;
         }
-
         private void PurgeChecked()
         {
             var targets = GetCheckedTargets();
@@ -439,7 +514,13 @@ namespace BA.UI.LoadedFamilyBrowser
 
         private void OpenSettings()
         {
-            var knownCategories = Categories.Select(c => c.Name).ToList();
+            var knownCategories = Tabs
+                .SelectMany(t => t.Subgroups)
+                .SelectMany(s => s.Categories)
+                .Select(c => c.Name)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
             var settingsWindow = new LoadedFamilyBrowserSettingsWindow(
                 knownCategories, _settingsService, _settings, _ownerHandle);
 
@@ -455,7 +536,6 @@ namespace BA.UI.LoadedFamilyBrowser
             StatusMessage = $"Error: {ex.Message}";
             AppLogger.LogError(nameof(LoadedFamilyBrowserViewModel), ex);
         }
-
         private void RaiseCommandsChanged()
         {
             RenameCommand.RaiseCanExecuteChanged();
@@ -463,6 +543,8 @@ namespace BA.UI.LoadedFamilyBrowser
             ToggleUserFavoriteCommand.RaiseCanExecuteChanged();
             ToggleProjectFavoriteCommand.RaiseCanExecuteChanged();
             EditParametersCommand.RaiseCanExecuteChanged();
+            GeneratePreviewCommand.RaiseCanExecuteChanged();
+            SelectInModelCommand.RaiseCanExecuteChanged();
         }
 
         public void Dispose()

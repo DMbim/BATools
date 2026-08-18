@@ -2,7 +2,7 @@
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 
-namespace BATools.Zoom.Helpers
+namespace BA.Zoom.Helpers
 {
     /// <summary>
     /// Pure XY geometry operations for zoom rectangle computation.

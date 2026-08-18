@@ -7,8 +7,11 @@
 		<Configurations>;Debug R26</Configurations>
 		<Configurations>$(Configurations);Release R26</Configurations>
 		<RootNamespace>BA.UI</RootNamespace>
-	</PropertyGroup>
 
+	</PropertyGroup>
+	<PropertyGroup>
+		<UseWindowsForms>true</UseWindowsForms>
+	</PropertyGroup>
 	<PropertyGroup Condition="$(Configuration.Contains('R26'))">
 		<RevitVersion>2026</RevitVersion>
 		<TargetFramework>net8.0-windows</TargetFramework>
@@ -28,11 +31,15 @@
 			<Private>False</Private>
 		</Reference>
 	</ItemGroup>
-
+	<ItemGroup>
+	  <Reference Include="AdWindows">
+		<HintPath>C:\Program Files\Autodesk\Revit 2026\AdWindows.dll</HintPath>
+		<Private>False</Private>
+	  </Reference>
+	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="Clipper2" Version="2.0.0" />
 		<PackageReference Include="ClosedXML" Version="0.105.0" />
-		<PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4129.50" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
 		<PackageReference Include="Nice3point.Revit.Build.Tasks" Version="3.0.1" />
 		<PackageReference Include="Nice3point.Revit.Toolkit" Version="$(RevitVersion).*" />
@@ -40,6 +47,7 @@
 		<PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" />
 		<PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" />
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+		<PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4129.50" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -50,6 +58,10 @@
 		<Compile Remove="Commands\Anno\Cmd_UpdateKeyplansOnSheets.CS" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<Using Remove="System.Windows.Forms" />
+		<Using Remove="System.Drawing" />
+	</ItemGroup>
 	<ItemGroup>
 		<EmbeddedResource Remove="Keyplan\New\**" />
 		<EmbeddedResource Remove="Keyplan\Update\**" />
@@ -78,6 +90,7 @@
 	  <None Remove="Application\Resources\Icons16\AxistoRoom_Local16.png" />
 	  <None Remove="Application\Resources\Icons16\BIM16.png" />
 	  <None Remove="Application\Resources\Icons16\brws_16.png" />
+	  <None Remove="Application\Resources\Icons16\CADPurge16.png" />
 	  <None Remove="Application\Resources\Icons16\ChangeMonitor16.png" />
 	  <None Remove="Application\Resources\Icons16\ChangeMonitorClear16.png" />
 	  <None Remove="Application\Resources\Icons16\ChangeMonitorLive16.png" />
@@ -157,6 +170,7 @@
 	  <None Remove="Application\Resources\Icons16\UnhideAllElements16.png" />
 	  <None Remove="Application\Resources\Icons16\UnhideAllElements_16.png" />
 	  <None Remove="Application\Resources\Icons16\use16.png" />
+	  <None Remove="Application\Resources\Icons16\Warn16.png" />
 	  <None Remove="Application\Resources\Icons16\Zoom16.png" />
 	  <None Remove="Application\Resources\Icons16\ZoomE16.png" />
 	  <None Remove="Application\Resources\Icons16\ZoomL16.png" />
@@ -176,6 +190,7 @@
 	  <None Remove="Application\Resources\Icons32\AxisToRoo_Local32.png" />
 	  <None Remove="Application\Resources\Icons32\BIM32.png" />
 	  <None Remove="Application\Resources\Icons32\brws_32.png" />
+	  <None Remove="Application\Resources\Icons32\CADPurge32.png" />
 	  <None Remove="Application\Resources\Icons32\ChangeMonitor32.png" />
 	  <None Remove="Application\Resources\Icons32\ChangeMonitorClear32.png" />
 	  <None Remove="Application\Resources\Icons32\ChangeMonitorLive32.png" />
@@ -268,6 +283,7 @@
 	  <None Remove="Application\Resources\Icons32\UnhideAllElements32.png" />
 	  <None Remove="Application\Resources\Icons32\UnhideAllElements_32.png" />
 	  <None Remove="Application\Resources\Icons32\use32.png" />
+	  <None Remove="Application\Resources\Icons32\Warn32.png" />
 	  <None Remove="Application\Resources\Icons32\Zoom32.png" />
 	  <None Remove="Application\Resources\Icons32\ZoomE32.png" />
 	  <None Remove="Application\Resources\Icons32\ZoomL32.png" />
@@ -296,13 +312,8 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>
-	<PropertyGroup>
-		<UseWindowsForms>true</UseWindowsForms>
-	</PropertyGroup>
-	<ItemGroup>
-		<Using Remove="System.Windows.Forms" />
-		<Using Remove="System.Drawing" />
-	</ItemGroup>
+
+
 	
 	
 	<ItemGroup>
@@ -314,12 +325,31 @@
 	</ItemGroup>
 	
 	<ItemGroup>
+		<Folder Include="Core\AA_Folders\ExternalEvents\" />
+		<Folder Include="Core\AA_Folders\Infrastructure\" />
+		<Folder Include="Core\AA_Folders\Models\" />
+		<Folder Include="Core\AA_Folders\Services\" />
+		<Folder Include="Core\AA_Folders\Utilities\" />
+		<Folder Include="Core\AA_Folders\ViewModels\" />
+		<Folder Include="Core\AA_Folders\Views\" />
+		<Folder Include="Core\AutoAnnotate\Utilities\" />
 		<Folder Include="Core\BIM\Overhead\" />
-		<Folder Include="Core\MATERIALS\REsources\" />
+		<Folder Include="Core\CAD Purge\ExternalEvents\" />
+		<Folder Include="Core\CAD Purge\Infrastructure\" />
+		<Folder Include="Core\CAD Purge\Utilities\" />
+		<Folder Include="Core\GhostMarkup\ExternalEvents\" />
+		<Folder Include="Core\GhostMarkup\Models\" />
+		<Folder Include="Core\GhostMarkup\Services\" />
+		<Folder Include="Core\GhostMarkup\Utilities\" />
+		<Folder Include="Core\GhostMarkup\ViewModels\" />
+		<Folder Include="Core\GhostMarkup\Views\" />
+		<Folder Include="Core\Warnings\Infrastructure\" />
+		<Folder Include="Core\Warnings\Services\" />
+		<Folder Include="Core\Warnings\Utilities\" />
 		<Folder Include="Models" />
 		<Folder Include="NewFolder\" />
-		<Folder Include="UI\ContentBrowser\" />
-		<Folder Include="UI\ExternalEvents\" />
+		<Folder Include="UI\STandards\" />
+		<Folder Include="UI\Views\" />
 		<Folder Include="ViewModels\" />
 	</ItemGroup>
 
@@ -352,6 +382,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\brws_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\CADPurge16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\ChangeMonitor16.png">
@@ -585,6 +618,9 @@
 	  <Resource Include="Application\Resources\Icons16\use16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\Warn16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\Zoom16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -631,6 +667,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\brws_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\CADPurge32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\ChangeMonitor32.png">
@@ -859,6 +898,9 @@
 	  <Resource Include="Application\Resources\Icons32\use32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\Warn32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\Zoom32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -880,6 +922,12 @@
 		<Compile Update="Application\Ribbon\Core\RibbonExtensions.cs">
 			<Generator>MSBuild:Compile</Generator>
 		</Compile>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="Core\CAD Purge\Config\corporate_standards.json">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </None>
 	</ItemGroup>
 
 </Project>

@@ -3,7 +3,6 @@ using BA.Core.Settings;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 
@@ -118,7 +117,7 @@ namespace BA.UI.Settings
         }
     }
 
-    public sealed class ToggleRow : INotifyPropertyChanged
+    public sealed class ToggleRow : BA.UI.Mvvm.ObservableObject
     {
         private bool _value;
 
@@ -130,6 +129,8 @@ namespace BA.UI.Settings
 
         public Func<bool> Getter { get; }
         public Action<bool> Setter { get; }
+
+        public BA.UI.Mvvm.RelayCommand ToggleCommand { get; }
 
         public ToggleRow(ToggleBinding binding, bool value)
         {
@@ -145,19 +146,14 @@ namespace BA.UI.Settings
             Setter = binding.Setter;
 
             _value = value;
+
+            ToggleCommand = new BA.UI.Mvvm.RelayCommand(() => Value = !Value);
         }
 
         public bool Value
         {
             get => _value;
-            set
-            {
-                if (_value == value) return;
-                _value = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Value)));
-            }
+            set => SetProperty(ref _value, value);
         }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

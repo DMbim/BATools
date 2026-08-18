@@ -10,7 +10,7 @@ using BA.Markup.Commands;
 using BA.Ribbon;
 using BA.UI.Commands.Anno;
 using BATools.Rooms.Commands;
-using BATools.Zoom.Commands;
+using BA.Zoom.Commands;
 using Nice3point.Revit.Extensions;
 
 namespace BA.BAApplication.Ribbon

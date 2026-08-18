@@ -37,9 +37,9 @@ namespace BA.Materials.UI
 
             FilteredAssets = new ObservableCollection<AssetLibraryEntry>();
 
-            LoadAssetsCommand = new BA.Core.Mvvm.RelayCommand(ExecuteLoadAssets, () => !IsBusy);
-            ToggleFavoriteCommand = new BA.Core.Mvvm.RelayCommand(ExecuteToggleFavorite, () => SelectedAsset != null);
-            ApplyCommand = new BA.Core.Mvvm.RelayCommand(ExecuteApply, () => !IsBusy && SelectedAsset != null);
+            LoadAssetsCommand = new BA.UI.Mvvm.RelayCommand(_ => ExecuteLoadAssets(), _ => !IsBusy);
+            ToggleFavoriteCommand = new BA.UI.Mvvm.RelayCommand(_ => ExecuteToggleFavorite(), _ => SelectedAsset != null);
+            ApplyCommand = new BA.UI.Mvvm.RelayCommand(_ => ExecuteApply(), _ => !IsBusy && SelectedAsset != null);
         }
 
         public ObservableCollection<AssetLibraryEntry> FilteredAssets { get; }
@@ -96,9 +96,9 @@ namespace BA.Materials.UI
         /// with DialogResult = true.</summary>
         public event Action ApplySucceeded;
 
-        public BA.Core.Mvvm.RelayCommand LoadAssetsCommand { get; }
-        public BA.Core.Mvvm.RelayCommand ToggleFavoriteCommand { get; }
-        public BA.Core.Mvvm.RelayCommand ApplyCommand { get; }
+        public BA.UI.Mvvm.RelayCommand LoadAssetsCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ToggleFavoriteCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ApplyCommand { get; }
 
         private void RaiseCommandsCanExecuteChanged()
         {

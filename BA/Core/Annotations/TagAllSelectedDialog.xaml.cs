@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
+using BA.BIM.Core.Annotations;
 using System.Windows.Controls;
 
 namespace BA.BIM.Commands.Anno

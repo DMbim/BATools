@@ -1,3 +1,4 @@
+// File: BA.Views/Converters/EnumHiddenVisibilityConverter.cs
 using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Markup;
@@ -5,7 +6,7 @@ using Visibility = System.Windows.Visibility;
 
 namespace BA.Views.Converters
 {
-    public class EnumVisibilityConverter<TEnum> : MarkupExtension, IValueConverter where TEnum : Enum
+    public class EnumHiddenVisibilityConverter<TEnum> : MarkupExtension, IValueConverter where TEnum : Enum
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {

@@ -3,9 +3,9 @@ using System.Linq;
 using System.Windows;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using BATools.Zoom.Settings;
+using BA.Zoom.Settings;
 
-namespace BATools.Zoom.Views
+namespace BA.Zoom.Views
 {
     public partial class ZoomToRoomSettingsWindow : Window
     {

@@ -103,9 +103,9 @@ namespace BA_Tools.ScheduleExporter.ViewModels
 
         // ─── Commands ──────────────────────────────────────────────────────────
 
-        public BA.Core.Mvvm.RelayCommand BrowseOutputFileCommand { get; }
-        public BA.Core.Mvvm.RelayCommand ExportCommand { get; }
-        public BA.Core.Mvvm.RelayCommand CancelCommand { get; }
+        public BA.UI.Mvvm.RelayCommand BrowseOutputFileCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ExportCommand { get; }
+        public BA.UI.Mvvm.RelayCommand CancelCommand { get; }
 
         // ─── Constructor ───────────────────────────────────────────────────────
 
@@ -130,9 +130,9 @@ namespace BA_Tools.ScheduleExporter.ViewModels
                 _selectedSchedule = activeSchedule;
             }
 
-            BrowseOutputFileCommand = new BA.Core.Mvvm.RelayCommand(_ => BrowseOutputFile());
-            ExportCommand = new BA.Core.Mvvm.RelayCommand(_ => Export(), _ => CanExport());
-            CancelCommand = new BA.Core.Mvvm.RelayCommand(_ => Cancel());
+            BrowseOutputFileCommand = new BA.UI.Mvvm.RelayCommand(_ => BrowseOutputFile());
+            ExportCommand = new BA.UI.Mvvm.RelayCommand(_ => Export(), _ => CanExport());
+            CancelCommand = new BA.UI.Mvvm.RelayCommand(_ => Cancel());
         }
 
         // ─── Command actions ───────────────────────────────────────────────────

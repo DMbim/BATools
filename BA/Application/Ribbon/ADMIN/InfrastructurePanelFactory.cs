@@ -2,6 +2,7 @@
 using Autodesk.Revit.UI;
 using BA.App.Settings;
 using BA.Commands;
+using BA.Commands.Diagnostics;
 using BA.Commands.Export;
 using BA.Commands.Management;
 using BA.Ribbon;
@@ -60,6 +61,16 @@ namespace BA.BAApplication.Ribbon
                 "ViewTemplateTransfer", "View Template\nTransfer",
                 "Transfer view templates from one view to another.",
                 IconResources.ViewTemplate16, IconResources.ViewTemplate32);
+
+            panel.AddPushButton<Cmd_OpenWarningsDashboard>(
+                  "OpenWarningsDashboard", "Warnings\nDashboard",
+                  "Open the Smart Warnings Dashboard to review, group, zoom to, and auto-resolve model warnings.",
+                  IconResources.Warn16, IconResources.Warn32);
+
+            panel.AddPushButton<Cmd_DiagnoseFailureDefinitions>(
+                  "DiagnoseFailureDefinitions", "Diagnose\nFailures",
+                  "Open the Diagnose Failure Definitions tool to analyze and resolve Revit failure definitions.",
+                  IconResources.Warn16, IconResources.Warn32);
 
         }
     }

@@ -112,19 +112,19 @@ namespace BA.Markup.ViewModels
             foreach (var item in items)
                 Items.Add(new Row(item));
 
-            GoToViewCommand = new BA.Core.Mvvm.RelayCommand(
+            GoToViewCommand = new BA.UI.Mvvm.RelayCommand(
                 _ => ExecuteGoToView(),
                 _ => SelectedRow != null && _uiDoc != null);
 
-            MarkWipCommand = new BA.Core.Mvvm.RelayCommand(
+            MarkWipCommand = new BA.UI.Mvvm.RelayCommand(
                 _ => ExecuteMarkWip(),
                 _ => SelectedRow != null && !SelectedRow.Wip);
 
-            MarkSolvedCommand = new BA.Core.Mvvm.RelayCommand(
+            MarkSolvedCommand = new BA.UI.Mvvm.RelayCommand(
                 _ => ExecuteMarkSolved(),
                 _ => SelectedRow != null);
 
-            CloseCommand = new BA.Core.Mvvm.RelayCommand(_ => ExecuteClose());
+            CloseCommand = new BA.UI.Mvvm.RelayCommand(_ => ExecuteClose());
         }
 
         // ------------------------------------------------------------------ //
@@ -259,9 +259,9 @@ namespace BA.Markup.ViewModels
 
         private void RaiseCommandsCanExecuteChanged()
         {
-            ((BA.Core.Mvvm.RelayCommand)GoToViewCommand).RaiseCanExecuteChanged();
-            ((BA.Core.Mvvm.RelayCommand)MarkWipCommand).RaiseCanExecuteChanged();
-            ((BA.Core.Mvvm.RelayCommand)MarkSolvedCommand).RaiseCanExecuteChanged();
+            ((BA.UI.Mvvm.RelayCommand)GoToViewCommand).RaiseCanExecuteChanged();
+            ((BA.UI.Mvvm.RelayCommand)MarkWipCommand).RaiseCanExecuteChanged();
+            ((BA.UI.Mvvm.RelayCommand)MarkSolvedCommand).RaiseCanExecuteChanged();
         }
     }
 }

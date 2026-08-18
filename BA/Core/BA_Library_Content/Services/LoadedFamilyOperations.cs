@@ -32,25 +32,33 @@ namespace BA.Core.Content.Services
             if (string.IsNullOrWhiteSpace(newName))
                 return Fail("New type name cannot be empty.");
 
-            if (doc.GetElement(symbolId) is not FamilySymbol symbol)
+            if (doc.GetElement(symbolId) is not ElementType elementType)
                 return Fail("Type no longer exists in the document.");
 
             newName = newName.Trim();
 
-            Family family = symbol.Family;
-            bool duplicate = family.GetFamilySymbolIds()
-                .Where(id => id != symbolId)
-                .Select(id => doc.GetElement(id) as FamilySymbol)
-                .Any(s => s != null && string.Equals(s.Name, newName, StringComparison.OrdinalIgnoreCase));
+            // Duplicate-name pre-check only applies cleanly to loadable
+            // FamilySymbols (siblings under a real Family element). System
+            // family ElementTypes (WallType, FloorType, etc.) have no such
+            // container; Revit's API throws on a duplicate name within the
+            // same category, which surfaces via the catch block below.
+            if (elementType is FamilySymbol symbol)
+            {
+                Family family = symbol.Family;
+                bool duplicate = family.GetFamilySymbolIds()
+                    .Where(id => id != symbolId)
+                    .Select(id => doc.GetElement(id) as FamilySymbol)
+                    .Any(s => s != null && string.Equals(s.Name, newName, StringComparison.OrdinalIgnoreCase));
 
-            if (duplicate)
-                return Fail($"A type named '{newName}' already exists in family '{family.Name}'.");
+                if (duplicate)
+                    return Fail($"A type named '{newName}' already exists in family '{family.Name}'.");
+            }
 
             using var tx = new Transaction(doc, "BA Rename Loaded Type");
             try
             {
                 tx.Start();
-                symbol.Name = newName;
+                elementType.Name = newName;
                 tx.Commit();
                 return Ok();
             }
@@ -137,15 +145,15 @@ namespace BA.Core.Content.Services
         /// to each parameter's actual StorageType.
         /// </summary>
         public static LoadedFamilyOperationResult SetParameterValues(
-            Document doc,
-            ElementId symbolId,
-            IReadOnlyDictionary<string, string> rawValuesByParamName)
+                   Document doc,
+                   ElementId symbolId,
+                   IReadOnlyDictionary<string, string> rawValuesByParamName)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
             if (rawValuesByParamName == null || rawValuesByParamName.Count == 0)
                 return Ok();
 
-            if (doc.GetElement(symbolId) is not FamilySymbol symbol)
+            if (doc.GetElement(symbolId) is not ElementType elementType)
                 return Fail("Type no longer exists in the document.");
 
             using var tx = new Transaction(doc, "BA Edit Loaded Type Parameters");
@@ -155,7 +163,7 @@ namespace BA.Core.Content.Services
 
                 foreach (var kvp in rawValuesByParamName)
                 {
-                    Parameter? param = symbol.LookupParameter(kvp.Key);
+                    Parameter? param = elementType.LookupParameter(kvp.Key);
                     if (param == null)
                         throw new InvalidOperationException($"Parameter '{kvp.Key}' not found on type.");
 

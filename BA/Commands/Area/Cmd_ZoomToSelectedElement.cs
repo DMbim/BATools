@@ -3,10 +3,10 @@ using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using BATools.Zoom.Helpers;
+using BA.Zoom.Helpers;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 
-namespace BATools.Zoom.Commands
+namespace BA.Zoom.Commands
 {
     [Transaction(TransactionMode.ReadOnly)]
     public class Cmd_ZoomToSelectedElement : IExternalCommand

@@ -106,7 +106,7 @@ namespace BA.UI.Views
             _settings.CheckedCategoryNames = FrequentCategories.Where(c => c.IsChecked).Select(c => c.Name).ToList();
             _settings.Save();
         }
-        private void LoadCategories()
+        private void LoadCategories()       
         {
             StatusText = "Loading categories...";
 

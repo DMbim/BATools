@@ -4,12 +4,12 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
-using BATools.Zoom.Helpers;
-using BATools.Zoom.Services;
-using BATools.Zoom.Settings;
-using BATools.Zoom.Views;
+using BA.Zoom.Helpers;
+using BA.Zoom.Services;
+using BA.Zoom.Settings;
+using BA.Zoom.Views;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
-namespace BATools.Zoom.Commands
+namespace BA.Zoom.Commands
 {
     [Transaction(TransactionMode.ReadOnly)]
     public class Cmd_ZoomToRoom : IExternalCommand

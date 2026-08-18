@@ -10,7 +10,7 @@ namespace BA.Core.Utils
     /// <summary>
     /// ElementId compatibility helpers across Revit versions.
     /// - Revit 2024+: ElementId.Value (long) and ctor(long)
-    /// - Older: ElementId.IntegerValue (int) and ctor(int)
+    /// - Older: ElementId.IntegerValue (int) and ctor(int)findstr /s /i "EnumVisibilityConverter" *.xaml
     /// </summary>
     public static class ElementIdCompat
     {

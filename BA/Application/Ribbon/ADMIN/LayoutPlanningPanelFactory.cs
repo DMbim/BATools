@@ -1,11 +1,11 @@
 ﻿// FILE: BA_Tools/BAApplication/Ribbon/LayoutPlanningPanelFactory.cs
 using Autodesk.Revit.UI;
 using BA.Commands.Diagnostics;
+using BA.Commands.Ribbon;
 using BA.KeyplanGrid;
 using BA.Materials;
 using BA.Ribbon;
 using BATools.ParamCopy.Commands;
-
 namespace BA.BAApplication.Ribbon
 {
     internal static class LayoutPlanningPanelFactory
@@ -21,8 +21,6 @@ namespace BA.BAApplication.Ribbon
                 "Generate grid cells in the keyplan drafting view.",
                 IconResources.KeyPlan16, IconResources.KeyPlan32);
             #endregion
-
-
             // <- NEW: standalone Markup Cleanup button. Deliberately NOT combined into a
             //    SplitButton with PlaceMarkupCommand. Revit's SplitButton remembers the
             //    last-clicked child on its top face, which would make an accidental
@@ -34,7 +32,6 @@ namespace BA.BAApplication.Ribbon
                 "Remove inactive users from the markup assignee registry and clear any markup " +
                 "assignments pointing to users no longer active on this project.",
                 IconResources.Markup16, IconResources.Markup16);
-
             var pdCopy = panel.AddPulldownButton<ParamCopyCommand>(
                 "Copy", "\nCopy",
                 "Copying tools",
@@ -43,15 +40,22 @@ namespace BA.BAApplication.Ribbon
                 "CopyTypeParams", "Copy Type\nParameters",
                 "Copy type parameters from a source element to one or more target elements.",
                 IconResources.CopyP16, IconResources.CopyP32);
-
-            panel.AddPushButton< DiagRoomNumberParamCommand>(
+            panel.AddPushButton<DiagRoomNumberParamCommand>(
                 "DiagRoomNumberParam", "Room Number\nDiagnostics",
                 "Check for missing or duplicate room number parameters in the model.",
                 IconResources.Markup16, IconResources.Markup32);
             panel.AddPushButton<Cmd_OpenMaterialLibrary>(
                 "OpenMaterialLibrary", "Material Library\nDiagnostics",
                 "Open the material library for inspection and management.",
-                IconResources.Markup16, IconResources.Markup32);    
+                IconResources.Markup16, IconResources.Markup32);
+            // <- NEW: jumps the active ribbon tab to BA_Tools. Lives here in BA_Admin so
+            //    there's a fast way back to the daily-drafting tab without hunting for it
+            //    manually. Goes through the internal Autodesk.Windows ComponentManager,
+            //    see CmdActivateBaTab for the unsupported-API caveat.
+            panel.AddPushButton<CmdActivateBaTab>(
+                "ActivateBaToolsTab", "Go To\nBA Tools",
+                "Switch the active ribbon tab to BA_Tools.",
+                IconResources.Markup16, IconResources.Markup32);
         }
     }
 }

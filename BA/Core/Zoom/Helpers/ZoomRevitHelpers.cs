@@ -1,8 +1,8 @@
 ﻿using System;
 using Autodesk.Revit.DB;
-using BATools.Zoom.Settings;
+using BA.Zoom.Settings;
 
-namespace BATools.Zoom.Helpers
+namespace BA.Zoom.Helpers
 {
     /// <summary>
     /// Revit API parameter resolution for room ID lookup and view type validation.

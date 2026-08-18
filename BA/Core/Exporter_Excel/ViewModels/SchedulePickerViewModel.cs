@@ -39,8 +39,8 @@ namespace BA_Tools.ScheduleExporter.ViewModels
         public bool UserConfirmed { get; private set; }
         public event Action CloseRequested;
 
-        public BA.Core.Mvvm.RelayCommand ConfirmCommand { get; }
-        public BA.Core.Mvvm.RelayCommand CancelCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ConfirmCommand { get; }
+        public BA.UI.Mvvm.RelayCommand CancelCommand { get; }
 
         public SchedulePickerViewModel(string missingScheduleName, List<ViewSchedule> availableSchedules)
         {
@@ -52,8 +52,8 @@ namespace BA_Tools.ScheduleExporter.ViewModels
             // since that assignment goes through the property setter (matching
             // the original, which also assigned via the property, not the field)
             // and the setter calls ConfirmCommand.RaiseCanExecuteChanged().
-            ConfirmCommand = new BA.Core.Mvvm.RelayCommand(_ => Confirm(), _ => CanConfirm);
-            CancelCommand = new BA.Core.Mvvm.RelayCommand(_ => Cancel());
+            ConfirmCommand = new BA.UI.Mvvm.RelayCommand(_ => Confirm(), _ => CanConfirm);
+            CancelCommand = new BA.UI.Mvvm.RelayCommand(_ => Cancel());
 
             if (AvailableSchedules.Count > 0)
             {

@@ -34,8 +34,8 @@ namespace BA.UI.LoadedFamilyBrowser
             private set => SetField(ref _statusMessage, value);
         }
 
-        public BA.Core.Mvvm.RelayCommand SaveCommand { get; }
-        public BA.Core.Mvvm.RelayCommand CancelCommand { get; }
+        public BA.UI.Mvvm.RelayCommand SaveCommand { get; }
+        public BA.UI.Mvvm.RelayCommand CancelCommand { get; }
 
         public event Action? RequestClose;
 
@@ -47,8 +47,8 @@ namespace BA.UI.LoadedFamilyBrowser
             foreach (var p in initialParameters)
                 Parameters.Add(p);
 
-            SaveCommand = new BA.Core.Mvvm.RelayCommand(_ => Save(), _ => !IsBusy && Parameters.Any(p => p.IsDirty));
-            CancelCommand = new BA.Core.Mvvm.RelayCommand(_ => RequestClose?.Invoke());
+            SaveCommand = new BA.UI.Mvvm.RelayCommand(_ => Save(), _ => !IsBusy && Parameters.Any(p => p.IsDirty));
+            CancelCommand = new BA.UI.Mvvm.RelayCommand(_ => RequestClose?.Invoke());
         }
 
         /// <summary>
@@ -60,10 +60,10 @@ namespace BA.UI.LoadedFamilyBrowser
         {
             var result = new List<TypeParameterEditItem>();
 
-            if (doc.GetElement(symbolId) is not FamilySymbol symbol)
+            if (doc.GetElement(symbolId) is not ElementType elementType)
                 return result;
 
-            foreach (Parameter param in symbol.Parameters.Cast<Parameter>().OrderBy(p => p.Definition.Name))
+            foreach (Parameter param in elementType.Parameters.Cast<Parameter>().OrderBy(p => p.Definition.Name))
             {
                 if (param.IsReadOnly)
                     continue;

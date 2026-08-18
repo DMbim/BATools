@@ -1,4 +1,5 @@
-﻿using Autodesk.Revit.ApplicationServices;
+﻿// BA/Core/Parameters/SharedParameterFileReader.cs
+using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
 using System;
 using System.Collections.Generic;
@@ -31,8 +32,9 @@ namespace BA.Core.Parameters
 
             return list;
         }
+
         public static ExternalDefinition CreateExternalDefinition_String(
-            Autodesk.Revit.ApplicationServices.Application app,
+            Application app,
             string sharedParamFilePath,
             string definitionName,
             string groupName)
@@ -92,6 +94,68 @@ namespace BA.Core.Parameters
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Looks up a definition by exact group name and parameter name, rather than scanning
+        /// every group. Used by SharedParameterBindingService.EnsureBound(doc, path, groupName,
+        /// paramName, category, ...), which needs a specific group and treats a missing group or
+        /// missing definition as a distinct, actionable error rather than "not found anywhere".
+        /// Throws (never returns null) since the caller in that path always expects the
+        /// definition to exist already, auto-creation is not this method's job.
+        /// </summary>
+        public static Definition FindExternalDefinitionInGroup(
+            Application app,
+            string sharedParamFilePath,
+            string groupName,
+            string paramName)
+        {
+            if (app == null) throw new ArgumentNullException(nameof(app));
+
+            string originalFile;
+            try
+            {
+                originalFile = app.SharedParametersFilename;
+            }
+            catch
+            {
+                originalFile = string.Empty;
+            }
+
+            try
+            {
+                app.SharedParametersFilename = sharedParamFilePath;
+
+                DefinitionFile defFile = app.OpenSharedParameterFile()
+                    ?? throw new InvalidOperationException(
+                        $"Could not open the shared parameter file at '{sharedParamFilePath}'. " +
+                        "Verify the file exists and is accessible on the network.");
+
+                DefinitionGroup group = defFile.Groups.get_Item(groupName)
+                    ?? throw new InvalidOperationException(
+                        $"Shared parameter group '{groupName}' was not found in " +
+                        $"'{sharedParamFilePath}'.");
+
+                Definition definition = group.Definitions.get_Item(paramName)
+                    ?? throw new InvalidOperationException(
+                        $"Shared parameter '{paramName}' is not defined in group " +
+                        $"'{groupName}' of '{sharedParamFilePath}'. The definition itself is " +
+                        "missing from the shared parameter file, this cannot be auto-fixed. " +
+                        "Contact your BIM admin to add it before this feature can be used.");
+
+                return definition;
+            }
+            finally
+            {
+                try
+                {
+                    app.SharedParametersFilename = originalFile;
+                }
+                catch
+                {
+                    // Best-effort restore of the session's shared parameter file pointer.
+                }
+            }
         }
 
         private static void EnsureFile(Application app, string sharedParamFilePath)

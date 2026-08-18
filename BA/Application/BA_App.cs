@@ -41,6 +41,7 @@ namespace BA.BAApplication
         public override void OnStartup()
         {
             const string tabName = "BA_Tools";
+            const string tabName2 = "BA_Tools2";
             const string bimTabName = "BA_Admin";
 
             try
@@ -60,21 +61,28 @@ namespace BA.BAApplication
                 // ---- BA_Tools tab: daily drafting workflow ----
                 RibbonPanel panelDrawingProduction = Application.CreatePanel("Drawing Production", tabName);
                 RibbonPanel panelRooms = Application.CreatePanel("Rooms & Spatial Data", tabName);
-                RibbonPanel panelFamilies = Application.CreatePanel("Family & Content Management", tabName);
-                RibbonPanel panelScheduling = Application.CreatePanel("Scheduling & Data Exchange", tabName);
-                RibbonPanel panelQaStandards = Application.CreatePanel("QA & Standards", tabName);
 
                 DrawingProductionPanelFactory.Build(panelDrawingProduction);
                 RoomsPanelFactory.Build(panelRooms);
+
+                // ---- BA_Tools2 tab: content, data exchange, QA ----
+                // Split out from BA_Tools because five panels on one tab was too dense to
+                // scan at a glance. Drawing Production and Rooms & Spatial Data are the
+                // highest-frequency daily tools and stay on BA_Tools; Family & Content
+                // Management, Scheduling & Data Exchange, and QA & Standards move here.
+                RibbonPanel panelFamilies = Application.CreatePanel("Family & Content Management", tabName2);
+                RibbonPanel panelScheduling = Application.CreatePanel("Scheduling & Data Exchange", tabName2);
+                RibbonPanel panelQaStandards = Application.CreatePanel("QA & Standards", tabName2);
+
                 FamiliesPanelFactory.Build(panelFamilies);
                 SchedulingPanelFactory.Build(panelScheduling);
+                QaStandardsPanelFactory.Build(panelQaStandards);
 
                 // ---- BA_BIM tab: coordination, governance, admin ----
                 RibbonPanel panelFamilyVersioning = Application.CreatePanel("Family Versioning", bimTabName);
                 RibbonPanel panelLayoutPlanning = Application.CreatePanel("Layout & Planning", bimTabName);
                 RibbonPanel panelInfrastructure = Application.CreatePanel("Infrastructure", bimTabName);
 
-                QaStandardsPanelFactory.Build(panelQaStandards);
                 FamilyVersioningPanelFactory.Build(panelFamilyVersioning);
                 LayoutPlanningPanelFactory.Build(panelLayoutPlanning);
                 InfrastructurePanelFactory.Build(panelInfrastructure);

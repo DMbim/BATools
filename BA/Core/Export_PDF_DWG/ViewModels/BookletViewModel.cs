@@ -209,23 +209,23 @@ namespace BA.ViewModels.Export
             private set => SetProperty(ref _isBusy, value);
         }
 
-        public BA.Core.Mvvm.RelayCommand LoadTypesCommand { get; }
-        public BA.Core.Mvvm.RelayCommand SelectAllCommand { get; }
-        public BA.Core.Mvvm.RelayCommand SelectNoneCommand { get; }
-        public BA.Core.Mvvm.RelayCommand AddFieldMappingCommand { get; }
-        public BA.Core.Mvvm.RelayCommand RemoveFieldMappingCommand { get; }
-        public BA.Core.Mvvm.RelayCommand RunCommand { get; }
+        public BA.UI.Mvvm.RelayCommand LoadTypesCommand { get; }
+        public BA.UI.Mvvm.RelayCommand SelectAllCommand { get; }
+        public BA.UI.Mvvm.RelayCommand SelectNoneCommand { get; }
+        public BA.UI.Mvvm.RelayCommand AddFieldMappingCommand { get; }
+        public BA.UI.Mvvm.RelayCommand RemoveFieldMappingCommand { get; }
+        public BA.UI.Mvvm.RelayCommand RunCommand { get; }
 
         public BookletViewModel()
         {
             SelectedCategory = AvailableCategories.First();
 
-            LoadTypesCommand = new BA.Core.Mvvm.RelayCommand(_ => LoadTypes());
-            SelectAllCommand = new BA.Core.Mvvm.RelayCommand(_ => SetAllSelected(true));
-            SelectNoneCommand = new BA.Core.Mvvm.RelayCommand(_ => SetAllSelected(false));
-            AddFieldMappingCommand = new BA.Core.Mvvm.RelayCommand(_ => OpenAddFieldMappingDialog());
-            RemoveFieldMappingCommand = new BA.Core.Mvvm.RelayCommand(param => RemoveFieldMapping(param as BookletTitleBlockFieldMapping));
-            RunCommand = new BA.Core.Mvvm.RelayCommand(_ => RunGeneration());
+            LoadTypesCommand = new BA.UI.Mvvm.RelayCommand(_ => LoadTypes());
+            SelectAllCommand = new BA.UI.Mvvm.RelayCommand(_ => SetAllSelected(true));
+            SelectNoneCommand = new BA.UI.Mvvm.RelayCommand(_ => SetAllSelected(false));
+            AddFieldMappingCommand = new BA.UI.Mvvm.RelayCommand(_ => OpenAddFieldMappingDialog());
+            RemoveFieldMappingCommand = new BA.UI.Mvvm.RelayCommand(param => RemoveFieldMapping(param as BookletTitleBlockFieldMapping));
+            RunCommand = new BA.UI.Mvvm.RelayCommand(_ => RunGeneration());
 
             LoadTitleBlocks();
             LoadLegendViews();

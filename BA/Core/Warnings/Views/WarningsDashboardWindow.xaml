@@ -1,0 +1,152 @@
+﻿
+<Window x:Class="BA.Warnings.Views.WarningsDashboardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:conv="clr-namespace:BA.Warnings.Views"
+        xmlns:models="clr-namespace:BA.Warnings.Models"
+        xmlns:ee="clr-namespace:BA.Warnings.ExternalEvents"
+        Style="{DynamicResource BaWindow}"
+        Title="Smart Warnings Dashboard"
+        Width="880" Height="640"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="180"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,8">
+            <CheckBox DockPanel.Dock="Right" Content="Live refresh"
+                      Style="{StaticResource BaDarkPanelCheckBox}"
+                      IsChecked="{Binding LiveRefreshEnabled}"
+                      VerticalAlignment="Center" Margin="8,0,0,0"/>
+            <Button DockPanel.Dock="Right" Content="Refresh"
+                    Style="{StaticResource BaSecondaryButton}"
+                    Command="{Binding RefreshCommand}"
+                    Width="90" Margin="8,0,0,0"/>
+            <TextBlock Text="{Binding StatusText}"
+                       Style="{StaticResource BaDarkPanelText}"
+                       VerticalAlignment="Center"/>
+        </DockPanel>
+
+        <!-- Warnings list grouped by severity -->
+        <Border Grid.Row="1" Style="{StaticResource BaDarkPanelBorder}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Groups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Expander Header="{Binding Header}"
+                                      Foreground="White"
+                                      IsExpanded="True"
+                                      Margin="0,0,0,6">
+                                <ItemsControl ItemsSource="{Binding Items}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type models:WarningItem}">
+                                            <Border BorderThickness="0,0,0,1" BorderBrush="#333333" Padding="4">
+                                                <RadioButton GroupName="WarningSelection"
+                                                             Content="{Binding Description}"
+                                                             Foreground="White"
+                                                             Checked="WarningRow_Checked"
+                                                             Tag="{Binding}"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Expander>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Rule editor -->
+        <Border Grid.Row="2" Style="{StaticResource BaDarkPanelBorder}" Margin="0,8,0,8">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="4">
+                    <TextBlock Text="Join resolution rules (assign action per warning type, then Save)"
+                               Style="{StaticResource BaDarkPanelText}"/>
+                    <Button DockPanel.Dock="Right" Content="Save Rules"
+                            Style="{StaticResource BaSecondaryButton}"
+                            Command="{Binding SaveRulesCommand}"
+                            Width="100" HorizontalAlignment="Right"/>
+                </DockPanel>
+                <DataGrid ItemsSource="{Binding Rules}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          HeadersVisibility="Column"
+                          Background="Transparent">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Description" Binding="{Binding DescriptionSample}" Width="3*" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="Count" Binding="{Binding OccurrenceCount}" Width="60" IsReadOnly="True"/>
+                        <DataGridTemplateColumn Header="Action" Width="120">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ComboBox Style="{StaticResource BaDarkComboBox}"
+                                              ItemsSource="{Binding Source={x:Static models:JoinResolutionActionValues.All}}"
+                                              SelectedItem="{Binding Action}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </Border>
+
+        <!-- Footer actions -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Zoom to Selected" Style="{StaticResource BaSecondaryButton}"
+                    Command="{Binding ZoomToSelectedCommand}" Width="130" Margin="0,0,8,0"/>
+            <Button Content="Preview Auto-Resolve Joins" Style="{StaticResource BaPrimaryButton}"
+                    Command="{Binding PreviewAutoResolveCommand}" Width="180"/>
+        </StackPanel>
+
+        <!-- Preview overlay -->
+        <Border Grid.Row="0" Grid.RowSpan="4"
+                Background="#DD1E1E1E"
+                Visibility="{Binding PreviewPanelOpen, Converter={StaticResource BoolToVis}}">
+            <Border Style="{StaticResource BaDarkPanelBorder}" Width="700" Height="480"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="Auto-Resolve Joins: Preview"
+                               Style="{StaticResource BaDarkPanelText}" FontWeight="Bold" Margin="0,0,0,8"/>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding PreviewItems}"
+                              AutoGenerateColumns="False" CanUserAddRows="False"
+                              Background="Transparent">
+                        <DataGrid.Columns>
+                            <DataGridCheckBoxColumn Header="Apply" Binding="{Binding Include}" Width="50"/>
+                            <DataGridTextColumn Header="Element A" Binding="{Binding ElementA.Value}" Width="90" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Element B" Binding="{Binding ElementB.Value}" Width="90" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Action" Binding="{Binding ProposedAction}" Width="80" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Currently Joined" Binding="{Binding CurrentlyJoined}" Width="110" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Note" Binding="{Binding Note}" Width="*" IsReadOnly="True"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                        <Button Content="Cancel" Style="{StaticResource BaSecondaryButton}"
+                                Command="{Binding ClosePreviewCommand}" Width="90" Margin="0,0,8,0"/>
+                        <Button Content="Commit" Style="{StaticResource BaPrimaryButton}"
+                                Command="{Binding CommitAutoResolveCommand}" Width="90"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Border>
+    </Grid>
+</Window>

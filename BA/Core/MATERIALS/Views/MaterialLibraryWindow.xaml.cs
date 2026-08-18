@@ -78,7 +78,7 @@ namespace BA.Materials.UI
             if (e.LeftButton != MouseButtonState.Pressed) return;
 
             System.Windows.Point currentPosition = e.GetPosition(null);
-            Vector diff = _materialDragStartPoint - currentPosition;
+            System.Windows.Vector diff = _materialDragStartPoint - currentPosition;
 
             bool pastDragThreshold =
                 Math.Abs(diff.X) >= SystemParameters.MinimumHorizontalDragDistance ||
@@ -246,7 +246,7 @@ namespace BA.Materials.UI
             _invoker.Run(
                 uiApp =>
                 {
-                    _libraryDocumentService.SaveAndClose(saveChanges: true);
+                    _libraryDocumentService.SaveAndClose(saveChanges: true, uiApp);
                     return true;
                 },
                 onCompleted: _ => AppLogger.LogInfo("BA.Materials: material library window closed, library saved and closed."),

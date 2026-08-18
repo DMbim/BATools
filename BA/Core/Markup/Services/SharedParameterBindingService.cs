@@ -1,33 +1,40 @@
 ﻿// BA/Core/Parameters/SharedParameterBindingService.cs
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
 
 namespace BA.Core.Parameters
 {
     /// <summary>
-    /// Ensures a shared parameter is bound (InstanceBinding) to a given category, auto-binding
-    /// it from a shared parameter file if it isn't already. Generic, not tied to any single
-    /// feature, other BA_-prefixed parameter consumers can reuse this rather than each writing
-    /// their own binding logic.
+    /// Single entry point for binding shared parameters to categories. Consolidates what used
+    /// to be split across SharedParameterBindingService.EnsureBound and
+    /// SharedParameterBinder.BindSharedParameter / BindSharedParameterByGuid.
     ///
-    /// MUST be called from within an active Transaction on doc. Caller's responsibility, same
-    /// convention as ProjectSetService.SetProjectSetName.
+    /// The old SharedParameterBinder routed through RevitApiCompat.InsertOrReinsert, which did
+    ///     map.Insert(def, binding, groupId) || map.ReInsert(def, binding, groupId)
+    /// BindingMap.Insert fails once a definition has any existing binding, so any second call
+    /// fell through to ReInsert. ReInsert does not merge, it replaces the entire binding,
+    /// category set included. Binding the same parameter to a new category after it was already
+    /// bound to others silently dropped the previously bound categories. No exception, no log,
+    /// the parameter just goes missing on elements of the categories that got dropped.
     ///
-    /// Does not support auto-fixing a parameter that is already bound as a TypeBinding when an
-    /// InstanceBinding is requested (or vice versa); that conflict is surfaced as an exception
-    /// rather than silently resolved, since converting an existing binding could affect other
-    /// categories or elements already relying on it.
+    /// This class never does a blind ReInsert. Every bind operation reads the existing binding
+    /// first, checks the binding kind (Instance vs Type) matches, and if it does, unions the
+    /// existing CategorySet with whatever new categories were requested before writing back.
+    /// A binding-kind mismatch is surfaced as an exception, never silently resolved, since
+    /// converting an existing binding could affect other categories or elements already relying
+    /// on it.
+    ///
+    /// MUST be called from within an active Transaction on doc. Caller's responsibility.
     /// </summary>
     public static class SharedParameterBindingService
     {
         /// <summary>
-        /// Ensures paramName is bound to category on doc. No-op if already correctly bound.
-        /// Throws InvalidOperationException with a specific, actionable message if:
-        ///  - the shared parameter file can't be opened,
-        ///  - the group or definition doesn't exist in the file (nothing to auto-bind, someone
-        ///    has to add the definition to the file itself first),
-        ///  - the parameter is already bound but as the wrong binding kind (Instance vs Type),
-        ///  - the bind operation itself fails for any other reason.
+        /// Ensures paramName is bound to category on doc, loading the definition from
+        /// sharedParamFilePath/groupName if it isn't already. No-op if already correctly bound.
+        /// This is the original single-category, BuiltInCategory-based overload.
         /// </summary>
         public static void EnsureBound(
             Document doc,
@@ -47,9 +54,117 @@ namespace BA.Core.Parameters
                 ?? throw new InvalidOperationException(
                     $"Category '{category}' does not exist in this document.");
 
+            Definition definition = SharedParameterFileReader.FindExternalDefinitionInGroup(
+                doc.Application, sharedParamFilePath, groupName, paramName);
+
+            BindOrExtendCategories(doc, definition, new[] { cat }, GroupTypeId.Data, instanceBinding);
+        }
+
+        /// <summary>
+        /// Ensures defName (optionally verified against guidHint) is bound to categories on doc.
+        /// Replaces SharedParameterBinder.BindSharedParameter. If not found and createIfMissing
+        /// is true, creates the definition in group "BA" of the shared parameter file.
+        /// </summary>
+        public static void EnsureBound(
+            Application app,
+            Document doc,
+            string sharedParamFilePath,
+            string defName,
+            Guid guidHint,
+            ForgeTypeId groupId,
+            bool isInstance,
+            IList<Category> categories,
+            bool createIfMissing)
+        {
+            if (app == null) throw new ArgumentNullException(nameof(app));
+            if (doc == null) throw new ArgumentNullException(nameof(doc));
+            if (string.IsNullOrWhiteSpace(defName))
+                throw new ArgumentException("Definition name is required.", nameof(defName));
+            if (categories == null || categories.Count == 0)
+                throw new ArgumentException("At least one category is required.", nameof(categories));
+
+            ExternalDefinition extDef = SharedParameterFileReader.FindExternalDefinitionByName(
+                app, sharedParamFilePath, defName);
+
+            if (extDef == null && createIfMissing)
+                extDef = SharedParameterFileReader.CreateExternalDefinition_String(
+                    app, sharedParamFilePath, defName, "BA");
+
+            if (extDef == null)
+                throw new InvalidOperationException(
+                    $"Shared parameter '{defName}' not found in the shared parameter file.");
+
+            if (guidHint != Guid.Empty && extDef.GUID != guidHint)
+                throw new InvalidOperationException(
+                    $"GUID mismatch for '{defName}'. File GUID={extDef.GUID} vs expected={guidHint}");
+
+            BindOrExtendCategories(doc, extDef, categories.ToList(), groupId ?? GroupTypeId.Data, isInstance);
+        }
+
+        /// <summary>
+        /// Ensures the shared parameter identified by guid (with nameHint as fallback lookup and
+        /// as the name used if createIfMissing needs to create it) is bound to categories on doc.
+        /// Replaces SharedParameterBinder.BindSharedParameterByGuid.
+        /// </summary>
+        public static void EnsureBoundByGuid(
+            Application app,
+            Document doc,
+            string sharedParamFilePath, 
+            Guid guid,
+            string nameHint,
+            ForgeTypeId groupId,
+            bool isInstance,
+            IList<Category> categories,
+            bool createIfMissing)
+        {
+            if (app == null) throw new ArgumentNullException(nameof(app));
+            if (doc == null) throw new ArgumentNullException(nameof(doc));
+            if (guid == Guid.Empty) throw new ArgumentException("GUID is required.", nameof(guid));
+            if (categories == null || categories.Count == 0)
+                throw new ArgumentException("At least one category is required.", nameof(categories));
+
+            ExternalDefinition extDef = SharedParameterFileReader.FindExternalDefinitionByGuid(
+                app, sharedParamFilePath, guid);
+
+            if (extDef == null && !string.IsNullOrWhiteSpace(nameHint))
+                extDef = SharedParameterFileReader.FindExternalDefinitionByName(app, sharedParamFilePath, nameHint);
+
+            if (extDef == null && createIfMissing && !string.IsNullOrWhiteSpace(nameHint))
+                extDef = SharedParameterFileReader.CreateExternalDefinition_String(
+                    app, sharedParamFilePath, nameHint, "BA");
+
+            if (extDef == null)
+                throw new InvalidOperationException(
+                    $"Shared parameter not found in SP file. GUID={guid}, NameHint='{nameHint}'");
+
+            if (extDef.GUID != guid)
+                throw new InvalidOperationException(
+                    $"GUID mismatch. Expected={guid}, Found={extDef.GUID} (Name='{extDef.Name}')");
+
+            BindOrExtendCategories(doc, extDef, categories.ToList(), groupId ?? GroupTypeId.Data, isInstance);
+        }
+
+        /// <summary>
+        /// Core safe-bind logic shared by all three public overloads. Never blindly ReInserts.
+        /// If the definition is already bound:
+        ///   - binding kind mismatch (Instance vs Type) throws, never auto-converted
+        ///   - otherwise, unions the existing CategorySet with categoriesToEnsure and ReInserts
+        ///     only if that union actually adds something new (true no-op if already fully bound)
+        /// If not bound at all, Inserts a fresh binding covering exactly categoriesToEnsure.
+        /// </summary>
+        private static void BindOrExtendCategories(
+            Document doc,
+            Definition definition,
+            IReadOnlyCollection<Category> categoriesToEnsure,
+            ForgeTypeId groupId,
+            bool instanceBinding)
+        {
+            if (definition == null)
+                throw new ArgumentNullException(nameof(definition));
+
+            string paramName = definition.Name;
             BindingMap bindingMap = doc.ParameterBindings;
 
-            // ---- Already bound? ----
             DefinitionBindingMapIterator iterator = bindingMap.ForwardIterator();
             iterator.Reset();
             while (iterator.MoveNext())
@@ -61,107 +176,54 @@ namespace BA.Core.Parameters
                 if (iterator.Current is not ElementBinding existingBinding)
                     continue;
 
-                bool alreadyBoundToCategory = existingBinding.Categories.Contains(cat);
                 bool isInstanceBinding = existingBinding is InstanceBinding;
-
-                if (alreadyBoundToCategory)
-                {
-                    if (isInstanceBinding != instanceBinding)
-                        throw new InvalidOperationException(
-                            $"Shared parameter '{paramName}' is already bound to category " +
-                            $"'{category}', but as a {(isInstanceBinding ? "Type" : "Instance")} " +
-                            $"binding, not {(instanceBinding ? "Instance" : "Type")}. Cannot " +
-                            "auto-resolve this conflict, it must be fixed manually in " +
-                            "Manage > Project Parameters.");
-
-                    return; // correctly bound already, nothing to do
-                }
-
-                // Bound to other categories, but not this one, extend the existing binding
-                // rather than creating a duplicate, second binding for the same definition.
                 if (isInstanceBinding != instanceBinding)
                     throw new InvalidOperationException(
-                        $"Shared parameter '{paramName}' is already bound elsewhere as a " +
-                        $"{(isInstanceBinding ? "Type" : "Instance")} binding. Cannot extend it " +
-                        $"to category '{category}' as {(instanceBinding ? "Instance" : "Type")}, " +
-                        "binding kind must match across all categories for the same parameter.");
+                        $"Shared parameter '{paramName}' is already bound as a " +
+                        $"{(isInstanceBinding ? "Type" : "Instance")} binding, not " +
+                        $"{(instanceBinding ? "Instance" : "Type")}. Cannot auto-resolve this " +
+                        "conflict, it must be fixed manually in Manage > Project Parameters.");
+
+                List<Category> missingCategories = categoriesToEnsure
+                    .Where(c => !existingBinding.Categories.Contains(c))
+                    .ToList();
+
+                if (missingCategories.Count == 0)
+                    return; // already fully bound to every requested category, true no-op
 
                 CategorySet extendedSet = doc.Application.Create.NewCategorySet();
                 foreach (Category existingCat in existingBinding.Categories)
                     extendedSet.Insert(existingCat);
-                extendedSet.Insert(cat);
+                foreach (Category c in missingCategories)
+                    extendedSet.Insert(c);
 
                 ElementBinding extendedBinding = instanceBinding
                     ? doc.Application.Create.NewInstanceBinding(extendedSet)
                     : doc.Application.Create.NewTypeBinding(extendedSet);
 
-                if (!bindingMap.ReInsert(existingDef, extendedBinding, GroupTypeId.Data))
+                if (!bindingMap.ReInsert(existingDef, extendedBinding, groupId))
                     throw new InvalidOperationException(
                         $"Failed to extend the existing binding for shared parameter " +
-                        $"'{paramName}' to include category '{category}'.");
+                        $"'{paramName}' with {missingCategories.Count} new category/categories.");
 
                 return;
             }
 
-            // ---- Not bound at all, load the definition from the shared parameter file ----
-            string originalFile;
-            try
-            {
-                originalFile = doc.Application.SharedParametersFilename;
-            }
-            catch
-            {
-                originalFile = string.Empty;
-            }
+            // Not bound at all yet.
+            CategorySet catSet = doc.Application.Create.NewCategorySet();
+            foreach (Category c in categoriesToEnsure)
+                catSet.Insert(c);
 
-            try
-            {
-                doc.Application.SharedParametersFilename = sharedParamFilePath;
+            ElementBinding binding = instanceBinding
+                ? doc.Application.Create.NewInstanceBinding(catSet)
+                : doc.Application.Create.NewTypeBinding(catSet);
 
-                DefinitionFile defFile = doc.Application.OpenSharedParameterFile()
-                    ?? throw new InvalidOperationException(
-                        $"Could not open the shared parameter file at '{sharedParamFilePath}'. " +
-                        "Verify the file exists and is accessible on the network.");
-
-                DefinitionGroup group = defFile.Groups.get_Item(groupName)
-                    ?? throw new InvalidOperationException(
-                        $"Shared parameter group '{groupName}' was not found in " +
-                        $"'{sharedParamFilePath}'.");
-
-                Definition definition = group.Definitions.get_Item(paramName)
-                    ?? throw new InvalidOperationException(
-                        $"Shared parameter '{paramName}' is not defined in group " +
-                        $"'{groupName}' of '{sharedParamFilePath}'. The definition itself is " +
-                        "missing from the shared parameter file, this cannot be auto-fixed. " +
-                        "Contact your BIM admin to add it before this feature can be used.");
-
-                CategorySet catSet = doc.Application.Create.NewCategorySet();
-                catSet.Insert(cat);
-
-                ElementBinding binding = instanceBinding
-                    ? doc.Application.Create.NewInstanceBinding(catSet)
-                    : doc.Application.Create.NewTypeBinding(catSet);
-
-                bool inserted = bindingMap.Insert(definition, binding, GroupTypeId.Data);
-                if (!inserted)
-                    throw new InvalidOperationException(
-                        $"Revit rejected binding shared parameter '{paramName}' to category " +
-                        $"'{category}'. This usually means the parameter's ParameterType is " +
-                        "incompatible with the target category, or the category does not " +
-                        "support bound parameters.");
-            }
-            finally
-            {
-                try
-                {
-                    doc.Application.SharedParametersFilename = originalFile;
-                }
-                catch
-                {
-                    // Best-effort restore of the session's shared parameter file pointer.
-                    // Not worth failing the whole operation over.
-                }
-            }
+            bool inserted = bindingMap.Insert(definition, binding, groupId);
+            if (!inserted)
+                throw new InvalidOperationException(
+                    $"Revit rejected binding shared parameter '{paramName}'. This usually means " +
+                    "the parameter's ParameterType is incompatible with one of the target " +
+                    "categories, or a category does not support bound parameters.");
         }
     }
 }

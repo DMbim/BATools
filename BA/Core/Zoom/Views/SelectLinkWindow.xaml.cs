@@ -2,7 +2,7 @@
 using System.Windows;
 using Autodesk.Revit.DB;
 
-namespace BATools.Zoom.Views
+namespace BA.Zoom.Views
 {
     public partial class SelectLinkWindow : Window
     {

@@ -5,8 +5,7 @@ using BA.Commands.Rooms;
 using BA.Ribbon;
 using BA.RoomClassification;
 using BA_Tools.ScheduleExporter.Commands;
-using BATools.Rooms.Commands;
-using BATools.Zoom.Commands;
+using BA.Zoom.Commands;
 namespace BA.BAApplication.Ribbon
 {
     internal static class RoomsPanelFactory

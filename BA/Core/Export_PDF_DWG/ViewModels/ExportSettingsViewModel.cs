@@ -55,19 +55,19 @@ namespace BA.ViewModels.Export
             private set => SetProperty(ref _isBusy, value);
         }
 
-        public BA.Core.Mvvm.RelayCommand AddJobCommand { get; }
-        public BA.Core.Mvvm.RelayCommand RemoveSelectedJobCommand { get; }
-        public BA.Core.Mvvm.RelayCommand SaveAllCommand { get; }
-        public BA.Core.Mvvm.RelayCommand CloseCommand { get; }
+        public BA.UI.Mvvm.RelayCommand AddJobCommand { get; }
+        public BA.UI.Mvvm.RelayCommand RemoveSelectedJobCommand { get; }
+        public BA.UI.Mvvm.RelayCommand SaveAllCommand { get; }
+        public BA.UI.Mvvm.RelayCommand CloseCommand { get; }
 
         public Action RequestClose { get; set; }
 
         public ExportSettingsViewModel()
         {
-            AddJobCommand = new BA.Core.Mvvm.RelayCommand(_ => AddJob());
-            RemoveSelectedJobCommand = new BA.Core.Mvvm.RelayCommand(_ => RemoveSelectedJob(), _ => SelectedJob != null);
-            SaveAllCommand = new BA.Core.Mvvm.RelayCommand(_ => SaveAll());
-            CloseCommand = new BA.Core.Mvvm.RelayCommand(_ => RequestClose?.Invoke());
+            AddJobCommand = new BA.UI.Mvvm.RelayCommand(_ => AddJob());
+            RemoveSelectedJobCommand = new BA.UI.Mvvm.RelayCommand(_ => RemoveSelectedJob(), _ => SelectedJob != null);
+            SaveAllCommand = new BA.UI.Mvvm.RelayCommand(_ => SaveAll());
+            CloseCommand = new BA.UI.Mvvm.RelayCommand(_ => RequestClose?.Invoke());
 
             LoadAll();
         }

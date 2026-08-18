@@ -1,7 +1,7 @@
 ﻿using BA.Settings;
 
 
-namespace BATools.Zoom.Settings
+namespace BA.Zoom.Settings
 {
     /// <summary>
     /// Per-user settings for the ZoomToRoom feature family.

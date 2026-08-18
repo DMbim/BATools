@@ -59,22 +59,22 @@ namespace BA.UI.ViewTemplates
 
         public ObservableCollection<ViewFilterTransferItem> FilteredSourceFilters { get; } = new();
 
-        public RelayCommand ApplyViewFiltersCommand { get; }
-        public RelayCommand SelectAllFiltersCommand { get; }
-        public RelayCommand ClearAllFiltersCommand { get; }
-        public RelayCommand InvertFiltersCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ApplyViewFiltersCommand { get; }
+        public BA.UI.Mvvm.RelayCommand SelectAllFiltersCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ClearAllFiltersCommand { get; }
+        public BA.UI.Mvvm.RelayCommand InvertFiltersCommand { get; }
 
-        public RelayCommand ApplyCategoryGraphicsCommand { get; }
-        public RelayCommand SelectAllGraphicCategoriesCommand { get; }
-        public RelayCommand ClearAllGraphicCategoriesCommand { get; }
-        public RelayCommand InvertGraphicCategoriesCommand { get; }
-        public RelayCommand ApplyCommand { get; }
-        public RelayCommand SelectAllPropertiesCommand { get; }
-        public RelayCommand ClearAllPropertiesCommand { get; }
-        public RelayCommand InvertPropertiesCommand { get; }
-        public RelayCommand SelectAllTargetsCommand { get; }
-        public RelayCommand ClearAllTargetsCommand { get; }
-        public RelayCommand InvertTargetsCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ApplyCategoryGraphicsCommand { get; }
+        public BA.UI.Mvvm.RelayCommand SelectAllGraphicCategoriesCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ClearAllGraphicCategoriesCommand { get; }
+        public BA.UI.Mvvm.RelayCommand InvertGraphicCategoriesCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ApplyCommand { get; }
+        public BA.UI.Mvvm.RelayCommand SelectAllPropertiesCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ClearAllPropertiesCommand { get; }
+        public BA.UI.Mvvm.RelayCommand InvertPropertiesCommand { get; }
+        public BA.UI.Mvvm.RelayCommand SelectAllTargetsCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ClearAllTargetsCommand { get; }
+        public BA.UI.Mvvm.RelayCommand InvertTargetsCommand { get; }
 
         public TemplateTransferViewModel(UIApplication uiApp, Window ownerWindow)
         {
@@ -87,24 +87,21 @@ namespace BA.UI.ViewTemplates
             _applyViewFiltersExternalEvent = ExternalEvent.Create(_applyViewFiltersHandler);
 
 
-            ApplyViewFiltersCommand = new RelayCommand(_ => ApplyViewFilters(), _ => CanApplyViewFilters());
-            SelectAllFiltersCommand = new RelayCommand(_ => SelectAllFilters());
-            ClearAllFiltersCommand = new RelayCommand(_ => ClearAllFilters());
-            InvertFiltersCommand = new RelayCommand(_ => InvertFilters());
-            _applyCategoryGraphicsHandler = new ApplyCategoryGraphicsHandler();
-            _applyCategoryGraphicsExternalEvent = ExternalEvent.Create(_applyCategoryGraphicsHandler);
-
-            ApplyCommand = new RelayCommand(_ => Apply(), _ => CanApply());
-            SelectAllPropertiesCommand = new RelayCommand(_ => SelectAllProperties());
-            ClearAllPropertiesCommand = new RelayCommand(_ => ClearAllProperties());
-            InvertPropertiesCommand = new RelayCommand(_ => InvertProperties());
-            SelectAllTargetsCommand = new RelayCommand(_ => SelectAllTargets());
-            ClearAllTargetsCommand = new RelayCommand(_ => ClearAllTargets());
-            InvertTargetsCommand = new RelayCommand(_ => InvertTargets());
-            ApplyCategoryGraphicsCommand = new RelayCommand(_ => ApplyCategoryGraphics(), _ => CanApplyCategoryGraphics());
-            SelectAllGraphicCategoriesCommand = new RelayCommand(_ => SelectAllGraphicCategories());
-            ClearAllGraphicCategoriesCommand = new RelayCommand(_ => ClearAllGraphicCategories());
-            InvertGraphicCategoriesCommand = new RelayCommand(_ => InvertGraphicCategories());
+            ApplyViewFiltersCommand = new BA.UI.Mvvm.RelayCommand(_ => ApplyViewFilters(), _ => CanApplyViewFilters());
+            SelectAllFiltersCommand = new BA.UI.Mvvm.RelayCommand(_ => SelectAllFilters());
+            ClearAllFiltersCommand = new BA.UI.Mvvm.RelayCommand(_ => ClearAllFilters());
+            InvertFiltersCommand = new BA.UI.Mvvm.RelayCommand(_ => InvertFilters());
+            ApplyCommand = new BA.UI.Mvvm.RelayCommand(_ => Apply(), _ => CanApply());
+            SelectAllPropertiesCommand = new BA.UI.Mvvm.RelayCommand(_ => SelectAllProperties());
+            ClearAllPropertiesCommand = new BA.UI.Mvvm.RelayCommand(_ => ClearAllProperties());
+            InvertPropertiesCommand = new BA.UI.Mvvm.RelayCommand(_ => InvertProperties());
+            SelectAllTargetsCommand = new BA.UI.Mvvm.RelayCommand(_ => SelectAllTargets());
+            ClearAllTargetsCommand = new BA.UI.Mvvm.RelayCommand(_ => ClearAllTargets());
+            InvertTargetsCommand = new BA.UI.Mvvm.RelayCommand(_ => InvertTargets());
+            ApplyCategoryGraphicsCommand = new BA.UI.Mvvm.RelayCommand(_ => ApplyCategoryGraphics(), _ => CanApplyCategoryGraphics());
+            SelectAllGraphicCategoriesCommand = new BA.UI.Mvvm.RelayCommand(_ => SelectAllGraphicCategories());
+            ClearAllGraphicCategoriesCommand = new BA.UI.Mvvm.RelayCommand(_ => ClearAllGraphicCategories());
+            InvertGraphicCategoriesCommand = new BA.UI.Mvvm.RelayCommand(_ => InvertGraphicCategories());
 
 
             LoadTemplates();
