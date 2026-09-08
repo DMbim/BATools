@@ -3,11 +3,9 @@ using BA.Subcategories.ViewModels;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Controls;
-using System.Windows.Media;
 using System;
+using System.Linq;
 using Color = System.Windows.Media.Color;
-
-
 
 namespace BA.Subcategories.Views
 {
@@ -27,26 +25,12 @@ namespace BA.Subcategories.Views
                 Close();
             };
 
-            // Use the inline WPF color picker dialog instead of WinForms
+            // Delegates to the existing BA.UI.Helpers.ColorPicker, no custom
+            // dialog logic lives in this window anymore. <- CHANGED
             _vm.RequestColorPick = currentColor =>
-                ShowColorPickerDialog(currentColor);
-        }
-
-        private System.Windows.Media.Color? ShowColorPickerDialog(System.Windows.Media.Color currentColor)
-        {
-            throw new NotImplementedException();
-        }
-
-        // ── Inline color picker ───────────────────────────────────────────────
-
-        private static Color? ShowColorPickerDialog(Autodesk.Revit.DB.Color current)
-        {
-            var picker = new ColorPickerWindow(current)
-            {
-                Owner = Application.Current.MainWindow
-            };
-
-            return picker.ShowDialog() != true ? null : picker.SelectedColor;
+                BA.UI.Helpers.ColorPicker.TryPickColor(currentColor, out var picked)
+                    ? picked
+                    : (Color?)null;
         }
 
         // ── Color swatch click ────────────────────────────────────────────────
@@ -70,6 +54,7 @@ namespace BA.Subcategories.Views
                 _vm.DeleteSubcategoryCommand.Execute(null);
             }
         }
+
         // ── Select All / None ─────────────────────────────────────────────────
 
         private void BtnSelectAll_Click(object sender, RoutedEventArgs e)
@@ -83,7 +68,19 @@ namespace BA.Subcategories.Views
             foreach (var item in _vm.GeometryItems)
                 item.IsSelected = false;
         }
+
+        // ── Geometry grid selection, highlight in Revit ─────────────────────
+
+        private void GeometryDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is DataGrid grid)
+            {
+                var selected = grid.SelectedItems
+                    .OfType<FamilyGeometryRow>()
+                    .ToList();
+
+                _vm.UpdateGeometrySelection(selected);
+            }
+        }
     }
 }
-    
-

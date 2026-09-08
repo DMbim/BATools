@@ -9,7 +9,6 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Windows.Data;
 using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 
 namespace BA.UI.Standards
@@ -17,6 +16,15 @@ namespace BA.UI.Standards
     public sealed class SubcategoryAuditorViewModel : INotifyPropertyChanged
     {
         private readonly ObservableCollection<SubcategoryAuditRow> _rows = new ObservableCollection<SubcategoryAuditRow>();
+
+        /// <summary>
+        /// Filtered projection of Rows for display. Rebuilt manually on the UI
+        /// thread whenever the data or the filter criteria change, deliberately
+        /// not backed by ICollectionView / CollectionViewSource, that pattern
+        /// has confirmed thread affinity problems in this Revit hosted process.
+        /// </summary>
+        private readonly ObservableCollection<SubcategoryAuditRow> _rowsView = new ObservableCollection<SubcategoryAuditRow>(); // <- NEW
+
         private string _searchText = "";
         private bool _showOnlyIssues;
         private bool _showMissingSemanticOnly;
@@ -27,7 +35,7 @@ namespace BA.UI.Standards
 
         public ObservableCollection<SubcategoryAuditRow> Rows => _rows;
 
-        public ICollectionView RowsView { get; }
+        public ObservableCollection<SubcategoryAuditRow> RowsView => _rowsView; // <- CHANGED, was ICollectionView
 
         public string SearchText
         {
@@ -36,7 +44,7 @@ namespace BA.UI.Standards
             {
                 _searchText = value ?? "";
                 OnPropertyChanged();
-                RowsView.Refresh();
+                RebuildRowsView(); // <- CHANGED
             }
         }
 
@@ -47,7 +55,7 @@ namespace BA.UI.Standards
             {
                 _showOnlyIssues = value;
                 OnPropertyChanged();
-                RowsView.Refresh();
+                RebuildRowsView(); // <- CHANGED
             }
         }
 
@@ -58,7 +66,7 @@ namespace BA.UI.Standards
             {
                 _showMissingSemanticOnly = value;
                 OnPropertyChanged();
-                RowsView.Refresh();
+                RebuildRowsView(); // <- CHANGED
             }
         }
 
@@ -111,15 +119,12 @@ namespace BA.UI.Standards
             };
         }
 
-        public SubcategoryAuditorViewModel()
-        {
-            RowsView = CollectionViewSource.GetDefaultView(_rows);
-            RowsView.Filter = FilterRow;
-        }
+        // Constructor removed, there is nothing left to initialise. Both
+        // collections are readonly fields set at declaration.
 
-        private bool FilterRow(object obj)
+        private bool FilterRow(SubcategoryAuditRow row) // <- CHANGED, was object obj
         {
-            if (obj is not SubcategoryAuditRow row)
+            if (row == null)
                 return false;
 
             if (ShowOnlyIssues && !row.HasIssues)
@@ -152,6 +157,22 @@ namespace BA.UI.Standards
             return source.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
+        /// <summary>
+        /// Rebuilds RowsView from Rows against the current filter state. Must
+        /// run on the UI thread, same as every other mutation of these two
+        /// observable collections.
+        /// </summary>
+        private void RebuildRowsView() // <- NEW
+        {
+            _rowsView.Clear();
+
+            foreach (SubcategoryAuditRow row in _rows)
+            {
+                if (FilterRow(row))
+                    _rowsView.Add(row);
+            }
+        }
+
         public void LoadRows(IEnumerable<SubcategoryAuditRow> rows, SubcategoryAuditSummary summary)
         {
             _rows.Clear();
@@ -160,7 +181,7 @@ namespace BA.UI.Standards
                 _rows.Add(row);
 
             SummaryText = BuildSummaryText(summary);
-            RowsView.Refresh();
+            RebuildRowsView(); // <- CHANGED, was RowsView.Refresh()
         }
 
         private static string BuildSummaryText(SubcategoryAuditSummary summary)
@@ -238,10 +259,10 @@ namespace BA.UI.Standards
                     sb.AppendLine($"  Missing required: {row.MissingRequired}");
 
                 if (!string.IsNullOrWhiteSpace(row.AllowedNonBaNames))
-                    sb.AppendLine($"  Allowed non-BA: {row.AllowedNonBaNames}");
+                    sb.AppendLine($"  Allowed non BA: {row.AllowedNonBaNames}");
 
                 if (!string.IsNullOrWhiteSpace(row.NonCompliantNames))
-                    sb.AppendLine($"  Non-compliant: {row.NonCompliantNames}");
+                    sb.AppendLine($"  Non compliant: {row.NonCompliantNames}");
 
                 if (!string.IsNullOrWhiteSpace(row.Notes))
                     sb.AppendLine($"  Notes: {row.Notes}");

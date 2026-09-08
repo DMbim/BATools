@@ -1,7 +1,7 @@
 ﻿using System;
 using Autodesk.Revit.UI;
 
-namespace BATools.SelectionManager.ExternalEvents
+namespace BA.SelectionManager.ExternalEvents
 {
     public class PostCommandHandler : IExternalEventHandler
     {

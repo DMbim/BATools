@@ -111,6 +111,10 @@ namespace BA.ViewModels.Export
 
         private ExportSourceMode _sourceMode = ExportSourceMode.Sheets;
         private bool _useActiveViewOrSheet;
+        private bool _bumpDateRevisionOnRun;
+        private RevisionBumpScope _revisionBumpScope = RevisionBumpScope.PerSheet;
+        // Replace the existing SourceMode property with this version
+        // (adds one more OnPropertyChanged call, everything else identical):
         public ExportSourceMode SourceMode
         {
             get => _sourceMode;
@@ -120,6 +124,7 @@ namespace BA.ViewModels.Export
                 {
                     OnPropertyChanged(nameof(IsSheetsMode));
                     OnPropertyChanged(nameof(IsViewsMode));
+                    OnPropertyChanged(nameof(IsBumpDateRevisionAvailable));
                 }
             }
         }
@@ -161,7 +166,43 @@ namespace BA.ViewModels.Export
             get => _useActiveViewOrSheet;
             set => SetProperty(ref _useActiveViewOrSheet, value);
         }
+        // Add these new properties right after UseActiveViewOrSheet:
+        public bool BumpDateRevisionOnRun
+        {
+            get => _bumpDateRevisionOnRun;
+            set => SetProperty(ref _bumpDateRevisionOnRun, value);
+        }
 
+        public RevisionBumpScope RevisionBumpScope
+        {
+            get => _revisionBumpScope;
+            set
+            {
+                if (SetProperty(ref _revisionBumpScope, value))
+                {
+                    OnPropertyChanged(nameof(IsRevisionBumpWholeJob));
+                    OnPropertyChanged(nameof(IsRevisionBumpPerSheet));
+                }
+            }
+        }
+
+        public bool IsRevisionBumpWholeJob
+        {
+            get => RevisionBumpScope == RevisionBumpScope.WholeJob;
+            set { if (value) RevisionBumpScope = RevisionBumpScope.WholeJob; }
+        }
+
+        public bool IsRevisionBumpPerSheet
+        {
+            get => RevisionBumpScope == RevisionBumpScope.PerSheet;
+            set { if (value) RevisionBumpScope = RevisionBumpScope.PerSheet; }
+        }
+
+        /// <summary>
+        /// Drives IsEnabled on the date/revision bump controls in XAML. A bare
+        /// view has no revision, bumping is meaningless in Views mode.
+        /// </summary>
+        public bool IsBumpDateRevisionAvailable => SourceMode == ExportSourceMode.Sheets;
         public string NamingTemplate
         {
             get => _namingTemplate;
@@ -480,6 +521,8 @@ namespace BA.ViewModels.Export
             _selectedViewUniqueIds = new List<string>(model.SelectedViewUniqueIds ?? new List<string>());
             _sourceMode = model.SourceMode;
             _useActiveViewOrSheet = model.UseActiveViewOrSheet;
+            _bumpDateRevisionOnRun = model.BumpDateRevisionOnRun;
+            _revisionBumpScope = model.RevisionBumpScope;
             _namingTemplate = model.NamingTemplate;
             _dateFormat = model.DateFormat;
             _outputFolderTemplate = model.OutputFolderTemplate;
@@ -625,6 +668,8 @@ namespace BA.ViewModels.Export
                 ExportDwg = ExportDwg,
                 SourceMode = SourceMode,
                 UseActiveViewOrSheet = UseActiveViewOrSheet,
+                BumpDateRevisionOnRun = BumpDateRevisionOnRun,
+                RevisionBumpScope = RevisionBumpScope,
                 SelectedSheetNumbers = new List<string>(_selectedSheetNumbers),
                 SelectedViewUniqueIds = new List<string>(_selectedViewUniqueIds),
                 NamingTemplate = NamingTemplate ?? string.Empty,
@@ -1024,7 +1069,13 @@ namespace BA.ViewModels.Export
 
                     detail.AppendLine($"{result.Format}: {result.SuccessCount} succeeded, {result.FailureCount} failed.");
 
-                    foreach (var outcome in result.Outcomes)
+                    if (!string.IsNullOrEmpty(result.DateRevisionBumpSummary))
+                    {
+                        detail.AppendLine($"  {result.DateRevisionBumpSummary}");
+                    }
+
+
+                        foreach (var outcome in result.Outcomes)
                     {
                         if (!outcome.Success)
                         {

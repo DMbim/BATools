@@ -25,27 +25,40 @@ namespace BA.Updates
     internal static class UpdateCoordinator
     {
         /// <summary>
-        /// Checks GitHub for a newer release.
-        /// force=false: respects UpdateConfig.CheckInterval throttle, swallows network errors
-        ///              (never breaks Revit startup), returns null if throttled or offline.
-        /// force=true:  bypasses throttle, propagates network errors to the caller so a manual
-        ///              "Check for Updates" click can report a real failure instead of silently
-        ///              falling back to a stale cached result.
+        /// Checks for a newer release.
+        ///
+        /// force=false: throttled by UpdateConfig.CheckInterval. When throttled (or when the
+        ///              live GitHub call fails), this does NOT return null anymore — it
+        ///              reconstructs a result from the last persisted successful check
+        ///              (UpdateState.LastKnownTag etc.), recomputed against the CURRENT
+        ///              installed version. Only returns null if we have never successfully
+        ///              checked at all (fresh install, first-ever run). This is what makes
+        ///              AutoLaunchOnClose fire even when the startup Idling check was throttled.
+        ///
+        /// force=true:  bypasses the throttle, always hits GitHub live, propagates network
+        ///              errors to the caller (manual "Check for Updates" click should report
+        ///              a real failure, not silently fall back).
         /// </summary>
         public static async Task<UpdateCheckResult?> CheckAsync(UIApplication uiapp, bool force, CancellationToken ct)
         {
             var state = UpdateStateStore.Load();
-            if (!force && state.LastCheckedUtc != default &&
-                (DateTime.UtcNow - state.LastCheckedUtc) < UpdateConfig.CheckInterval)
+            var installed = VersionUtil.GetInstalledVersion(typeof(UpdateCoordinator).Assembly);
+            var revitVersion = uiapp.Application.VersionNumber; // "2026"
+
+            bool haveAnyPersistedResult = !string.IsNullOrWhiteSpace(state.LastKnownTag);
+
+            bool throttled = !force
+                && haveAnyPersistedResult
+                && state.LastCheckedUtc != default
+                && (DateTime.UtcNow - state.LastCheckedUtc) < UpdateConfig.CheckInterval;
+
+            if (throttled)
             {
-                return null;
+                return BuildResultFromPersistedState(state, installed, revitVersion);
             }
 
             state.LastCheckedUtc = DateTime.UtcNow;
             UpdateStateStore.Save(state);
-
-            var installed = VersionUtil.GetInstalledVersion(typeof(UpdateCoordinator).Assembly);
-            var revitVersion = uiapp.Application.VersionNumber; // "2026"
 
             GitHubReleaseInfo? rel;
             try
@@ -54,21 +67,32 @@ namespace BA.Updates
             }
             catch when (!force)
             {
-                // Offline / blocked during the automatic startup check: never break Revit startup.
-                return null;
+                // Offline / blocked during the automatic check: fall back to whatever we
+                // last knew rather than going dark for the rest of this session.
+                return BuildResultFromPersistedState(state, installed, revitVersion);
             }
             // NOTE: if force == true, the exception above is NOT caught by the filter and
-            // propagates to the caller (UpdateService.ForceCheckAsync), which reports it.
+            // propagates to the caller (UpdateService.ForceCheckAsync / Cmd_CheckForUpdates).
 
             if (rel == null || string.IsNullOrWhiteSpace(rel.tag_name))
-                return null;
+                return BuildResultFromPersistedState(state, installed, revitVersion);
 
             if (!VersionUtil.TryParseLoose(rel.tag_name, out var latest))
-                return null;
+                return BuildResultFromPersistedState(state, installed, revitVersion);
 
-            // No update
+            // Persist what we just learned, regardless of whether it turns out to be an
+            // update or not, so future throttled/offline checks have accurate data.
+            state.LastKnownTag = rel.tag_name;
+            state.LastKnownReleaseUrl = rel.html_url;
+            state.LastKnownBody = rel.body;
+
             if (VersionUtil.Compare(latest, installed) <= 0)
             {
+                state.LastKnownAssetName = null;
+                state.LastKnownAssetUrl = null;
+                state.LastKnownRevitVersion = null;
+                UpdateStateStore.Save(state);
+
                 return new UpdateCheckResult
                 {
                     HasUpdate = false,
@@ -81,9 +105,13 @@ namespace BA.Updates
                 };
             }
 
-            // Find correct asset for this Revit year (e.g. BA_R26.zip)
             var assetName = UpdateConfig.GetAssetNameForRevit(revitVersion);
             var asset = GitHubReleaseClientLite.FindAsset(rel, assetName);
+
+            state.LastKnownAssetName = assetName;
+            state.LastKnownAssetUrl = asset?.browser_download_url;
+            state.LastKnownRevitVersion = revitVersion;
+            UpdateStateStore.Save(state);
 
             return new UpdateCheckResult
             {
@@ -95,6 +123,50 @@ namespace BA.Updates
                 Body = rel.body,
                 AssetName = assetName,
                 AssetUrl = asset?.browser_download_url,
+                RevitVersion = revitVersion
+            };
+        }
+
+        /// <summary>
+        /// Reconstructs an UpdateCheckResult from the last persisted successful check,
+        /// re-evaluated against the CURRENT installed version (which can only differ from
+        /// last time if the user actually updated since then). Returns null only if we
+        /// have never successfully checked before at all.
+        /// </summary>
+        private static UpdateCheckResult? BuildResultFromPersistedState(UpdateState state, Version installed, string revitVersion)
+        {
+            if (string.IsNullOrWhiteSpace(state.LastKnownTag))
+                return null;
+
+            if (!VersionUtil.TryParseLoose(state.LastKnownTag, out var latest))
+                return null;
+
+            bool hasUpdate = VersionUtil.Compare(latest, installed) > 0;
+
+            string? assetName = null;
+            string? assetUrl = null;
+
+            if (hasUpdate)
+            {
+                assetName = UpdateConfig.GetAssetNameForRevit(revitVersion);
+
+                // Only trust the persisted asset URL if it was captured for THIS Revit year.
+                if (string.Equals(state.LastKnownRevitVersion, revitVersion, StringComparison.OrdinalIgnoreCase))
+                {
+                    assetUrl = state.LastKnownAssetUrl;
+                }
+            }
+
+            return new UpdateCheckResult
+            {
+                HasUpdate = hasUpdate,
+                Installed = installed,
+                Latest = latest,
+                Tag = state.LastKnownTag,
+                ReleaseUrl = state.LastKnownReleaseUrl,
+                Body = state.LastKnownBody,
+                AssetName = assetName,
+                AssetUrl = assetUrl,
                 RevitVersion = revitVersion
             };
         }
@@ -167,8 +239,6 @@ namespace BA.Updates
 
             if (!HasValidAsset(r))
             {
-                // This is the one path where the update genuinely should have happened,
-                // so still tell the person rather than failing silently.
                 ShowMissingAssetDialog(r);
                 return;
             }

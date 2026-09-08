@@ -5,7 +5,8 @@
         Width="1080"
         Height="900"
         MinWidth="980"
-        MinHeight="900">
+        MinHeight="900"
+        Style="{DynamicResource BaWindow}">
 
 
     <Window.Resources>

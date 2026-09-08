@@ -1,6 +1,8 @@
 ﻿// File: BATools-Installer/MainWindow.xaml.cs
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -14,8 +16,15 @@ namespace BATools_Installer
         public bool IsBusy
         {
             get => _isBusy;
-            set { _isBusy = value; OnChanged(nameof(IsBusy)); }
+            set
+            {
+                _isBusy = value;
+                OnChanged(nameof(IsBusy));
+                OnChanged(nameof(IsNotBusy));
+            }
         }
+
+        public bool IsNotBusy => !IsBusy;
 
         private string _logText = "";
         public string LogText
@@ -25,8 +34,46 @@ namespace BATools_Installer
         }
 
         public string GitHubInfo => $"https://github.com/{InstallerConfig.RepoOwner}/{InstallerConfig.RepoName}";
-        public int SelectedRevitYear { get; set; } = 2026;
 
+        // Years the picker offers. Add a year here when a new Revit release
+        // gets a BA Tools build; nothing else in this file needs to change.
+        public List<int> AvailableRevitYears { get; } = new List<int> { 2025, 2026 };
+
+        private int _selectedRevitYear = 2026;
+        public int SelectedRevitYear
+        {
+            get => _selectedRevitYear;
+            set
+            {
+                if (_selectedRevitYear == value) return;
+                _selectedRevitYear = value;
+                OnChanged(nameof(SelectedRevitYear));
+                OnChanged(nameof(InstallInfo));
+                OnChanged(nameof(RevitVersionSubtitle));
+                RefreshCurrentVersion();
+            }
+        }
+
+        public string RevitVersionSubtitle =>
+            $"Install / Update / Uninstall for Revit {SelectedRevitYear} (per-user)";
+
+        public string InstallInfo =>
+            $"Install dir: {RevitInstallPaths.GetInstallDir(SelectedRevitYear)}{Environment.NewLine}" +
+            $"Manifest: {RevitInstallPaths.GetManifestPath(SelectedRevitYear)}";
+
+        private string _currentVersion = "Current version: checking...";
+        public string CurrentVersion
+        {
+            get => _currentVersion;
+            set { _currentVersion = value; OnChanged(nameof(CurrentVersion)); }
+        }
+
+        private string _availableVersion = "Available version: checking...";
+        public string AvailableVersion
+        {
+            get => _availableVersion;
+            set { _availableVersion = value; OnChanged(nameof(AvailableVersion)); }
+        }
 
         private readonly InstallerArgs? _startupArgs;
 
@@ -37,12 +84,29 @@ namespace BATools_Installer
 
             _startupArgs = startupArgs;
 
+            if (_startupArgs != null && _startupArgs.RevitYear > 0)
+            {
+                // Keep the picker in sync with whatever version BA.dll asked
+                // us to target, so the UI reflects reality even if the
+                // auto-run below fails and the user has to act manually.
+                SelectedRevitYear = _startupArgs.RevitYear;
+            }
+
+            // The setter above only fires RefreshCurrentVersion() when the
+            // value actually changes, so call it explicitly once to cover
+            // the case where startupArgs is null or already matches 2026.
+            RefreshCurrentVersion();
+
             Log("Ready.");
             Log($"Install dir: {RevitInstallPaths.GetInstallDir(SelectedRevitYear)}");
             Log($"Manifest: {RevitInstallPaths.GetManifestPath(SelectedRevitYear)}");
 
             Loaded += async (_, __) =>
             {
+                // Non-blocking: don't hold up the window or the auto-update
+                // check below just to hear back from GitHub.
+                _ = RefreshAvailableVersionAsync();
+
                 // If BA launched us with update args (interactive), auto-run update immediately
                 if (_startupArgs != null && _startupArgs.Mode == InstallerMode.Update)
                 {
@@ -50,6 +114,40 @@ namespace BATools_Installer
                     await Run(_startupArgs).ConfigureAwait(true);
                 }
             };
+        }
+
+        private void RefreshCurrentVersion()
+        {
+            try
+            {
+                var versionFile = Path.Combine(RevitInstallPaths.GetInstallDir(SelectedRevitYear), "BATools.version");
+                CurrentVersion = File.Exists(versionFile)
+                    ? $"Current version: {File.ReadAllText(versionFile).Trim()}"
+                    : "Current version: not installed";
+            }
+            catch (Exception ex)
+            {
+                CurrentVersion = "Current version: unknown";
+                Log("WARN: Could not read local version file: " + ex.Message);
+            }
+        }
+
+        private async Task RefreshAvailableVersionAsync()
+        {
+            try
+            {
+                var client = new GitHubReleaseClient(InstallerConfig.RepoOwner, InstallerConfig.RepoName);
+                var tag = await client.GetLatestReleaseTagAsync().ConfigureAwait(true);
+
+                AvailableVersion = string.IsNullOrWhiteSpace(tag)
+                    ? "Available version: unknown"
+                    : $"Available version: {tag.TrimStart('v', 'V')}";
+            }
+            catch (Exception ex)
+            {
+                AvailableVersion = "Available version: check failed";
+                Log("WARN: Could not check latest release: " + ex.Message);
+            }
         }
 
         private async void Install_Click(object sender, RoutedEventArgs e)
@@ -100,6 +198,7 @@ namespace BATools_Installer
             {
                 IsBusy = true;
                 await InstallerRunner.RunAsync(args, Log).ConfigureAwait(true);
+                RefreshCurrentVersion();
             }
             catch (InvalidOperationException ex)
                 when (ex.Message.Contains("Revit is still running"))
@@ -127,6 +226,7 @@ namespace BATools_Installer
                     try
                     {
                         await InstallerRunner.RunAsync(args, Log).ConfigureAwait(true);
+                        RefreshCurrentVersion();
                     }
                     catch (Exception retryEx)
                     {

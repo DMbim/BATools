@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Events;
-using BATools.SelectionManager.Services;
+using BA.SelectionManager.Services;
 
-namespace BATools.SelectionManager.Infrastructure
+namespace BA.SelectionManager.Infrastructure
 {
     /// <summary>
     /// Registers AddInCommandBindings for every available PostableCommand

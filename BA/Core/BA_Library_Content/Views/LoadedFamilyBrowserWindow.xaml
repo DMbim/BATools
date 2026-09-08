@@ -16,7 +16,7 @@
 
             <local:PreviewPathToImageSourceConverter x:Key="PreviewPathToImageSourceConverter" />
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
-
+            <Style TargetType="{x:Type CheckBox}" BasedOn="{StaticResource BaCheckBox}"/>
             <Style x:Key="BaTreeViewItemVisibilityStyle" TargetType="TreeViewItem">
                 <Setter Property="Visibility" Value="{Binding IsVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
                 <Setter Property="IsExpanded" Value="True" />

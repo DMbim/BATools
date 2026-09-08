@@ -2,7 +2,7 @@
 using System.Globalization;
 using System.Windows.Data;
 
-namespace BATools.SelectionManager.Converters
+namespace BA.SelectionManager.Converters
 {
     [ValueConversion(typeof(bool), typeof(string))]
     public class BoolToExpandArrowConverter : IValueConverter

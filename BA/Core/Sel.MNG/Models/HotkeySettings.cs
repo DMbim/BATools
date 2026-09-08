@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace BATools.SelectionManager.Models
+namespace BA.SelectionManager.Models
 {
     public enum ToggleShortcut
     {

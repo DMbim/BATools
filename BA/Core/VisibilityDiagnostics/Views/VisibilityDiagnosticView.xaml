@@ -1,0 +1,107 @@
+<!-- File: BA_Tools/VisibilityDiagnostics/Views/VisibilityDiagnosticView.xaml -->
+<Window x:Class="BA.VisibilityDiagnostics.Views.VisibilityDiagnosticView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:BA.VisibilityDiagnostics.Views"
+        xmlns:models="clr-namespace:BA.VisibilityDiagnostics.Models"
+        Title="BA | Visibility Diagnostic Tool"
+        Width="820" Height="560"
+        MinWidth="620" MinHeight="380"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+    <Window.Resources>
+        <local:CheckStatusToBrushConverter x:Key="StatusToBrushConverter" />
+        <local:CheckStatusToTextConverter x:Key="StatusToTextConverter" />
+    </Window.Resources>
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Input row -->
+        <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Element Id / Unique Id:" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <TextBox Grid.Column="1" Text="{Binding ElementIdInput, UpdateSourceTrigger=PropertyChanged}"
+                     VerticalContentAlignment="Center" Margin="0,0,6,0">
+                <TextBox.InputBindings>
+                    <KeyBinding Key="Return" Command="{Binding DiagnoseCommand}" />
+                </TextBox.InputBindings>
+            </TextBox>
+            <Button Grid.Column="2" Content="Diagnose" Command="{Binding DiagnoseCommand}" Padding="10,4" Margin="0,0,6,0" />
+            <Button Grid.Column="3" Content="Pick Element" Command="{Binding PickElementCommand}" Padding="10,4" Margin="0,0,6,0" />
+            <Button Grid.Column="4" Content="Use Current Selection" Command="{Binding UseCurrentSelectionCommand}" Padding="10,4" />
+        </Grid>
+
+        <!-- Element summary -->
+        <Border Grid.Row="1" Background="#FFF3F3F3" BorderBrush="#FFCCCCCC" BorderThickness="1" Padding="6" Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="{Binding ElementSummary}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontWeight="Bold"
+                           ToolTip="Whether Revit's own view-scoped element collector includes this element - the real ground truth, not a per-cause guess. Does not reliably reflect Crop Region exclusion (see the Crop Region row for that).">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding VisibleToViewCollector}" Value="True">
+                                    <Setter Property="Text" Value="Revit view collector: VISIBLE" />
+                                    <Setter Property="Foreground" Value="DarkGreen" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding VisibleToViewCollector}" Value="False">
+                                    <Setter Property="Text" Value="Revit view collector: NOT VISIBLE" />
+                                    <Setter Property="Foreground" Value="DarkRed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <!-- Results grid -->
+        <DataGrid Grid.Row="2" ItemsSource="{Binding CheckResults}" AutoGenerateColumns="False"
+                  IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
+                  GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                  RowHeaderWidth="0" VerticalScrollBarVisibility="Auto">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Check" Binding="{Binding CheckName}" Width="140" />
+                <DataGridTemplateColumn Header="Status" Width="110">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate DataType="{x:Type models:VisibilityCheckItem}">
+                            <Border Background="{Binding Status, Converter={StaticResource StatusToBrushConverter}}"
+                                    CornerRadius="3" Padding="6,2" Margin="2">
+                                <TextBlock Text="{Binding Status, Converter={StaticResource StatusToTextConverter}}"
+                                           Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Detail" Binding="{Binding Detail}" Width="*">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="TextWrapping" Value="Wrap" />
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="Recommendation" Binding="{Binding Recommendation}" Width="220">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="TextWrapping" Value="Wrap" />
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Status bar -->
+        <TextBlock Grid.Row="3" Text="{Binding StatusMessage}" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="#FF444444" />
+    </Grid>
+</Window>

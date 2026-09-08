@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using BATools.SelectionManager.ExternalEvents;
-using BATools.SelectionManager.Models;
+using BA.SelectionManager.ExternalEvents;
+using BA.SelectionManager.Models;
 
-namespace BATools.SelectionManager.Infrastructure
+namespace BA.SelectionManager.Infrastructure
 {
     /// <summary>
     /// Central singleton bridge between WPF ViewModels and Revit API.

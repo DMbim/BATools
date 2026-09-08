@@ -10,7 +10,21 @@ public static class IssueSources
         "View Templates",
         "Object Styles",
         "Line Styles",
+        "Line Patterns",
+        "Fill Patterns",
         "Filters",
+        "Title Blocks",
+        "Legends",
+        "Keynotes",
+        "Tags",
+        "Annotation Families",
+        "Dimension Styles",
+        "Text Styles",
+        "Sheet Setup",
+        "Browser Organization",
+        "Worksets",
+        "Phases",
+        "Materials",
         "Missing Content",
         "Broken Content",
         "Wrong Content",
@@ -30,6 +44,18 @@ public static class IssueSources
         "Coordinates Issue",
         "Sheet Issue",
         "Schedule Issue",
+        "Room / Area Issue",
+        "Wall Issue",
+        "Floor / Ceiling Issue",
+        "Structural Issue",
+        "MEP Issue",
+        "Site / Topography Issue",
+        "Detailing Issue",
+        "Annotation Issue",
+        "Clash / Coordination Issue",
+        "Duplicate Elements",
+        "Missing Elements",
+        "Wrong Type Or Family Used",
         "Warning / Performance Issue",
         "BIM Issue",
         "Other Model Issue"
@@ -47,6 +73,15 @@ public static class IssueSources
         "Revit Standard",
         "Export / IFC",
         "Coordination",
+        "Worksharing / Worksets",
+        "Model Health / Performance",
+        "Point Cloud",
+        "Federated Model",
+        "Level Of Development (LOD)",
+        "COBie",
+        "QA / QC Checks",
+        "Standards Compliance",
+        "Template Compliance",
         "Documentation",
         "Other BIM Issue"
     };
@@ -58,9 +93,16 @@ public static class IssueSources
         "Update Failed",
         "Missing Buttons",
         "Missing Icons",
+        "Ribbon Not Loading",
+        "Plugin Not Found In Revit",
         "Wrong Version Installed",
         "Settings Missing",
         "Permission Issue",
+        "License / Activation Issue",
+        "Conflicting Add In",
+        "Uninstall Failed",
+        "Network / Deployment Path Issue",
+        "Antivirus Blocked Install",
         "Other Installer Issue"
     };
 
@@ -68,9 +110,24 @@ public static class IssueSources
     {
         "General Question",
         "Improvement Idea",
+        "Feature Request",
+        "Workflow Suggestion",
         "Training Request",
         "Documentation Request",
+        "Feedback",
+        "Bug Report (Uncategorized)",
         "Other"
+    };
+
+    // NEW: generic, non command specific entries appended after the live BACommandRegistry
+    // list when Category is Plugin, so a report is not forced onto a single command name.
+    public static readonly string[] PluginGeneric =
+    {
+        "Performance / Slow",
+        "Crash / Unhandled Exception",
+        "Ribbon / UI Issue",
+        "Installation Issue",
+        "Other Plugin Issue"
     };
 
     public static IReadOnlyList<string> GetForCategory(string category)

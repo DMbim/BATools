@@ -6,11 +6,11 @@ using System.Windows.Input;
 using Autodesk.Revit.DB;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using BATools.SelectionManager.Actions;
-using BATools.SelectionManager.Models;
-using BATools.SelectionManager.Services;
+using BA.SelectionManager.Actions;
+using BA.SelectionManager.Models;
+using BA.SelectionManager.Services;
 
-namespace BATools.SelectionManager.ViewModels
+namespace BA.SelectionManager.ViewModels
 {
     // ── QuickActionButtonViewModel ────────────────────────────────────────────
     public class QuickActionButtonViewModel : ObservableObject

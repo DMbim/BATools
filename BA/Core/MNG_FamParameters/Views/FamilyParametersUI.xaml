@@ -236,6 +236,7 @@
                 <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                     <Button Content="Save selected as favorite" Width="170" Margin="0,0,0,6" Style="{StaticResource BaSecondaryButton}" Click="BtnSaveFavorite_Click" HorizontalAlignment="Stretch"/>
                     <Button Content="Remove checked"            Width="170" Margin="0,0,0,6" Style="{StaticResource BaSecondaryButton}" Click="BtnRemoveFavorite_Click" HorizontalAlignment="Stretch"/>
+                    <Button Content="Add checked as new params" Width="170" Margin="0,0,0,6" Style="{StaticResource BaSecondaryButton}" Click="BtnAddFavoritesToFamily_Click" HorizontalAlignment="Stretch"/>
                 </WrapPanel>
 
                 <Button DockPanel.Dock="Bottom"

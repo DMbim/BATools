@@ -1,7 +1,11 @@
 ﻿// FILE: BA_Tools/BAApplication/Ribbon/LayoutPlanningPanelFactory.cs
 using Autodesk.Revit.UI;
+using BA.App.Commands;
+using BA.Commands.Content;
 using BA.Commands.Diagnostics;
+using BA.Commands.Dimensioning;
 using BA.Commands.Ribbon;
+using BA.Families.Commands;
 using BA.KeyplanGrid;
 using BA.Materials;
 using BA.Ribbon;
@@ -52,10 +56,36 @@ namespace BA.BAApplication.Ribbon
             //    there's a fast way back to the daily-drafting tab without hunting for it
             //    manually. Goes through the internal Autodesk.Windows ComponentManager,
             //    see CmdActivateBaTab for the unsupported-API caveat.
-            panel.AddPushButton<CmdActivateBaTab>(
-                "ActivateBaToolsTab", "Go To\nBA Tools",
+            var pdGoTo = panel.AddPulldownButton<CmdActivateBaToolsTab>(
+                "GoToTab", "Go To\nTab",
+                "Switch the active ribbon tab.",
+                IconResources.Tab16, IconResources.Tab32);
+            pdGoTo.AddPushButton<CmdActivateBaToolsTab>(
+                "ActivateBaToolsTab", "BA_Tools",
                 "Switch the active ribbon tab to BA_Tools.",
-                IconResources.Markup16, IconResources.Markup32);
+                IconResources.Tab16, IconResources.Tab32);
+            pdGoTo.AddPushButton<CmdActivateBaTools2Tab>(
+                "ActivatepyRevitTab", "pyRevit",
+                "Switch the active ribbon tab to pyRevit.",
+                IconResources.Tab16, IconResources.Tab32);
+            pdGoTo.AddPushButton<CmdActivateBaAdminTab>(
+                "ActivateBaAdminTab", "BA_Admin",
+                "Switch the active ribbon tab to BA_Admin.",
+                IconResources.Tab16, IconResources.Tab32);
+
+            panel.AddPushButton<Cmd_DimensionElementsToReference>(
+                "DimensionElementsToReference", "Dimension\nElements",
+                "Create a multi-segment dimension from selected elements to a picked reference.",
+                IconResources.DimOverride16, IconResources.DimOverride32);
+
+            var (Load, Save, LoadedFamilyBrowser) = panel.AddStackedButtons<Cmd_OpenContentBrowserCommand, SaveFamiliesCommand, Cmd_LoadedFamilyBrowser>(
+        "ContentBrowser", "Load\nFamilies",
+        "SaveFamilies", "Save\nFamilies",
+        "LoadedFamilyBrowser", "Loaded\nFamily Browser",
+        IconResources.SaveFamilies16, IconResources.ContentBrowser16, IconResources.ContentBrowser16,
+        "Browse the BA content library and place family types directly into the model.",
+        "Browse the BA content library and place family types directly into the model.",
+        "Browse the BA content library and place family types directly into the model.");
         }
     }
 }

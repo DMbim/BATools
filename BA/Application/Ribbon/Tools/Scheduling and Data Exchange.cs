@@ -35,15 +35,20 @@ namespace BA.BAApplication.Ribbon
 
             #endregion
 
+
+
+
+
+
             #region Export/Import Schedule + Sheet Date/Revision + PDF/DWG Export (stacked, moved from UtilitiesPanelFactory)
-            var (pdpdExp, pdSheetDateRev, pdExport) = panel.AddStackedPulldownButtons(
+            var (pdpdExp, nplt, pdExport) = panel.AddStackedPulldownButtons(
                 "Exp/Imp ToExcel", "Exp/Imp\nSchedule",
                 "Export the selected schedule to an Excel file.",
                 IconResources.ExpIExc16, IconResources.ExpIExc32,
 
-                "SheetDateRevisionPulldown", "Sheet\nDate + Rev",
-                "Update the Issue Date and/or Revision on selected sheets.",
-                IconResources.SheetRevision16, IconResources.SheetRevision32,
+                "NPLT", "NPLT\nTools",
+                "Collection of NPLT tools.",
+                 IconResources.pMain16, IconResources.pMain32,
 
                 "Export", "PDF/DWG\nExport",
                 "Export sheets to PDF or DWG with custom naming and scheduling.",
@@ -59,15 +64,14 @@ namespace BA.BAApplication.Ribbon
                 "Import the selected schedule from an Excel file.",
                 IconResources.ImpExc16, IconResources.ImpExc32);
 
-            pdSheetDateRev.AddPushButton<Cmd_SheetDateAndRevision>(
-                "SheetDateRevision", "Update\nSheets",
-                "Update the Issue Date and/or Revision on selected sheets.",
-                IconResources.SheetRevision16, IconResources.SheetRevision32);
-
-            pdSheetDateRev.AddPushButton<Cmd_SheetDateAndRevision_Settings>(
-                "SheetDateRevisionSettings", "Settings",
-                "Configure the date parameter, revision parameter, and date format used by Sheet Date + Rev.",
-                IconResources.SheetRevision16, IconResources.SheetRevision32);
+            nplt.AddPushButton<Cmd_InstallGhostMarkupSetup>(
+                "InstallGhostMarkupSetup", "NPLT Markup\nSetup",
+                "Install the BA_NPLT ghost markup line style and view filter (one time, safe to rerun). Run this once per project before using ghost markup Type Names.",
+                IconResources.pMain16, IconResources.pMain32);
+            nplt.AddPushButton<Cmd_ToggleGhostMarkupVisibility>(
+                "ToggleGhostMarkup", "Toggle NPLT\nMarkup",
+                "Hide or show BA_NPLT ghost markup elements (Text Notes, Detail Lines, Detail Items) in the active view. Use this before a manual File Print, since native print is not automatically covered.",
+                IconResources.pMain16, IconResources.pMain32);
 
             pdExport.AddPushButton<OpenExportSettingsCommand>(
                 "OpenExportSettings", "Export\nSettings",
@@ -80,6 +84,7 @@ namespace BA.BAApplication.Ribbon
                 IconResources.PDF16, IconResources.PDF32);
             #endregion
 
-        }
+
+         }
     }
 }

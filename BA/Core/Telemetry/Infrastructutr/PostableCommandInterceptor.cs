@@ -1,7 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Autodesk.Revit.UI;
 using BA.Telemetry.Services;
+#if REVIT2025
+using Nice3point.Revit.Extensions.UI;
+#endif
 
 namespace BA.Telemetry.Infrastructure
 {
@@ -57,7 +60,6 @@ namespace BA.Telemetry.Infrastructure
             PostableCommand.AssemblyCode,
             PostableCommand.AutomaticBeamSystem,
             PostableCommand.AutomaticCeiling,
-            PostableCommand.AutomationCustomization,
             PostableCommand.BatchPrint,
             PostableCommand.Beam,
             PostableCommand.BeamAnnotations,
@@ -69,8 +71,6 @@ namespace BA.Telemetry.Infrastructure
             PostableCommand.BoundaryConditionsSettings,
             PostableCommand.Brace,
             PostableCommand.BrowserOrganization,
-            PostableCommand.BuildingElevation,
-            PostableCommand.BuildingOperatingSchedules,
             PostableCommand.BuildingOrSpaceTypeSettings,
             PostableCommand.CableTray,
             PostableCommand.CableTrayConnector,
@@ -166,7 +166,6 @@ namespace BA.Telemetry.Infrastructure
             PostableCommand.EditRebarCover,
             PostableCommand.EditSelection,
             PostableCommand.ElectricalAnalyticalLoadTypeSettings,
-            PostableCommand.ElectricalConductorAndCableSettings,
             PostableCommand.ElectricalConnector,
             PostableCommand.ElectricalEquipment,
             PostableCommand.ElectricalFixture,
@@ -434,9 +433,7 @@ namespace BA.Telemetry.Infrastructure
             PostableCommand.Rotate,
             PostableCommand.RotateProjectNorth,
             PostableCommand.RotateTrueNorth,
-            PostableCommand.RunAnalyticalToPhysicalForBuildings,
             PostableCommand.RunInterferenceCheck,
-            PostableCommand.RunPhysicalToAnalyticalForBuildings,
             PostableCommand.Save,
             PostableCommand.SaveAsCloudModel,
             PostableCommand.SaveAsFamily,
@@ -548,7 +545,6 @@ namespace BA.Telemetry.Infrastructure
             PostableCommand.TogglePropertiesPalette,
             PostableCommand.ToggleRevealHiddenElementsMode,
             PostableCommand.TopChord,
-            PostableCommand.TopographyCutVoidStability,
             PostableCommand.Toposolid,
             PostableCommand.ToposolidByFace,
             PostableCommand.ToposolidSmoothShading,
@@ -582,8 +578,7 @@ namespace BA.Telemetry.Infrastructure
             PostableCommand.Window,
             PostableCommand.Worksets,
             PostableCommand.WorksharingMonitor,
-            PostableCommand.ZoneBySketch,
-            PostableCommand.ZoneBySpace
+
 
         };
 

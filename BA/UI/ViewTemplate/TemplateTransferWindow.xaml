@@ -7,62 +7,53 @@
         Title="View Template Property Transfer"
         Height="760"
         Width="1720"
-        MinHeight="640"
+        MinHeight="500"
         MinWidth="1100"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Brush.WindowBg}"
         Foreground="{DynamicResource Brush.WindowFg}"
         FontFamily="Segoe UI"
         FontSize="12">
-
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-
             <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
-
             <Style x:Key="TopShellBorder" TargetType="{x:Type Border}">
                 <Setter Property="Background" Value="{StaticResource Brush.WindowBg}"/>
                 <Setter Property="BorderBrush" Value="{StaticResource Brush.DarkPanelBorder}"/>
                 <Setter Property="BorderThickness" Value="0,0,0,1"/>
                 <Setter Property="Padding" Value="14,10"/>
             </Style>
-
             <Style x:Key="BottomShellBorder" TargetType="{x:Type Border}">
                 <Setter Property="Background" Value="{StaticResource Brush.WindowBg}"/>
                 <Setter Property="BorderBrush" Value="{StaticResource Brush.DarkPanelBorder}"/>
                 <Setter Property="BorderThickness" Value="0,1,0,0"/>
                 <Setter Property="Padding" Value="12,8"/>
             </Style>
-
             <Style x:Key="ShellTitleText"
                    TargetType="{x:Type TextBlock}"
                    BasedOn="{StaticResource BaLabelText}">
                 <Setter Property="FontSize" Value="18"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
             </Style>
-
             <Style x:Key="PanelCaptionText"
                    TargetType="{x:Type TextBlock}"
                    BasedOn="{StaticResource BaMutedTextPanel}">
                 <Setter Property="Margin" Value="0,0,0,8"/>
                 <Setter Property="TextWrapping" Value="Wrap"/>
             </Style>
-
             <Style x:Key="PanelLabelText"
                    TargetType="{x:Type TextBlock}"
                    BasedOn="{StaticResource BaPanelText}">
                 <Setter Property="Margin" Value="0,0,0,4"/>
             </Style>
-
             <Style x:Key="InfoValueText"
                    TargetType="{x:Type TextBlock}"
                    BasedOn="{StaticResource BaPanelText}">
                 <Setter Property="FontWeight" Value="SemiBold"/>
             </Style>
-
             <Style x:Key="FlatPanelDataGrid"
                    TargetType="{x:Type DataGrid}"
                    BasedOn="{StaticResource BaDataGrid}">
@@ -75,7 +66,6 @@
                 <Setter Property="GridLinesVisibility" Value="Horizontal"/>
                 <Setter Property="HeadersVisibility" Value="Column"/>
             </Style>
-
             <Style x:Key="BusyOverlayPanel" TargetType="{x:Type Border}">
                 <Setter Property="Padding" Value="22,16"/>
                 <Setter Property="Background" Value="{StaticResource Brush.PanelBg}"/>
@@ -85,9 +75,7 @@
             </Style>
         </ResourceDictionary>
     </Window.Resources>
-
     <DockPanel LastChildFill="True">
-
         <!-- Top bar -->
         <Border DockPanel.Dock="Top" Style="{StaticResource TopShellBorder}">
             <Grid>
@@ -95,20 +83,33 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-
                 <StackPanel Orientation="Vertical">
                     <TextBlock Text="View Template Property Transfer"
                                Style="{StaticResource ShellTitleText}"/>
-                    <TextBlock Text="Select one source template, choose which template-controlled properties to transfer, then apply them to multiple target templates."
+                    <TextBlock Text="Select one source template and target templates, then open Properties, Advanced Graphics, or Filters to choose what to copy."
                                Style="{StaticResource BaMutedTextDark}"
                                Margin="0,4,0,0"
                                TextWrapping="Wrap"/>
                 </StackPanel>
-
                 <StackPanel Grid.Column="1"
                             Orientation="Horizontal"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Center">
+                    <Button Content="Properties"
+                            Style="{StaticResource BaSecondaryButton}"
+                            Width="110"
+                            Margin="0,0,8,0"
+                            Command="{Binding TogglePropertiesPanelCommand}"/>
+                    <Button Content="Advanced Graphics"
+                            Style="{StaticResource BaSecondaryButton}"
+                            Width="150"
+                            Margin="0,0,8,0"
+                            Command="{Binding ToggleAdvancedGraphicsPanelCommand}"/>
+                    <Button Content="Filters"
+                            Style="{StaticResource BaSecondaryButton}"
+                            Width="110"
+                            Margin="0,0,20,0"
+                            Command="{Binding ToggleFilterPanelCommand}"/>
                     <Button Content="Apply"
                             Style="{StaticResource BaPrimaryButton}"
                             Width="120"
@@ -121,7 +122,6 @@
                 </StackPanel>
             </Grid>
         </Border>
-
         <!-- Bottom status -->
         <Border DockPanel.Dock="Bottom" Style="{StaticResource BottomShellBorder}">
             <Grid>
@@ -129,12 +129,10 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-
                 <TextBlock Text="{Binding StatusText}"
                            Style="{StaticResource BaMutedTextDark}"
                            VerticalAlignment="Center"
                            TextWrapping="Wrap"/>
-
                 <StackPanel Grid.Column="1"
                             Orientation="Horizontal"
                             VerticalAlignment="Center">
@@ -153,462 +151,477 @@
                 </StackPanel>
             </Grid>
         </Border>
-
-        <!-- Main content -->
-        <Grid Margin="{StaticResource Thickness.WindowMargin}">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="12"/>
-                <RowDefinition Height="290"/>
-            </Grid.RowDefinitions>
-
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1.05*"/>
-                <ColumnDefinition Width="1.3*"/>
-                <ColumnDefinition Width="1.3*"/>
-            </Grid.ColumnDefinitions>
-
-            <!-- SOURCE -->
-            <Border Grid.Row="0"
-                    Grid.Column="0"
-                    Style="{StaticResource BaPanelBorder}"
-                    Margin="0,0,8,0">
-                <DockPanel LastChildFill="True">
-                    <StackPanel DockPanel.Dock="Top">
+        <!-- Main content, scrollable since the panels below now grow on demand rather than
+             holding a fixed reserved height -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <Grid Margin="{StaticResource Thickness.WindowMargin}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="12"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1*"/>
+                    <ColumnDefinition Width="1*"/>
+                </Grid.ColumnDefinitions>
+                <!-- SOURCE -->
+                <Border Grid.Row="0"
+                        Grid.Column="0"
+                        Style="{StaticResource BaPanelBorder}"
+                        Margin="0,0,8,0">
+                    <StackPanel>
                         <TextBlock Text="1. Source template"
                                    Style="{StaticResource BaSectionTitleText}"/>
                         <TextBlock Text="Pick the template that contains the settings you want to copy."
                                    Style="{StaticResource PanelCaptionText}"/>
-
                         <TextBlock Text="Template"
                                    Style="{StaticResource PanelLabelText}"/>
                         <ComboBox ItemsSource="{Binding SourceTemplates}"
                                   SelectedItem="{Binding SelectedSourceTemplate, Mode=TwoWay}"
                                   DisplayMemberPath="DisplayName"
                                   Style="{StaticResource BaComboBox}"/>
-
-                        <TextBlock Text="Search"
+                        <TextBlock Text="View type"
                                    Style="{StaticResource PanelLabelText}"
                                    Margin="0,10,0,4"/>
+                        <ItemsControl ItemsSource="{Binding SourceViewTypeFilters}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Content="{Binding DisplayName}"
+                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                              Style="{StaticResource BaPanelCheckBox}"
+                                              Margin="0,0,14,6"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="Search"
+                                   Style="{StaticResource PanelLabelText}"
+                                   Margin="0,6,0,4"/>
                         <TextBox Text="{Binding SourceSearchText, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource BaTextBox}"/>
-
                         <ListBox ItemsSource="{Binding FilteredSourceTemplates}"
                                  SelectedItem="{Binding SelectedSourceTemplate, Mode=TwoWay}"
                                  DisplayMemberPath="DisplayName"
-                                 Height="420"
+                                 Height="340"
+                                 Margin="0,10,0,0"
                                  Style="{StaticResource BaListBox}"
                                  ItemContainerStyle="{StaticResource BaListBoxItem}"/>
-
                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                            <TextBlock Text="Source view type:"
+                            <TextBlock Text="Selected template type:"
                                        Style="{StaticResource BaMutedTextPanel}"
                                        Margin="0,0,6,0"/>
                             <TextBlock Text="{Binding SelectedSourceViewType}"
                                        Style="{StaticResource InfoValueText}"/>
                         </StackPanel>
                     </StackPanel>
-                </DockPanel>
-            </Border>
-
-            <!-- PROPERTIES -->
-            <Border Grid.Row="0"
-                    Grid.Column="1"
-                    Style="{StaticResource BaPanelBorder}"
-                    Margin="0,0,8,0">
-                <DockPanel LastChildFill="True">
-                    <StackPanel DockPanel.Dock="Top">
-                        <TextBlock Text="2. Properties to transfer"
-                                   Style="{StaticResource BaSectionTitleText}"/>
-                        <TextBlock Text="These are the template-controlled properties available on the selected source template."
-                                   Style="{StaticResource PanelCaptionText}"/>
-
-                        <Grid Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <TextBox Grid.Column="0"
-                                     Text="{Binding PropertySearchText, UpdateSourceTrigger=PropertyChanged}"
-                                     Style="{StaticResource BaTextBox}"
-                                     Margin="0,0,8,0"/>
-
-                            <Button Grid.Column="1"
-                                    Content="Select all"
-                                    Style="{StaticResource BaPanelButton}"
-                                    Width="90"
-                                    Margin="0,0,8,0"
-                                    Command="{Binding SelectAllPropertiesCommand}"/>
-
-                            <Button Grid.Column="2"
-                                    Content="Clear"
-                                    Style="{StaticResource BaPanelButton}"
-                                    Width="80"
-                                    Margin="0,0,8,0"
-                                    Command="{Binding ClearAllPropertiesCommand}"/>
-
-                            <Button Grid.Column="3"
-                                    Content="Invert"
-                                    Style="{StaticResource BaPanelButton}"
-                                    Width="80"
-                                    Command="{Binding InvertPropertiesCommand}"/>
-                        </Grid>
-                    </StackPanel>
-
-                    <DataGrid ItemsSource="{Binding FilteredProperties}"
-                              Style="{StaticResource FlatPanelDataGrid}"
-                              IsReadOnly="False"
-                              CanUserSortColumns="True">
-                        <DataGrid.Columns>
-                            <DataGridCheckBoxColumn Header=""
-                                                    Width="40"
-                                                    Binding="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            <DataGridTextColumn Header="Property"
-                                                Width="*"
-                                                Binding="{Binding Name}"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </DockPanel>
-            </Border>
-
-            <!-- TARGETS -->
-            <Border Grid.Row="0"
-                    Grid.Column="2"
-                    Style="{StaticResource BaPanelBorder}">
-                <DockPanel LastChildFill="True">
-                    <StackPanel DockPanel.Dock="Top">
-                        <TextBlock Text="3. Target templates"
-                                   Style="{StaticResource BaSectionTitleText}"/>
-                        <TextBlock Text="Only templates with the same view type as the source are shown."
-                                   Style="{StaticResource PanelCaptionText}"/>
-
-                        <Grid Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <TextBox Grid.Column="0"
-                                     Text="{Binding TargetSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                     Style="{StaticResource BaTextBox}"
-                                     Margin="0,0,8,0"/>
-
-                            <Button Grid.Column="1"
-                                    Content="Select all"
-                                    Style="{StaticResource BaPanelButton}"
-                                    Width="90"
-                                    Margin="0,0,8,0"
-                                    Command="{Binding SelectAllTargetsCommand}"/>
-
-                            <Button Grid.Column="2"
-                                    Content="Clear"
-                                    Style="{StaticResource BaPanelButton}"
-                                    Width="80"
-                                    Margin="0,0,8,0"
-                                    Command="{Binding ClearAllTargetsCommand}"/>
-
-                            <Button Grid.Column="3"
-                                    Content="Invert"
-                                    Style="{StaticResource BaPanelButton}"
-                                    Width="80"
-                                    Command="{Binding InvertTargetsCommand}"/>
-                        </Grid>
-                    </StackPanel>
-
-                    <DataGrid ItemsSource="{Binding FilteredTargets}"
-                              Style="{StaticResource FlatPanelDataGrid}"
-                              IsReadOnly="False"
-                              CanUserSortColumns="True">
-                        <DataGrid.Columns>
-                            <DataGridCheckBoxColumn Header=""
-                                                    Width="40"
-                                                    Binding="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            <DataGridTextColumn Header="Template"
-                                                Width="*"
-                                                Binding="{Binding Name}"/>
-                            <DataGridTextColumn Header="View Type"
-                                                Width="160"
-                                                Binding="{Binding ViewTypeName}"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </DockPanel>
-            </Border>
-
-            <!-- ADVANCED GRAPHICS -->
-            <Grid Grid.Row="2"
-      Grid.Column="0"
-      Grid.ColumnSpan="3">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1*"/>
-                    <ColumnDefinition Width="12"/>
-                    <ColumnDefinition Width="1*"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- ADVANCED GRAPHICS -->
-                <Border Grid.Column="0"
-            Style="{StaticResource BaPanelBorder}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="8"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="8"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Row="0" Grid.Column="0">
-                            <TextBlock Text="4. Advanced graphics transfer"
-                           Style="{StaticResource BaSectionTitleText}"/>
-                            <TextBlock Text="Copy selected model category graphics from the source template to the selected target templates."
-                           Style="{StaticResource PanelCaptionText}"/>
+                </Border>
+                <!-- TARGETS -->
+                <Border Grid.Row="0"
+                        Grid.Column="1"
+                        Style="{StaticResource BaPanelBorder}">
+                    <DockPanel LastChildFill="True">
+                        <StackPanel DockPanel.Dock="Top">
+                            <TextBlock Text="2. Target templates"
+                                       Style="{StaticResource BaSectionTitleText}"/>
+                            <TextBlock Text="Only templates with the same view type as the source are shown."
+                                       Style="{StaticResource PanelCaptionText}"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock Text="View type:"
+                                           Style="{StaticResource BaMutedTextPanel}"
+                                           Margin="0,0,6,0"/>
+                                <TextBlock Text="{Binding SelectedSourceViewType}"
+                                           Style="{StaticResource InfoValueText}"/>
+                                <TextBlock Text="(locked to source)"
+                                           Style="{StaticResource BaMutedTextPanel}"
+                                           Margin="8,0,0,0"/>
+                            </StackPanel>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding TargetSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource BaTextBox}"
+                                         Margin="0,0,8,0"/>
+                                <Button Grid.Column="1"
+                                        Content="Select all"
+                                        Style="{StaticResource BaPanelButton}"
+                                        Width="90"
+                                        Margin="0,0,8,0"
+                                        Command="{Binding SelectAllTargetsCommand}"/>
+                                <Button Grid.Column="2"
+                                        Content="Clear"
+                                        Style="{StaticResource BaPanelButton}"
+                                        Width="80"
+                                        Margin="0,0,8,0"
+                                        Command="{Binding ClearAllTargetsCommand}"/>
+                                <Button Grid.Column="3"
+                                        Content="Invert"
+                                        Style="{StaticResource BaPanelButton}"
+                                        Width="80"
+                                        Command="{Binding InvertTargetsCommand}"/>
+                            </Grid>
                         </StackPanel>
-
-                        <Button Grid.Row="0"
-                    Grid.Column="1"
-                    Width="180"
-                    Style="{StaticResource BaPrimaryButton}"
-                    Content="Apply Graphics"
-                    Command="{Binding ApplyCategoryGraphicsCommand}"/>
-
-                        <WrapPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
-                            <TextBlock Text="Transfer:"
-                           Style="{StaticResource PanelLabelText}"
-                           Margin="0,0,12,0"
-                           VerticalAlignment="Center"/>
-
-                            <CheckBox Content="Visibility"
-                          IsChecked="{Binding CopyCategoryVisibility}"
-                          Style="{StaticResource BaPanelCheckBox}"
-                          Margin="0,0,16,0"/>
-
-                            <CheckBox Content="Projection Overrides"
-                          IsChecked="{Binding CopyCategoryProjectionOverrides}"
-                          Style="{StaticResource BaPanelCheckBox}"
-                          Margin="0,0,16,0"/>
-
-                            <CheckBox Content="Cut Overrides"
-                          IsChecked="{Binding CopyCategoryCutOverrides}"
-                          Style="{StaticResource BaPanelCheckBox}"
-                          Margin="0,0,16,0"/>
-
-                            <TextBlock Text="Selected categories:"
-                           Style="{StaticResource BaMutedTextPanel}"
-                           Margin="24,0,6,0"
-                           VerticalAlignment="Center"/>
-
-                            <TextBlock Text="{Binding SelectedGraphicCategoryCount}"
-                           Style="{StaticResource InfoValueText}"
-                           VerticalAlignment="Center"/>
-                        </WrapPanel>
-
-                        <Grid Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2">
+                        <DataGrid Height="400"
+                                  ItemsSource="{Binding FilteredTargets}"
+                                  Style="{StaticResource FlatPanelDataGrid}"
+                                  IsReadOnly="False"
+                                  CanUserSortColumns="True">
+                            <DataGrid.Columns>
+                                <DataGridCheckBoxColumn Header=""
+                                                        Width="40"
+                                                        Binding="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <DataGridTextColumn Header="Template"
+                                                    Width="*"
+                                                    Binding="{Binding Name}"/>
+                                <DataGridTextColumn Header="View Type"
+                                                    Width="160"
+                                                    Binding="{Binding ViewTypeName}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+                <!-- COLLAPSIBLE: Properties / Advanced Graphics / Filters -->
+                <Grid Grid.Row="2"
+                      Grid.Column="0"
+                      Grid.ColumnSpan="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="1*"/>
+                    </Grid.ColumnDefinitions>
+                    <!-- PROPERTIES -->
+                    <Border Grid.Column="0"
+                            Style="{StaticResource BaPanelBorder}"
+                            Visibility="{Binding IsPropertiesPanelVisible, Converter={StaticResource BoolToVisibility}}">
+                        <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="8"/>
-                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <TextBox Grid.Row="0"
-                         Grid.Column="0"
-                         Text="{Binding CategorySearchText, UpdateSourceTrigger=PropertyChanged}"
-                         Style="{StaticResource BaTextBox}"
-                         Margin="0,0,8,0"/>
-
-                            <Button Grid.Row="0"
-                        Grid.Column="1"
-                        Content="Select all"
-                        Style="{StaticResource BaPanelButton}"
-                        Width="90"
-                        Margin="0,0,8,0"
-                        Command="{Binding SelectAllGraphicCategoriesCommand}"/>
-
-                            <Button Grid.Row="0"
-                        Grid.Column="2"
-                        Content="Clear"
-                        Style="{StaticResource BaPanelButton}"
-                        Width="80"
-                        Margin="0,0,8,0"
-                        Command="{Binding ClearAllGraphicCategoriesCommand}"/>
-
-                            <Button Grid.Row="0"
-                        Grid.Column="3"
-                        Content="Invert"
-                        Style="{StaticResource BaPanelButton}"
-                        Width="80"
-                        Command="{Binding InvertGraphicCategoriesCommand}"/>
-
-                            <DataGrid Grid.Row="2"
-                          Grid.Column="0"
-                          Grid.ColumnSpan="4"
-                          ItemsSource="{Binding FilteredGraphicCategories}"
-                          Style="{StaticResource FlatPanelDataGrid}"
-                          IsReadOnly="False"
-                          CanUserSortColumns="True">
-                                <DataGrid.Columns>
-                                    <DataGridCheckBoxColumn Header=""
-                                                Width="40"
-                                                Binding="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                    <DataGridTextColumn Header="Model Category"
-                                            Width="*"
-                                            Binding="{Binding Name}"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
+                            <StackPanel Grid.Row="0">
+                                <TextBlock Text="3. Properties to transfer"
+                                           Style="{StaticResource BaSectionTitleText}"/>
+                                <TextBlock Text="These are the template-controlled properties available on the selected source template."
+                                           Style="{StaticResource PanelCaptionText}"/>
+                            </StackPanel>
+                            <Grid Grid.Row="2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="8"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid Grid.Row="0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0"
+                                             Text="{Binding PropertySearchText, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource BaTextBox}"
+                                             Margin="0,0,8,0"/>
+                                    <Button Grid.Column="1"
+                                            Content="Select all"
+                                            Style="{StaticResource BaPanelButton}"
+                                            Width="90"
+                                            Margin="0,0,8,0"
+                                            Command="{Binding SelectAllPropertiesCommand}"/>
+                                    <Button Grid.Column="2"
+                                            Content="Clear"
+                                            Style="{StaticResource BaPanelButton}"
+                                            Width="80"
+                                            Margin="0,0,8,0"
+                                            Command="{Binding ClearAllPropertiesCommand}"/>
+                                    <Button Grid.Column="3"
+                                            Content="Invert"
+                                            Style="{StaticResource BaPanelButton}"
+                                            Width="80"
+                                            Command="{Binding InvertPropertiesCommand}"/>
+                                </Grid>
+                                <DataGrid Grid.Row="2"
+                                          Height="260"
+                                          ItemsSource="{Binding FilteredProperties}"
+                                          Style="{StaticResource FlatPanelDataGrid}"
+                                          IsReadOnly="False"
+                                          CanUserSortColumns="True">
+                                    <DataGrid.Columns>
+                                        <DataGridCheckBoxColumn Header=""
+                                                                Width="40"
+                                                                Binding="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <DataGridTextColumn Header="Property"
+                                                            Width="*"
+                                                            Binding="{Binding Name}"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
                         </Grid>
-                    </Grid>
-                </Border>
-
-                <!-- FILTERS -->
-                <Border Grid.Column="2"
-            Style="{StaticResource BaPanelBorder}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="8"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="8"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Row="0" Grid.Column="0">
-                            <TextBlock Text="5. Filter transfer"
-                           Style="{StaticResource BaSectionTitleText}"/>
-                            <TextBlock Text="Copy selected filters from the source template to the selected target templates."
-                           Style="{StaticResource PanelCaptionText}"/>
-                        </StackPanel>
-
-                        <Button Grid.Row="0"
-                    Grid.Column="1"
-                    Width="180"
-                    Style="{StaticResource BaPrimaryButton}"
-                    Content="Apply Filters"
-                    Command="{Binding ApplyViewFiltersCommand}"/>
-
-                        <WrapPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
-                            <TextBlock Text="Transfer:"
-                           Style="{StaticResource PanelLabelText}"
-                           Margin="0,0,12,0"
-                           VerticalAlignment="Center"/>
-
-                            <CheckBox Content="Enabled State"
-                          IsChecked="{Binding CopyFilterEnabledState}"
-                          Style="{StaticResource BaPanelCheckBox}"
-                          Margin="0,0,16,0"/>
-
-                            <CheckBox Content="Visibility"
-                          IsChecked="{Binding CopyFilterVisibility}"
-                          Style="{StaticResource BaPanelCheckBox}"
-                          Margin="0,0,16,0"/>
-
-                            <CheckBox Content="Overrides"
-                          IsChecked="{Binding CopyFilterOverrides}"
-                          Style="{StaticResource BaPanelCheckBox}"
-                          Margin="0,0,16,0"/>
-
-                            <CheckBox Content="Preserve Source Order"
-                          IsChecked="{Binding PreserveFilterOrder}"
-                          Style="{StaticResource BaPanelCheckBox}"
-                          Margin="16,0,16,0"/>
-
-                            <TextBlock Text="Selected filters:"
-                           Style="{StaticResource BaMutedTextPanel}"
-                           Margin="24,0,6,0"
-                           VerticalAlignment="Center"/>
-
-                            <TextBlock Text="{Binding SelectedFilterCount}"
-                           Style="{StaticResource InfoValueText}"
-                           VerticalAlignment="Center"/>
-                        </WrapPanel>
-
-                        <Grid Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2">
+                    </Border>
+                    <!-- ADVANCED GRAPHICS -->
+                    <Border Grid.Column="2"
+                            Style="{StaticResource BaPanelBorder}"
+                            Visibility="{Binding IsAdvancedGraphicsPanelVisible, Converter={StaticResource BoolToVisibility}}">
+                        <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="8"/>
-                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="8"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Row="0" Grid.Column="0">
+                                <TextBlock Text="4. Advanced graphics transfer"
+                                           Style="{StaticResource BaSectionTitleText}"/>
+                                <TextBlock Text="Copy selected model category graphics from the source template to the selected target templates."
+                                           Style="{StaticResource PanelCaptionText}"/>
+                            </StackPanel>
+                            <Button Grid.Row="0"
+                                    Grid.Column="1"
+                                    Width="160"
+                                    Style="{StaticResource BaPrimaryButton}"
+                                    Content="Apply Graphics"
+                                    Command="{Binding ApplyCategoryGraphicsCommand}"/>
+                            <WrapPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
+                                <TextBlock Text="Transfer:"
+                                           Style="{StaticResource PanelLabelText}"
+                                           Margin="0,0,12,0"
+                                           VerticalAlignment="Center"/>
+                                <CheckBox Content="Visibility"
+                                          IsChecked="{Binding CopyCategoryVisibility}"
+                                          Style="{StaticResource BaPanelCheckBox}"
+                                          Margin="0,0,16,0"/>
+                                <CheckBox Content="Projection Overrides"
+                                          IsChecked="{Binding CopyCategoryProjectionOverrides}"
+                                          Style="{StaticResource BaPanelCheckBox}"
+                                          Margin="0,0,16,0"/>
+                                <CheckBox Content="Cut Overrides"
+                                          IsChecked="{Binding CopyCategoryCutOverrides}"
+                                          Style="{StaticResource BaPanelCheckBox}"
+                                          Margin="0,0,16,0"/>
+                                <TextBlock Text="Selected categories:"
+                                           Style="{StaticResource BaMutedTextPanel}"
+                                           Margin="24,0,6,0"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding SelectedGraphicCategoryCount}"
+                                           Style="{StaticResource InfoValueText}"
+                                           VerticalAlignment="Center"/>
+                            </WrapPanel>
+                            <Grid Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="8"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Row="0"
+                                         Grid.Column="0"
+                                         Text="{Binding CategorySearchText, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource BaTextBox}"
+                                         Margin="0,0,8,0"/>
+                                <Button Grid.Row="0"
+                                        Grid.Column="1"
+                                        Content="Select all"
+                                        Style="{StaticResource BaPanelButton}"
+                                        Width="90"
+                                        Margin="0,0,8,0"
+                                        Command="{Binding SelectAllGraphicCategoriesCommand}"/>
+                                <Button Grid.Row="0"
+                                        Grid.Column="2"
+                                        Content="Clear"
+                                        Style="{StaticResource BaPanelButton}"
+                                        Width="80"
+                                        Margin="0,0,8,0"
+                                        Command="{Binding ClearAllGraphicCategoriesCommand}"/>
+                                <Button Grid.Row="0"
+                                        Grid.Column="3"
+                                        Content="Invert"
+                                        Style="{StaticResource BaPanelButton}"
+                                        Width="80"
+                                        Command="{Binding InvertGraphicCategoriesCommand}"/>
+                                <DataGrid Grid.Row="2"
+                                          Grid.Column="0"
+                                          Grid.ColumnSpan="4"
+                                          Height="260"
+                                          ItemsSource="{Binding FilteredGraphicCategories}"
+                                          Style="{StaticResource FlatPanelDataGrid}"
+                                          IsReadOnly="False"
+                                          CanUserSortColumns="True">
+                                    <DataGrid.Columns>
+                                        <DataGridCheckBoxColumn Header=""
+                                                                Width="40"
+                                                                Binding="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <DataGridTextColumn Header="Model Category"
+                                                            Width="*"
+                                                            Binding="{Binding Name}"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                    <!-- FILTERS -->
+                    <Border Grid.Column="4"
+                            Style="{StaticResource BaPanelBorder}"
+                            Visibility="{Binding IsFilterPanelVisible, Converter={StaticResource BoolToVisibility}}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="8"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="8"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-
-                            <TextBox Grid.Row="0"
-                         Grid.Column="0"
-                         Text="{Binding FilterSearchText, UpdateSourceTrigger=PropertyChanged}"
-                         Style="{StaticResource BaTextBox}"
-                         Margin="0,0,8,0"/>
-
+                            <StackPanel Grid.Row="0" Grid.Column="0">
+                                <TextBlock Text="5. Filter transfer"
+                                           Style="{StaticResource BaSectionTitleText}"/>
+                                <TextBlock Text="Copy selected filters from the source template to the selected target templates."
+                                           Style="{StaticResource PanelCaptionText}"/>
+                            </StackPanel>
                             <Button Grid.Row="0"
-                        Grid.Column="1"
-                        Content="Select all"
-                        Style="{StaticResource BaPanelButton}"
-                        Width="90"
-                        Margin="0,0,8,0"
-                        Command="{Binding SelectAllFiltersCommand}"/>
-
-                            <Button Grid.Row="0"
-                        Grid.Column="2"
-                        Content="Clear"
-                        Style="{StaticResource BaPanelButton}"
-                        Width="80"
-                        Margin="0,0,8,0"
-                        Command="{Binding ClearAllFiltersCommand}"/>
-
-                            <Button Grid.Row="0"
-                        Grid.Column="3"
-                        Content="Invert"
-                        Style="{StaticResource BaPanelButton}"
-                        Width="80"
-                        Command="{Binding InvertFiltersCommand}"/>
-
-                            <DataGrid Grid.Row="2"
-                          Grid.Column="0"
-                          Grid.ColumnSpan="4"
-                          ItemsSource="{Binding FilteredSourceFilters}"
-                          Style="{StaticResource FlatPanelDataGrid}"
-                          IsReadOnly="False"
-                          CanUserSortColumns="True">
-                                <DataGrid.Columns>
-                                    <DataGridCheckBoxColumn Header=""
-                                                Width="40"
-                                                Binding="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                    <DataGridTextColumn Header="Filter"
-                                            Width="*"
-                                            Binding="{Binding Name}"/>
-                                    <DataGridTextColumn Header="Type"
-                                            Width="180"
-                                            Binding="{Binding FilterTypeName}"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
+                                    Grid.Column="1"
+                                    Width="160"
+                                    Style="{StaticResource BaPrimaryButton}"
+                                    Content="Apply Filters"
+                                    Command="{Binding ApplyViewFiltersCommand}"/>
+                            <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
+                                <WrapPanel>
+                                    <TextBlock Text="Transfer:"
+                                               Style="{StaticResource PanelLabelText}"
+                                               Margin="0,0,12,0"
+                                               VerticalAlignment="Center"/>
+                                    <CheckBox Content="Enabled State"
+                                              IsChecked="{Binding CopyFilterEnabledState}"
+                                              Style="{StaticResource BaPanelCheckBox}"
+                                              Margin="0,0,16,0"/>
+                                    <CheckBox Content="Visibility"
+                                              IsChecked="{Binding CopyFilterVisibility}"
+                                              Style="{StaticResource BaPanelCheckBox}"
+                                              Margin="0,0,16,0"/>
+                                    <CheckBox Content="Overrides"
+                                              IsChecked="{Binding CopyFilterOverrides}"
+                                              Style="{StaticResource BaPanelCheckBox}"
+                                              Margin="0,0,16,0"/>
+                                    <CheckBox Content="Preserve Source Order"
+                                              IsChecked="{Binding PreserveFilterOrder}"
+                                              Style="{StaticResource BaPanelCheckBox}"
+                                              Margin="16,0,16,0"/>
+                                    <Button Content="Advanced options"
+                                            Style="{StaticResource BaPanelButton}"
+                                            Width="130"
+                                            Margin="0,0,16,0"
+                                            Command="{Binding ToggleAdvancedFilterOptionsCommand}"/>
+                                    <TextBlock Text="Selected filters:"
+                                               Style="{StaticResource BaMutedTextPanel}"
+                                               Margin="8,0,6,0"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding SelectedFilterCount}"
+                                               Style="{StaticResource InfoValueText}"
+                                               VerticalAlignment="Center"/>
+                                </WrapPanel>
+                                <Border Visibility="{Binding IsAdvancedFilterOptionsVisible, Converter={StaticResource BoolToVisibility}}"
+                                        Margin="0,8,0,0"
+                                        Padding="10,8"
+                                        Background="{StaticResource Brush.PanelBg}"
+                                        BorderBrush="{StaticResource Brush.PanelBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource CornerRadius.Panel}">
+                                    <WrapPanel>
+                                        <TextBlock Text="Advanced:"
+                                                   Style="{StaticResource PanelLabelText}"
+                                                   Margin="0,0,12,0"
+                                                   VerticalAlignment="Center"/>
+                                        <CheckBox Content="Transparency"
+                                                  IsChecked="{Binding CopyFilterTransparency}"
+                                                  Style="{StaticResource BaPanelCheckBox}"/>
+                                    </WrapPanel>
+                                </Border>
+                            </StackPanel>
+                            <Grid Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="8"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Row="0"
+                                         Grid.Column="0"
+                                         Text="{Binding FilterSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource BaTextBox}"
+                                         Margin="0,0,8,0"/>
+                                <Button Grid.Row="0"
+                                        Grid.Column="1"
+                                        Content="Select all"
+                                        Style="{StaticResource BaPanelButton}"
+                                        Width="90"
+                                        Margin="0,0,8,0"
+                                        Command="{Binding SelectAllFiltersCommand}"/>
+                                <Button Grid.Row="0"
+                                        Grid.Column="2"
+                                        Content="Clear"
+                                        Style="{StaticResource BaPanelButton}"
+                                        Width="80"
+                                        Margin="0,0,8,0"
+                                        Command="{Binding ClearAllFiltersCommand}"/>
+                                <Button Grid.Row="0"
+                                        Grid.Column="3"
+                                        Content="Invert"
+                                        Style="{StaticResource BaPanelButton}"
+                                        Width="80"
+                                        Command="{Binding InvertFiltersCommand}"/>
+                                <DataGrid Grid.Row="2"
+                                          Grid.Column="0"
+                                          Grid.ColumnSpan="4"
+                                          Height="260"
+                                          ItemsSource="{Binding FilteredSourceFilters}"
+                                          Style="{StaticResource FlatPanelDataGrid}"
+                                          IsReadOnly="False"
+                                          CanUserSortColumns="True">
+                                    <DataGrid.Columns>
+                                        <DataGridCheckBoxColumn Header=""
+                                                                Width="40"
+                                                                Binding="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <DataGridTextColumn Header="Filter"
+                                                            Width="*"
+                                                            Binding="{Binding Name}"/>
+                                        <DataGridTextColumn Header="Type"
+                                                            Width="180"
+                                                            Binding="{Binding FilterTypeName}"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
                         </Grid>
-                    </Grid>
-                </Border>
+                    </Border>
+                </Grid>
             </Grid>
-        </Grid>
-
+        </ScrollViewer>
         <!-- Busy overlay -->
         <Border Background="#80000000"
                 Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}">

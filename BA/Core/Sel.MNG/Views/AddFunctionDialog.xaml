@@ -1,5 +1,5 @@
 ﻿<Window
-    x:Class="BATools.SelectionManager.Views.AddFunctionDialog"
+    x:Class="BA.SelectionManager.Views.AddFunctionDialog"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     WindowStyle="None"

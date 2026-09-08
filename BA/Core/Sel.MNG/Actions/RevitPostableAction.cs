@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using BATools.SelectionManager.Infrastructure;
+using BA.SelectionManager.Infrastructure;
 
-namespace BATools.SelectionManager.Actions
+namespace BA.SelectionManager.Actions
 {
     public class RevitPostableAction : IQuickAction
     {

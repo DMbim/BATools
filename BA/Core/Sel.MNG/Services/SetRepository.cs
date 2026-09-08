@@ -4,9 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using BATools.SelectionManager.Models;
+using BA.SelectionManager.Models;
 
-namespace BATools.SelectionManager.Services
+namespace BA.SelectionManager.Services
 {
     public class SetRepository
     {

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace BATools.SelectionManager.Models
+namespace BA.SelectionManager.Models
 {
     public class QuickActionConfig
     {

@@ -1,8 +1,8 @@
 ﻿using Autodesk.Revit.UI;
-using BATools.SelectionManager.ViewModels;
-using BATools.SelectionManager.Views;
+using BA.SelectionManager.ViewModels;
+using BA.SelectionManager.Views;
 
-namespace BATools.SelectionManager.Panes
+namespace BA.SelectionManager.Panes
 {
     public class SelectionManagerDockablePane : IDockablePaneProvider
     {

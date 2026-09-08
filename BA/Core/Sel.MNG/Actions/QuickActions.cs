@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
-using BATools.SelectionManager.ExternalEvents;
-using BATools.SelectionManager.Infrastructure;
+using BA.SelectionManager.ExternalEvents;
+using BA.SelectionManager.Infrastructure;
 
-namespace BATools.SelectionManager.Actions
+namespace BA.SelectionManager.Actions
 {
     public class IsolateElementsAction : IQuickAction
     {

@@ -5,59 +5,62 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using BA.BAApplication;
+using BA.UI.ExternalEvents;
 using BA.Warnings.Models;
+using BA.Warnings.Services;
 
 namespace BA.Warnings.ExternalEvents
 {
-    public sealed class RefreshWarningsHandler : IExternalEventHandler
+    // Routes through the app-wide AppExternalInvoker singleton instead of
+    // owning its own ExternalEvent. This was the one handler that happened to
+    // work before, because its first-ever call ran inside the ViewModel
+    // constructor, itself inside Cmd_OpenWarningsDashboard.Run, a valid API
+    // context. Converted anyway for consistency: six different lifecycle
+    // patterns for one window is its own maintenance problem even when they
+    // all function.
+    public static class RefreshWarningsHandler
     {
-        private static ExternalEvent _event;
-        private Action<List<WarningItem>> _onCompleted;
-
-        public static RefreshWarningsHandler Instance { get; } = new RefreshWarningsHandler();
-
-        private RefreshWarningsHandler() { }
-
-        public void RequestRefresh(Action<List<WarningItem>> onCompleted)
+        public static void RequestRefresh(Action<List<WarningItem>> onCompleted)
         {
-            _onCompleted = onCompleted;
-            _event ??= ExternalEvent.Create(this);
-            _event.Raise();
+            AppExternalInvoker.Instance.Run(
+                app => BuildWarningItems(app),
+                onCompleted,
+                ex => AppLogger.LogError("RefreshWarningsHandler.RequestRefresh", ex));
         }
 
-        public void Execute(UIApplication app)
+        private static List<WarningItem> BuildWarningItems(UIApplication app)
         {
             var result = new List<WarningItem>();
-            try
+
+            UIDocument uiDoc = app.ActiveUIDocument;
+            if (uiDoc == null) return result;
+
+            Document doc = uiDoc.Document;
+            IList<FailureMessage> warnings = doc.GetWarnings();
+
+            foreach (FailureMessage w in warnings)
             {
-                UIDocument uiDoc = app.ActiveUIDocument;
-                if (uiDoc == null) return;
-
-                Document doc = uiDoc.Document;
-                IList<FailureMessage> warnings = doc.GetWarnings();
-
-                foreach (FailureMessage w in warnings)
+                var item = new WarningItem
                 {
-                    result.Add(new WarningItem
-                    {
-                        Description = w.GetDescriptionText(),
-                        Severity = w.GetSeverity(),
-                        FailureDefinitionId = w.GetFailureDefinitionId(),
-                        FailingElementIds = w.GetFailingElements()?.ToList() ?? new List<ElementId>(),
-                        AdditionalElementIds = w.GetAdditionalElements()?.ToList() ?? new List<ElementId>(),
-                        ResolutionCaption = SafeGetResolutionCaption(w)
-                    });
+                    Description = w.GetDescriptionText(),
+                    Severity = w.GetSeverity(),
+                    FailureDefinitionId = w.GetFailureDefinitionId(),
+                    FailingElementIds = w.GetFailingElements()?.ToList() ?? new List<ElementId>(),
+                    AdditionalElementIds = w.GetAdditionalElements()?.ToList() ?? new List<ElementId>(),
+                    ResolutionCaption = SafeGetResolutionCaption(w)
+                };
+
+                if (FailureClassificationService.Instance.TryGetClassification(
+                        item.FailureDefinitionId.Guid, item.Description, out FailureClassificationEntry classification))
+                {
+                    item.ClassifiedSeverity = classification.Severity;
+                    item.Category = classification.Category;
                 }
+
+                result.Add(item);
             }
-            catch (Exception ex)
-            {
-                AppLogger.LogError("RefreshWarningsHandler.Execute", ex);
-            }
-            finally
-            {
-                _onCompleted?.Invoke(result);
-                _onCompleted = null;
-            }
+
+            return result;
         }
 
         private static string SafeGetResolutionCaption(FailureMessage w)
@@ -65,7 +68,5 @@ namespace BA.Warnings.ExternalEvents
             try { return w.GetDefaultResolutionCaption(); }
             catch { return string.Empty; }
         }
-
-        public string GetName() => "BA Refresh Warnings";
     }
 }

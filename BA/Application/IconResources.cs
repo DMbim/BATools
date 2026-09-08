@@ -159,12 +159,34 @@ namespace BA.BAApplication
         public const string Sub32 = "/BA;component/Application/Resources/Icons32/Sub32.png";
         public const string RoomCl_16 = "/BA;component/Application/Resources/Icons16/RoomCl_16.png";
         public const string RoomCl_32 = "/BA;component/Application/Resources/Icons32/RoomCl_32.png";
-        public const string tags16 = "/BA;component/Application/Resources/Icons16/tags16.png";
+        public const string ArAnn_16 = "/BA;component/Application/Resources/Icons16/ArAnn_16.png";
+        public const string ArAnn_32 = "/BA;component/Application/Resources/Icons32/ArAnn_32.png";
         public const string ta16 = "/BA;component/Application/Resources/Icons16/ta16.png";
         public const string ta32 = "/BA;component/Application/Resources/Icons32/ta32.png";
         public const string CADPurge16 = "/BA;component/Application/Resources/Icons16/CADPurge16.png";
         public const string CADPurge32 = "/BA;component/Application/Resources/Icons32/CADPurge32.png";
         public const string Warn16 = "/BA;component/Application/Resources/Icons16/Warn16.png";
         public const string Warn32 = "/BA;component/Application/Resources/Icons32/Warn32.png";  
+        public const string Tab16 = "/BA;component/Application/Resources/Icons16/Tab16.png";
+        public const string Tab32 = "/BA;component/Application/Resources/Icons32/Tab32.png";
+        public const string ZmSet16 = "/BA;component/Application/Resources/Icons16/ZmSet16.png";
+        public const string ZmSet32 = "/BA;component/Application/Resources/Icons32/ZmSet32.png";
+        public const string Visb16 = "/BA;component/Application/Resources/Icons16/Visb16.png";
+        public const string Visb32 = "/BA;component/Application/Resources/Icons32/Visb32.png";
+        public const string TagNAr_16 = "/BA;component/Application/Resources/Icons16/TagNAr_16.png";
+        public const string TagNAr_32 = "/BA;component/Application/Resources/Icons32/TagNAr_32.png";
+        public const string BATools_16 = "/BA;component/Application/Resources/Icons16/BATools_16.png";
+        public const string BATools_32 = "/BA;component/Application/Resources/Icons32/BATools_32.png";
+        public const string MLib_16 = "/BA;component/Application/Resources/Icons16/MLib_16.png";
+        public const string MLib_32 = "/BA;component/Application/Resources/Icons32/MLib_32.png";
+        public const string ElemMng_16 = "/BA;component/Application/Resources/Icons16/ElemMng_16.png";
+        public const string ElemMng_32 = "/BA;component/Application/Resources/Icons32/ElemMng_32.png";
+        public const string RoomMng_16 = "/BA;component/Application/Resources/Icons16/RoomMng_16.png";
+        public const string RoomMng_32 = "/BA;component/Application/Resources/Icons32/RoomMng_32.png";
+        public const string Arrang_32 = "/BA;component/Application/Resources/Icons32/Arrang_32.png";
+        public const string pMain16 = "/BA;component/Application/Resources/Icons16/pMain16.png";
+        public const string pMain32 = "/BA;component/Application/Resources/Icons32/pMain32.png";
+        public const string EID_16 = "/BA;component/Application/Resources/Icons16/EID_16.png";
+        public const string EID_32 = "/BA;component/Application/Resources/Icons32/EID_32.png";
     }
 }

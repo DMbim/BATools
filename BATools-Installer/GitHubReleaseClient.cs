@@ -20,6 +20,22 @@ namespace BATools_Installer
             _repo = repo;
         }
 
+        public async Task<string?> GetLatestReleaseTagAsync()
+        {
+            using var http = CreateHttpClient();
+
+            var api = $"https://api.github.com/repos/{_owner}/{_repo}/releases/latest";
+            using var resp = await http.GetAsync(api).ConfigureAwait(false);
+            resp.EnsureSuccessStatusCode();
+
+            var json = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+
+            return doc.RootElement.TryGetProperty("tag_name", out var tag)
+                ? tag.GetString()
+                : null;
+        }
+
         public async Task<string> DownloadLatestAssetToTempAsync(string assetName)
         {
             using var http = CreateHttpClient();

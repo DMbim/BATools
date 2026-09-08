@@ -12,7 +12,7 @@ using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 
 namespace BA.Zoom.Commands
 {
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     public class Cmd_ZoomToRoom_Link : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
@@ -30,14 +30,6 @@ namespace BA.Zoom.Commands
             try
             {
                 var settings = ZoomToRoomSettings.Load();
-
-                // Shift-to-configure and the auto-popping first-run link picker
-                // (PickRevitLinkInstance / SelectLinkWindow) are both removed --
-                // configuration now happens only via Cmd_ZoomToRoom_Settings /
-                // ZoomToRoomSettingsWindow, consistent with Element -> Room and
-                // Axis -> Room this session. If that auto-prompt convenience is
-                // actually wanted back, say so -- it's a real behavior change,
-                // not an oversight.
 
                 var linkInst = new FilteredElementCollector(host)
                     .OfClass(typeof(RevitLinkInstance))
@@ -91,15 +83,30 @@ namespace BA.Zoom.Commands
                     return Result.Cancelled;
                 }
 
-                var uiView = uiDoc.GetOpenUIViews().FirstOrDefault(v => v.ViewId == view.Id);
-                if (uiView == null)
-                {
-                    TaskDialog.Show("Zoom to Room", "UIView not found for the active view.");
-                    return Result.Failed;
-                }
+                bool cropWasDisabled = false;
+                string adjustmentNote = null;
+                string cropLockedMessage = null;
 
-                uiView.ZoomAndCenterRectangle(minXY, maxXY);
-                TaskDialog.Show("Zoom to Room", $"Zoomed to '{roomIdText}' in link '{settings.SelectedRevitLinkName}'.");
+                ZoomDeferredExecutor.RunAfterViewIsOpen(uiApp, view, // <- CHANGED, was a direct uiView lookup + ZoomAndCenterRectangle call
+                    onEachTick: () =>
+                    {
+                        var uiView = uiDoc.GetOpenUIViews().FirstOrDefault(v => v.ViewId == view.Id);
+                        if (uiView == null) return;
+
+                        cropWasDisabled = ZoomCropHelper.EnsureRectangleVisible(host, view, minXY, maxXY, out cropLockedMessage, out adjustmentNote);
+                        uiView.ZoomAndCenterRectangle(minXY, maxXY);
+                    },
+                    onFinished: () =>
+                    {
+                        if (cropLockedMessage != null)
+                            TaskDialog.Show("Zoom to Room", cropLockedMessage);
+
+                        string resultMessage = $"Zoomed to '{roomIdText}' in link '{settings.SelectedRevitLinkName}'.";
+                        if (cropWasDisabled)
+                            resultMessage += " " + adjustmentNote;
+                        TaskDialog.Show("Zoom to Room", resultMessage);
+                    });
+
                 return Result.Succeeded;
             }
             catch (Exception ex)

@@ -47,10 +47,8 @@ namespace BA.UI.Core.Finishes
         // -----------------------------
         // BA_ shared parameter wiring
         // -----------------------------
-        // TODO verify exact path/extension against the actual network file.
-        private const string SharedParamFilePath =
-            @"S:\CAD\Autodesk Revit\BA_Resources\BA_Shared parameters\BA_SharedParametersWIP2";
-
+        // Path comes from BA.Core.Parameters.SharedParamPaths.WIP2 (single source of truth,
+        // see that class's doc comment). Do not reintroduce a local copy of the path here.
         private const string SharedParamGroupName = "Spaces";
         private const string ParamRoomNumber = "BA_Room_Number";
         private const string ParamRoomName = "BA_Room_Name";
@@ -296,10 +294,10 @@ namespace BA.UI.Core.Finishes
             foreach (var cat in FinishStampCategories)
             {
                 SharedParameterBindingService.EnsureBound(
-                    doc, SharedParamFilePath, SharedParamGroupName, ParamRoomNumber, cat, instanceBinding: true);
+                    doc, SharedParamPaths.WIP2, SharedParamGroupName, ParamRoomNumber, cat, instanceBinding: true);
 
                 SharedParameterBindingService.EnsureBound(
-                    doc, SharedParamFilePath, SharedParamGroupName, ParamRoomName, cat, instanceBinding: true);
+                    doc, SharedParamPaths.WIP2, SharedParamGroupName, ParamRoomName, cat, instanceBinding: true);
             }
         }
 

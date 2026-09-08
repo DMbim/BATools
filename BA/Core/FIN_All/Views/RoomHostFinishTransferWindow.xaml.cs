@@ -8,6 +8,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 
 namespace BA.Commands.Rooms
 {
@@ -26,6 +27,27 @@ namespace BA.Commands.Rooms
         // ItemsSource being reassigned when the filter text changes.
         private readonly HashSet<ElementId> _selectedRoomIds = new();
 
+        // Available Source Parameter names keyed by Source Category ("Ceiling"/"Floor"),
+        // scanned live from the model. Each list is the flat union of instance parameter
+        // names and type parameter names for that category, deduped by name. Since
+        // RoomHostFinishTransferRunner already resolves instance first and only falls back
+        // to type when the instance parameter is null/empty (ParameterUtil.ReadAsString
+        // with allowTypeFallback: true), a flat deduped list matches actual runtime
+        // resolution order with no separate disambiguation needed.
+        private readonly Dictionary<string, List<string>> _sourceParamsByCategory =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        // Available Target Room Parameter names, scanned live from the model.
+        // Feeds ColTargetParam.ItemsSource directly.
+        private List<string> _availableRoomParameters = new();
+
+        private static readonly Dictionary<string, BuiltInCategory> SourceCategoryMap =
+            new(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Ceiling"] = BuiltInCategory.OST_Ceilings,
+                ["Floor"] = BuiltInCategory.OST_Floors
+            };
+
         public RoomHostFinishTransferWindow(UIApplication uiapp, ExternalEvent exEvent, RoomHostFinishTransferHandler handler)
         {
             InitializeComponent();
@@ -37,14 +59,13 @@ namespace BA.Commands.Rooms
             Owner = System.Windows.Interop.HwndSource.FromHwnd(_uiapp.MainWindowHandle)?.RootVisual as Window;
 
             GridMappings.ItemsSource = Mappings;
-            var col = GridMappings.Columns
-            .OfType<DataGridComboBoxColumn>()
-            .FirstOrDefault();
 
-            if (col != null)
+            // Apply the dark combo style to every DataGridComboBoxColumn (Source Category
+            // AND Target Room Parameter), not just the first one found.
+            foreach (var comboCol in GridMappings.Columns.OfType<DataGridComboBoxColumn>())
             {
-                col.EditingElementStyle = (Style)Resources["BaDarkComboBox"];
-                col.ElementStyle = (Style)Resources["BaDarkComboBox"];
+                comboCol.EditingElementStyle = (Style)Resources["BaDarkComboBox"];
+                comboCol.ElementStyle = (Style)Resources["BaDarkComboBox"];
             }
 
             // Load on open (best effort)
@@ -155,13 +176,40 @@ namespace BA.Commands.Rooms
         }
 
         /// <summary>
+        /// When a row's Source Category combo commits a new value, the row's Source
+        /// Parameter selection almost certainly no longer belongs to the newly chosen
+        /// category. Clear it and force the grid to reevaluate all cell bindings so the
+        /// per row parameter combo (bound through CategoryToParametersConverter) picks up
+        /// the new category's list immediately, without requiring the mapping class to
+        /// raise property change notifications.
+        /// </summary>
+        private void GridMappings_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (e.EditAction != DataGridEditAction.Commit)
+                return;
+
+            if (!ReferenceEquals(e.Column, ColSourceCategory))
+                return;
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (e.Row.Item is RoomHostParamMapping m)
+                    m.SourceParameterName = null;
+
+                GridMappings.Items.Refresh();
+            }), DispatcherPriority.Background);
+        }
+
+        /// <summary>
         /// Raises the ExternalEvent to collect all placed Rooms (Area > 0) from the active
-        /// document, then marshals the result back onto the UI thread. Resets the current
-        /// selection, since room picks are not persisted across loads or sessions.
+        /// document, along with the available string parameter names on Ceiling, Floor,
+        /// and Room elements for the mapping dropdowns, then marshals the result back onto
+        /// the UI thread. Resets the current room selection, since room picks are not
+        /// persisted across loads or sessions.
         /// </summary>
         private void LoadRoomsFromModel()
         {
-            TxtStatus.Text = "Loading rooms...";
+            TxtStatus.Text = "Loading rooms and parameters...";
 
             _handler.Raise(app =>
             {
@@ -193,6 +241,20 @@ namespace BA.Commands.Rooms
                     rows.Add(new RoomPickRow(r.Id, r.Number ?? "", r.Name ?? "", levelName, r.Area));
                 }
 
+                // Target: Room writable string parameters. Instance only, Room type
+                // parameters aren't in scope here since this wasn't requested.
+                var roomParamNames = CollectStringParameterNames(
+                    doc, BuiltInCategory.OST_Rooms, writableOnly: true, includeTypeParameters: false);
+
+                // Source: Ceiling and Floor string parameters, instance + type, flat and
+                // deduped by name (instance wins at runtime via ParameterUtil.ReadAsString's
+                // allowTypeFallback). Read only allowed since these are only ever read from.
+                var ceilingParamNames = CollectStringParameterNames(
+                    doc, BuiltInCategory.OST_Ceilings, writableOnly: false, includeTypeParameters: true);
+
+                var floorParamNames = CollectStringParameterNames(
+                    doc, BuiltInCategory.OST_Floors, writableOnly: false, includeTypeParameters: true);
+
                 Dispatcher.Invoke(() =>
                 {
                     _allRoomRows = rows
@@ -201,12 +263,84 @@ namespace BA.Commands.Rooms
 
                     _selectedRoomIds.Clear();
                     ApplyRoomFilter();
-                    TxtStatus.Text = $"Loaded {_allRoomRows.Count} rooms.";
+
+                    _availableRoomParameters = roomParamNames;
+                    if (ColTargetParam != null)
+                        ColTargetParam.ItemsSource = _availableRoomParameters;
+
+                    _sourceParamsByCategory["Ceiling"] = ceilingParamNames;
+                    _sourceParamsByCategory["Floor"] = floorParamNames;
+
+                    if (Resources["CatToSourceParamsConverter"] is BA.UI.Converters.CategoryToParametersConverter conv)
+                        conv.Map = _sourceParamsByCategory;
+
+                    GridMappings.Items.Refresh();
+
+                    TxtStatus.Text =
+                        $"Loaded {_allRoomRows.Count} rooms. Params found: " +
+                        $"{ceilingParamNames.Count} Ceiling, {floorParamNames.Count} Floor, " +
+                        $"{roomParamNames.Count} Room.";
                 });
 
-            }, "Load Rooms");
+            }, "Load Rooms And Parameters");
 
             _exEvent.Raise();
+        }
+
+        /// <summary>
+        /// Scans every non type instance of the given category and collects the distinct
+        /// names of its string storage type parameters. When includeTypeParameters is true,
+        /// also collects string parameter names from each instance's ElementType, caching
+        /// resolved type ids so a type shared by many instances is only scanned once. Scans
+        /// every instance rather than sampling one, since a single instance can miss
+        /// conditionally present parameters. Names are deduped case insensitively across
+        /// instance and type; RoomHostFinishTransferRunner already resolves instance before
+        /// falling back to type, so a flat list correctly represents what will actually
+        /// resolve at runtime.
+        /// </summary>
+        private static List<string> CollectStringParameterNames(
+            Document doc, BuiltInCategory category, bool writableOnly, bool includeTypeParameters)
+        {
+            var names = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            var seenTypeIds = new HashSet<ElementId>();
+
+            var elements = new FilteredElementCollector(doc)
+                .OfCategory(category)
+                .WhereElementIsNotElementType();
+
+            foreach (var el in elements)
+            {
+                AddStringParamNames(el, names, writableOnly);
+
+                if (!includeTypeParameters)
+                    continue;
+
+                var typeId = el.GetTypeId();
+                if (typeId == ElementId.InvalidElementId || !seenTypeIds.Add(typeId))
+                    continue;
+
+                if (doc.GetElement(typeId) is Element typeEl)
+                    AddStringParamNames(typeEl, names, writableOnly);
+            }
+
+            return names.ToList();
+        }
+
+        private static void AddStringParamNames(Element el, SortedSet<string> names, bool writableOnly)
+        {
+            foreach (var p in el.GetOrderedParameters())
+            {
+                if (p.StorageType != StorageType.String)
+                    continue;
+
+                if (p.Definition == null)
+                    continue;
+
+                if (writableOnly && p.IsReadOnly)
+                    continue;
+
+                names.Add(p.Definition.Name);
+            }
         }
 
         /// <summary>

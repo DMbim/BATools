@@ -110,19 +110,25 @@ namespace BA.UI.Parameters
 
         private void BtnAddShared_Click(object sender, RoutedEventArgs e)
         {
-            var win = new CreateSharedParameterWindow(_uiApp, _doc, _revit)
+            try
             {
-                Owner = this
-            };
+                var win = new CreateSharedParameterWindow(_uiApp, _doc, _revit)
+                {
+                    Owner = this
+                };
 
-            // Refresh ParameterManager after binding/injection finishes
-            win.Applied += () => ReloadViaRevit();
+                win.Applied += () => ReloadViaRevit();
 
-            // Optional: prevent user from interacting with ParameterManager while Create window is open
-            IsEnabled = false;
-            win.Closed += (_, __) => IsEnabled = true;
+                IsEnabled = false;
+                win.Closed += (_, __) => IsEnabled = true;
 
-            win.Show(); // modeless -> ExternalEvent runs reliably
+                win.Show();
+            }
+            catch (Exception ex)
+            {
+                IsEnabled = true;
+                TaskDialog.Show("BA – Parameter Manager", "Could not open the Bind Shared Parameters window:\n\n" + ex);
+            }
         }
 
         private void BtnEdit_Click(object sender, RoutedEventArgs e)

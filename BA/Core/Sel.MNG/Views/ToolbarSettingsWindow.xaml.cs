@@ -1,7 +1,7 @@
-﻿using BATools.SelectionManager.ViewModels;
+﻿using BA.SelectionManager.ViewModels;
 using System.Windows;
 
-namespace BATools.SelectionManager.Views
+namespace BA.SelectionManager.Views
 {
     public partial class ToolbarSettingsWindow : Window
     {

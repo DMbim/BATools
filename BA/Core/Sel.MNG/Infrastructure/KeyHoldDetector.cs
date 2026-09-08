@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows.Threading;
 
-namespace BATools.SelectionManager.Infrastructure
+namespace BA.SelectionManager.Infrastructure
 {
     /// <summary>
     /// Detects a configurable key held continuously for a set duration.

@@ -1,13 +1,14 @@
 ﻿// BA/Commands/Cmd_GetVolume.cs
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
 using BA.BAApplication;
-using BA.Core;
+using BA.Core.Parameters;
 
 namespace BA.Commands
 {
@@ -17,9 +18,6 @@ namespace BA.Commands
     {
         private const string VolumeParameterName = "BA_Volume";
         private const double MinSolidVolume = 1e-9;
-
-        private const string SharedParamFilePath =
-            @"S:\CAD\Autodesk Revit\BA_Resources\BA_Shared parameters\BA_SharedParametersWIP2";
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -39,27 +37,34 @@ namespace BA.Commands
             var app = uiApp.Application;
 
             // ---------------------------------------------------------------- //
-            //  Step 1: Ensure BA_Volume is bound before asking the user to pick.
-            //  We need a transaction for the binding but we commit it immediately
-            //  so the parameter is registered before the pick loop starts.
-            //  The write transaction runs separately after selection.
+            //  Step 1: Fail fast if BA_Volume isn't even defined in the shared
+            //  parameter file, before bothering the user with a pick loop.
+            //  Uses FindExternalDefinitionByName directly, the same lookup
+            //  SharedParameterBindingService.EnsureBound performs internally, so
+            //  this pre-check can't disagree with what actually happens later.
+            //  Read-only against the SP file, no document transaction needed.
             // ---------------------------------------------------------------- //
-            using (var bindTx = new Transaction(doc, "BA — Bind BA_Volume"))
+            try
             {
-                bindTx.Start();
+                var def = SharedParameterFileReader.FindExternalDefinitionByName(
+                    app, SharedParamPaths.WIP2, VolumeParameterName);
 
-                // Pass an empty category set here — EnsureParameterBound will
-                // skip the category-augmentation path and only create the
-                // binding with a broad set if the parameter is absent entirely.
-                // We will add any missing categories during the write pass.
-                if (!EnsureParameterBoundPreSelection(doc, app, out string bindError))
+                if (def == null)
                 {
-                    bindTx.RollBack();
-                    TaskDialog.Show("Get Volume — Setup Error", bindError);
+                    message =
+                        $"'{VolumeParameterName}' was not found anywhere in the shared " +
+                        $"parameter file at:\n{SharedParamPaths.WIP2}\n\n" +
+                        "Add the parameter to the file and retry.";
+                    TaskDialog.Show("Get Volume — Setup Error", message);
                     return Result.Failed;
                 }
-
-                bindTx.Commit();
+            }
+            catch (Exception ex)
+            {
+                message = ex.Message;
+                TaskDialog.Show("Get Volume — Setup Error", ex.Message);
+                AppLogger.LogError("Cmd_GetVolume.FindExternalDefinitionByName", ex);
+                return Result.Failed;
             }
 
             // ---------------------------------------------------------------- //
@@ -81,19 +86,28 @@ namespace BA.Commands
                 return Result.Cancelled;
 
             // ---------------------------------------------------------------- //
-            //  Step 3: Collect selected elements and ensure their categories
-            //  are included in the binding, then write volumes.
+            //  Step 3: Collect selected elements and their distinct categories.
+            //  Keyed by ElementId.Value to dedupe, no custom IEqualityComparer
+            //  needed for that.
             // ---------------------------------------------------------------- //
             var selectedElements = new List<Element>();
-            var selectedCategories = new HashSet<Category>(new CategoryIdComparer());
+            var selectedCategories = new Dictionary<long, Category>();
 
             foreach (var r in refs)
             {
                 var el = doc.GetElement(r.ElementId);
                 if (el == null) continue;
                 selectedElements.Add(el);
+
                 if (el.Category != null)
-                    selectedCategories.Add(el.Category);
+                    selectedCategories[el.Category.Id.Value] = el.Category;
+            }
+
+            if (selectedCategories.Count == 0)
+            {
+                message = "None of the selected elements have a category. Nothing to bind or write.";
+                TaskDialog.Show("Get Volume", message);
+                return Result.Cancelled;
             }
 
             int updatedCount = 0;
@@ -106,14 +120,27 @@ namespace BA.Commands
 
             try
             {
-                // Add any newly encountered categories to the existing binding.
-                if (!EnsureParameterBoundForCategories(doc, app, selectedCategories,
-                        out string catError))
-                {
-                    writeTx.RollBack();
-                    message = catError;
-                    return Result.Failed;
-                }
+                // One call covering every category present in the selection. EnsureBound
+                // (the multi-category overload) merges categories into the existing binding
+                // if one exists, or creates it fresh if not, atomically, with its own
+                // capture/restore data-safety net around the Remove+Insert fallback path.
+                // If this throws, nothing has been written (guaranteed by that method's own
+                // design), so the whole transaction rolls back and no partial state exists.
+                //
+                // createIfMissing is deliberately false: if it created the definition, it
+                // would create it as a String parameter (CreateExternalDefinition_String),
+                // which is the wrong spec type for a volume value. The Step 1 pre-check
+                // above already guarantees the definition exists before we get here.
+                SharedParameterBindingService.EnsureBound(
+                    app,
+                    doc,
+                    SharedParamPaths.WIP2,
+                    VolumeParameterName,
+                    Guid.Empty,
+                    null,
+                    isInstance: true,
+                    categories: selectedCategories.Values.ToList(),
+                    createIfMissing: false);
 
                 foreach (var element in selectedElements)
                 {
@@ -152,8 +179,9 @@ namespace BA.Commands
                 if (writeTx.GetStatus() == TransactionStatus.Started)
                     writeTx.RollBack();
 
-                message = $"Failed to write volume values: {ex.Message}";
+                message = $"Failed to bind or write '{VolumeParameterName}': {ex.Message}";
                 AppLogger.LogError("Cmd_GetVolume.Execute", ex);
+                TaskDialog.Show("Get Volume — Error", message);
                 return Result.Failed;
             }
 
@@ -162,6 +190,7 @@ namespace BA.Commands
             // ---------------------------------------------------------------- //
             var summary = new StringBuilder();
             summary.AppendLine($"Updated {updatedCount} element(s).");
+
             if (skippedNoParameter.Count > 0)
                 summary.AppendLine(
                     $"{skippedNoParameter.Count} skipped — '{VolumeParameterName}' " +
@@ -181,144 +210,6 @@ namespace BA.Commands
 
             TaskDialog.Show("Get Volume", summary.ToString());
             return Result.Succeeded;
-        }
-
-        // ------------------------------------------------------------------ //
-        //  PARAMETER BINDING — pre-selection pass
-        //  Called before the pick loop. If BA_Volume is already bound,
-        //  returns true immediately. If not bound, loads from the shared
-        //  parameter file and creates a binding with an empty category set
-        //  (Revit accepts this; categories are added in the write pass).
-        // ------------------------------------------------------------------ //
-        private static bool EnsureParameterBoundPreSelection(
-            Document doc,
-            Autodesk.Revit.ApplicationServices.Application app,
-            out string error)
-        {
-            error = string.Empty;
-            var bindingMap = doc.ParameterBindings;
-
-            // Check if already bound.
-            var it = bindingMap.ForwardIterator();
-            while (it.MoveNext())
-            {
-                if (it.Key is Definition def &&
-                    def.Name.Equals(VolumeParameterName, StringComparison.OrdinalIgnoreCase) &&
-                    it.Current is InstanceBinding)
-                    return true;
-            }
-
-            // Not bound — load from shared parameter file.
-            ExternalDefinition extDef;
-            try
-            {
-                extDef = SharedParamUtils.FindExternalDefinitionByGuidOrName(
-                    app,
-                    SharedParamFilePath,
-                    VolumeParameterName,
-                    Guid.Empty);
-            }
-            catch (Exception ex)
-            {
-                error = $"Could not open shared parameter file:\n{ex.Message}\n\n" +
-                        $"Expected path:\n{SharedParamFilePath}";
-                AppLogger.LogError("Cmd_GetVolume.EnsureParameterBoundPreSelection", ex);
-                return false;
-            }
-
-            if (extDef == null)
-            {
-                error = $"'{VolumeParameterName}' was not found in the shared " +
-                        $"parameter file at:\n{SharedParamFilePath}\n\n" +
-                        "Add the parameter to the file and retry.";
-                return false;
-            }
-
-            // Create binding with an initially empty category set.
-            // Categories are added after selection in EnsureParameterBoundForCategories.
-            var ftId = extDef.GetDataType();
-            var categorySet = app.Create.NewCategorySet();
-            var binding = app.Create.NewInstanceBinding(categorySet);
-            bool inserted = bindingMap.Insert(extDef, binding, ftId);
-
-            if (!inserted)
-            {
-                // Insert can return false if it already existed — not an error.
-                AppLogger.LogInfo(
-                    "Cmd_GetVolume: Insert returned false during pre-selection bind " +
-                    "(parameter may already be partially bound). Proceeding.");
-            }
-            else
-            {
-                AppLogger.LogInfo(
-                    $"Cmd_GetVolume: pre-selection bound '{VolumeParameterName}' " +
-                    "from shared parameter file.");
-            }
-
-            return true;
-        }
-
-        // ------------------------------------------------------------------ //
-        //  PARAMETER BINDING — post-selection category augmentation
-        //  Adds any categories from the selection that are not yet in the
-        //  existing binding. Must be called inside an active transaction.
-        // ------------------------------------------------------------------ //
-        private static bool EnsureParameterBoundForCategories(
-            Document doc,
-            Autodesk.Revit.ApplicationServices.Application app,
-            IEnumerable<Category> requiredCategories,
-            out string error)
-        {
-            error = string.Empty;
-            var bindingMap = doc.ParameterBindings;
-
-            Definition existingDef = null;
-            InstanceBinding existingBinding = null;
-
-            var it = bindingMap.ForwardIterator();
-            while (it.MoveNext())
-            {
-                if (it.Key is Definition def &&
-                    def.Name.Equals(VolumeParameterName, StringComparison.OrdinalIgnoreCase) &&
-                    it.Current is InstanceBinding ib)
-                {
-                    existingDef = def;
-                    existingBinding = ib;
-                    break;
-                }
-            }
-
-            if (existingBinding == null)
-            {
-                // Should not happen after the pre-selection pass but guard anyway.
-                error = $"'{VolumeParameterName}' binding disappeared unexpectedly.";
-                return false;
-            }
-
-            bool modified = false;
-            foreach (var cat in requiredCategories)
-            {
-                bool alreadyPresent = false;
-                foreach (Category bound in existingBinding.Categories)
-                {
-                    if (bound.Id.Value == cat.Id.Value)
-                    {
-                        alreadyPresent = true;
-                        break;
-                    }
-                }
-
-                if (!alreadyPresent)
-                {
-                    existingBinding.Categories.Insert(cat);
-                    modified = true;
-                }
-            }
-
-            if (modified)
-                bindingMap.ReInsert(existingDef!, existingBinding);
-
-            return true;
         }
 
         // ------------------------------------------------------------------ //
@@ -391,21 +282,5 @@ namespace BA.Commands
 
         private static string DescribeElement(Element element)
             => $"{element.Category?.Name ?? "Unknown"} (Id {element.Id.Value})";
-    }
-
-    // ---------------------------------------------------------------------- //
-    //  Category equality comparer keyed on ElementId value
-    // ---------------------------------------------------------------------- //
-    internal sealed class CategoryIdComparer : IEqualityComparer<Category>
-    {
-        public bool Equals(Category? x, Category? y)
-        {
-            if (x == null && y == null) return true;
-            if (x == null || y == null) return false;
-            return x.Id.Value == y.Id.Value;
-        }
-
-        public int GetHashCode(Category obj)
-            => obj.Id.Value.GetHashCode();
     }
 }

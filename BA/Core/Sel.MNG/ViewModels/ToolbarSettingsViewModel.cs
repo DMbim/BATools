@@ -2,11 +2,11 @@
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using BATools.SelectionManager.Infrastructure;
-using BATools.SelectionManager.Models;
-using BATools.SelectionManager.Services;
+using BA.SelectionManager.Infrastructure;
+using BA.SelectionManager.Models;
+using BA.SelectionManager.Services;
 
-namespace BATools.SelectionManager.ViewModels
+namespace BA.SelectionManager.ViewModels
 {
     public class ToolbarSettingsViewModel : ObservableObject
     {

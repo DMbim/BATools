@@ -3,13 +3,13 @@ using System.Runtime.InteropServices;
 using Autodesk.Revit.DB.Events;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Events;
-using BATools.SelectionManager.Models;
-using BATools.SelectionManager.Panes;
-using BATools.SelectionManager.Services;
-using BATools.SelectionManager.ViewModels;
-using BATools.SelectionManager.Views;
+using BA.SelectionManager.Models;
+using BA.SelectionManager.Panes;
+using BA.SelectionManager.Services;
+using BA.SelectionManager.ViewModels;
+using BA.SelectionManager.Views;
 
-namespace BATools.SelectionManager.Infrastructure
+namespace BA.SelectionManager.Infrastructure
 {
     public sealed class SelectionManagerActivator : IDisposable
     {

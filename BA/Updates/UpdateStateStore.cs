@@ -8,7 +8,18 @@ namespace BA.Updates
     {
         public DateTime LastCheckedUtc { get; set; }
         public string? LastPromptedVersion { get; set; }
-        public string? DismissedVersion { get; set; } // optional if you later add "Skip this version"
+        public string? DismissedVersion { get; set; }
+
+        // Persisted result of the last SUCCESSFUL live GitHub check, so a throttled or
+        // offline check later (or a fresh Revit session within the throttle window) can
+        // still answer "is there an update" without hitting the network again. This is what
+        // lets AutoLaunchOnClose fire even when the startup check itself was throttled.
+        public string? LastKnownTag { get; set; }
+        public string? LastKnownReleaseUrl { get; set; }
+        public string? LastKnownBody { get; set; }
+        public string? LastKnownAssetName { get; set; }
+        public string? LastKnownAssetUrl { get; set; }
+        public string? LastKnownRevitVersion { get; set; } // guards against a stale asset URL captured under a different Revit year
     }
 
     internal static class UpdateStateStore

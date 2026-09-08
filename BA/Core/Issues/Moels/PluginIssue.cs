@@ -31,6 +31,10 @@ public class PluginIssue
     public string Issue { get; set; } = string.Empty;
     public string Suggestion { get; set; } = string.Empty;
 
+    // Optional absolute path to a screenshot attached at submission time
+    // (Ctrl+V paste, typically populated via Win+Shift+S beforehand). Empty when no image was attached.
+    public string ImagePath { get; set; } = string.Empty; // NEW
+
     // Auto-filled
     public string User { get; set; } = string.Empty;
     public DateTime SubmittedAt { get; set; } = DateTime.Now;

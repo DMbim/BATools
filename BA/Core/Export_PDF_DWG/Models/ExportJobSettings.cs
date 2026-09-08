@@ -16,6 +16,25 @@ namespace BA.Core.Export.Models
     }
 
     /// <summary>
+    /// Governs BumpDateRevisionOnRun's "once per day" behavior. Both
+    /// variants are read live off the document (the sheet's own date
+    /// parameter value compared against today's formatted text), not
+    /// tracked in any settings file, see DateRevisionBumpService's class
+    /// remarks for why. WholeJob checks only the first sheet in this
+    /// job's resolved set; if it already reads today's date, every sheet
+    /// in the job is skipped without being checked individually. PerSheet
+    /// checks every sheet independently: a sheet already bumped today by
+    /// a different job, or by a different user on a shared model, is
+    /// skipped, but a sheet this job has not yet touched today still
+    /// bumps even if this exact job already ran once today.
+    /// </summary>
+    public enum RevisionBumpScope
+    {
+        WholeJob,
+        PerSheet
+    }
+
+    /// <summary>
     /// Plain data settings for a single export job. A job covers one
     /// sheet set, naming template, schedule and output folder, exported to
     /// any combination of the enabled formats (PDF and/or DWG) in one run,
@@ -45,6 +64,28 @@ namespace BA.Core.Export.Models
         /// back to the configured selection.
         /// </summary>
         public bool UseActiveViewOrSheet { get; set; }
+
+        /// <summary>
+        /// When true and SourceMode is Sheets, every sheet in this job's
+        /// resolved set has its issue date and revision parameters bumped
+        /// once, before any enabled format is exported. Parameter names
+        /// and date format come from the single global
+        /// BA.Settings.DateToolSettings configuration
+        /// (SelectedDateParam/SelectedRevParam/SelectedFormat), the same
+        /// values Cmd_SheetDateAndRevision used to write before being
+        /// retired in favor of this integration, not duplicated per job.
+        /// Ignored entirely when SourceMode is Views, a bare view has no
+        /// revision. A sheet missing either parameter, or where either
+        /// parameter is read only, is skipped and reported, it does not
+        /// fail the job or block that sheet's export.
+        /// </summary>
+        public bool BumpDateRevisionOnRun { get; set; }
+
+        /// <summary>
+        /// See RevisionBumpScope. Only meaningful when
+        /// BumpDateRevisionOnRun is true.
+        /// </summary>
+        public RevisionBumpScope RevisionBumpScope { get; set; } = RevisionBumpScope.PerSheet;
 
         /// <summary>
         /// Sheet numbers chosen via the in-app sheet picker (BA.Views.Export.SheetPickerWindow),

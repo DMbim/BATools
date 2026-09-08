@@ -1,66 +1,19 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using Autodesk.Revit.DB;
-using BA.Settings;
 
 namespace BA.Core.Sheets
 {
+    /// <summary>
+    /// Low level parameter write helpers shared by the export job date and
+    /// revision bump (BA.Core.Export.Services.DateRevisionBumpService).
+    /// The bulk Apply()/SheetUpdateRow/SheetUpdateReport orchestration
+    /// that used to live here was retired along with
+    /// Cmd_SheetDateAndRevision, export jobs are now the only path that
+    /// bumps date/revision.
+    /// </summary>
     public static class SheetUpdateService
     {
-        public static void Apply(
-            Document doc,
-            IList<SheetUpdateRow> selected,
-            DateToolSettings settings,
-            out SheetUpdateReport report)
-        {
-            report = new SheetUpdateReport();
-
-            if (doc == null) { report.Errors.Add("Document is null."); return; }
-            if (selected == null || selected.Count == 0) { report.Errors.Add("No selected rows."); return; }
-
-            string nowText = GetNowText(settings.SelectedFormat);
-
-            // Map by sheet number (fast)
-            var map = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Sheets)
-                .WhereElementIsNotElementType()
-                .OfType<ViewSheet>()
-                .GroupBy(s => s.SheetNumber ?? string.Empty)
-                .ToDictionary(g => g.Key, g => g.First());
-
-            foreach (var row in selected)
-            {
-                report.Requested++;
-
-                if (string.IsNullOrWhiteSpace(row.SheetNumber) || !map.TryGetValue(row.SheetNumber, out var sheet))
-                {
-                    report.SkippedMissingSheet++;
-                    continue;
-                }
-
-                bool doDate = row.UpdateBoth || row.UpdateDate;
-                bool doRev = row.UpdateBoth || row.UpdateRevision;
-
-                if (doDate)
-                {
-                    if (TrySetText(sheet.LookupParameter(settings.SelectedDateParam), nowText))
-                        report.UpdatedDate++;
-                    else
-                        report.SkippedDateParam++;
-                }
-
-                if (doRev)
-                {
-                    if (TryIncrement(sheet.LookupParameter(settings.SelectedRevParam)))
-                        report.UpdatedRevision++;
-                    else
-                        report.SkippedRevisionParam++;
-                }
-            }
-        }
-
         public static string GetNowText(string? format)
         {
             try
@@ -75,7 +28,7 @@ namespace BA.Core.Sheets
             }
         }
 
-        private static bool TrySetText(Parameter? p, string value)
+        internal static bool TrySetText(Parameter? p, string value)
         {
             if (p == null || p.IsReadOnly) return false;
 
@@ -93,7 +46,7 @@ namespace BA.Core.Sheets
             }
         }
 
-        private static bool TryIncrement(Parameter? p)
+        internal static bool TryIncrement(Parameter? p)
         {
             if (p == null || p.IsReadOnly) return false;
 
@@ -122,51 +75,6 @@ namespace BA.Core.Sheets
             {
                 return false;
             }
-        }
-    }
-
-    public sealed class SheetUpdateRow
-    {
-        public string SheetNumber { get; init; } = "";
-        public bool UpdateDate { get; init; }
-        public bool UpdateRevision { get; init; }
-        public bool UpdateBoth { get; init; }
-    }
-
-    public sealed class SheetUpdateReport
-    {
-        public int Requested { get; set; }
-
-        public int UpdatedDate { get; set; }
-        public int UpdatedRevision { get; set; }
-
-        public int SkippedMissingSheet { get; set; }
-        public int SkippedDateParam { get; set; }
-        public int SkippedRevisionParam { get; set; }
-
-        public List<string> Errors { get; } = new();
-
-        public string ToDialogText()
-        {
-            var lines = new List<string>
-            {
-                $"Sheets processed: {Requested}",
-                $"Updated dates: {UpdatedDate}",
-                $"Updated revisions: {UpdatedRevision}",
-                "",
-                $"Skipped (sheet not found): {SkippedMissingSheet}",
-                $"Skipped (date param missing/read-only/type): {SkippedDateParam}",
-                $"Skipped (rev param missing/read-only/type): {SkippedRevisionParam}",
-            };
-
-            if (Errors.Count > 0)
-            {
-                lines.Add("");
-                lines.Add("Errors:");
-                lines.AddRange(Errors.Select(e => " - " + e));
-            }
-
-            return string.Join(Environment.NewLine, lines);
         }
     }
 }

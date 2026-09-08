@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.DB;
@@ -6,6 +6,9 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.UI.Selection;
 using Nice3point.Revit.Toolkit;
 using BA.BAApplication.CommandRegistry;
+#if REVIT2025
+using Nice3point.Revit.Extensions.UI;
+#endif
 
 namespace BA.Ribbon
 {
@@ -96,7 +99,7 @@ namespace BA.Ribbon
             if (!string.IsNullOrWhiteSpace(smallImagePath))
                 pulldown.SetImage(NormalizePackUri(smallImagePath));
 
-            if (!string.IsNullOrWhiteSpace(largeImagePath))
+            if (!string.IsNullOrWhiteSpace(largeImagePath)) 
                 pulldown.SetLargeImage(NormalizePackUri(largeImagePath));
 
             return pulldown;

@@ -5,12 +5,12 @@ using System.Windows.Input;
 using Autodesk.Revit.DB;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using BATools.SelectionManager.Infrastructure;
-using BATools.SelectionManager.Models;
-using BATools.SelectionManager.Services;
-using BATools.SelectionManager.Views;
+using BA.SelectionManager.Infrastructure;
+using BA.SelectionManager.Models;
+using BA.SelectionManager.Services;
+using BA.SelectionManager.Views;
 
-namespace BATools.SelectionManager.ViewModels
+namespace BA.SelectionManager.ViewModels
 {
     public class FamiliesToolbarTabViewModel : ObservableObject
     {

@@ -1,9 +1,9 @@
 ﻿<Window
-    x:Class="BATools.SelectionManager.Views.RecentToolbarWindow"
+    x:Class="BA.SelectionManager.Views.RecentToolbarWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:vm="clr-namespace:BATools.SelectionManager.ViewModels"
-    xmlns:conv="clr-namespace:BATools.SelectionManager.Converters"
+    xmlns:vm="clr-namespace:BA.SelectionManager.ViewModels"
+    xmlns:conv="clr-namespace:BA.SelectionManager.Converters"
     WindowStyle="None"
     ResizeMode="NoResize"
     AllowsTransparency="False"

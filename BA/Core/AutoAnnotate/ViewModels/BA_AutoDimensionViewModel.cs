@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using BA.UI.Mvvm;
 using BA.BIM.Core.Dimensioning.Infrastructure;
@@ -29,6 +30,13 @@ namespace BA.BIM.Commands.Dimension
         {
             get => _viewScopeMode;
             set => SetProperty(ref _viewScopeMode, value);
+        }
+
+        private bool _extendThroughCollinearWalls;
+        public bool ExtendThroughCollinearWalls
+        {
+            get => _extendThroughCollinearWalls;
+            set => SetProperty(ref _extendThroughCollinearWalls, value);
         }
 
         private bool _isBusy;
@@ -75,6 +83,7 @@ namespace BA.BIM.Commands.Dimension
             try
             {
                 BA_ViewScopeMode scopeMode = ViewScopeMode;
+                bool extend = ExtendThroughCollinearWalls;
 
                 (List<BA_DimensionCandidate> candidates, List<BA_DimensionSkip> skips) = await _bridge.RunAsync(uiApp =>
                 {
@@ -86,7 +95,7 @@ namespace BA.BIM.Commands.Dimension
 
                     foreach (var view in views)
                     {
-                        var (c, s) = BA_DimensionCandidateService.ScanView(doc, view);
+                        var (c, s) = BA_DimensionCandidateService.ScanView(doc, view, extend);
                         allCandidates.AddRange(c);
                         allSkips.AddRange(s);
                     }
@@ -108,7 +117,7 @@ namespace BA.BIM.Commands.Dimension
                 foreach (var s in skips)
                     Skips.Add(s);
 
-                StatusMessage = $"Scan complete: {candidates.Count} candidate wall(s), {skips.Count} skipped.";
+                StatusMessage = $"Scan complete: {candidates.Count} candidate(s), {skips.Count} skipped.";
             }
             catch (Exception ex)
             {
@@ -145,7 +154,16 @@ namespace BA.BIM.Commands.Dimension
                 });
 
                 foreach (var o in outcomes)
+                {
                     Outcomes.Add(o);
+
+                    if (o.Success)
+                    {
+                        var vm = Candidates.FirstOrDefault(c => c.Model == o.SourceCandidate);
+                        if (vm != null) vm.IsSelected = false;
+                    }
+                }
+
                 foreach (var s in runtimeSkips)
                     Skips.Add(s);
 
@@ -162,6 +180,94 @@ namespace BA.BIM.Commands.Dimension
                 IsBusy = false;
                 ScanCommand.RaiseCanExecuteChanged();
                 PlaceCommand.RaiseCanExecuteChanged();
+            }
+        }
+        public async Task HighlightCandidateAsync(BA_DimensionCandidate candidate)
+        {
+            if (candidate == null || candidate.WallIds == null || candidate.WallIds.Count == 0) return;
+
+            try
+            {
+                await _bridge.RunAsync(uiApp =>
+                {
+                    var uiDoc = uiApp.ActiveUIDocument;
+                    var ids = new List<ElementId>(candidate.WallIds);
+                    uiDoc.Selection.SetElementIds(ids);
+                    uiDoc.ShowElements(ids);
+                    return true;
+                });
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Highlight failed: {ex.Message}";
+            }
+        }
+
+        public async Task HighlightOutcomeAsync(BA_DimensionPlacementOutcome outcome)
+        {
+            if (outcome == null) return;
+
+            try
+            {
+                await _bridge.RunAsync(uiApp =>
+                {
+                    var uiDoc = uiApp.ActiveUIDocument;
+                    var ids = new List<ElementId>();
+
+                    if (outcome.Success && outcome.CreatedDimensionId != null && outcome.CreatedDimensionId != ElementId.InvalidElementId)
+                        ids.Add(outcome.CreatedDimensionId);
+                    else if (outcome.SourceCandidate?.WallIds != null)
+                        ids.AddRange(outcome.SourceCandidate.WallIds);
+
+                    if (ids.Count == 0) return false;
+
+                    uiDoc.Selection.SetElementIds(ids);
+                    uiDoc.ShowElements(ids);
+                    return true;
+                });
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Highlight failed: {ex.Message}";
+            }
+        }
+        public async Task DeleteOutcomeAsync(BA_DimensionPlacementOutcome outcome)
+        {
+            if (outcome == null || !outcome.Success || outcome.CreatedDimensionId == null)
+                return;
+
+            IsBusy = true;
+            StatusMessage = "Deleting dimension...";
+
+            try
+            {
+                bool deleted = await _bridge.RunAsync(uiApp =>
+                {
+                    var doc = uiApp.ActiveUIDocument.Document;
+                    return BA_DimensionPlacementService.DeleteDimension(doc, outcome.CreatedDimensionId);
+                });
+
+                if (deleted)
+                {
+                    Outcomes.Remove(outcome);
+
+                    var vm = Candidates.FirstOrDefault(c => c.Model == outcome.SourceCandidate);
+                    if (vm != null) vm.IsSelected = true;
+
+                    StatusMessage = "Dimension deleted. Row re armed for placement.";
+                }
+                else
+                {
+                    StatusMessage = "Delete failed: dimension no longer exists or could not be removed.";
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Delete failed: {ex.Message}";
+            }
+            finally
+            {
+                IsBusy = false;
             }
         }
 

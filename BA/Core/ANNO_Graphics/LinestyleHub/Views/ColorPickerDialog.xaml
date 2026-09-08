@@ -5,16 +5,23 @@
         Width="320" Height="340"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        Background="#111214"
-        Foreground="White"
-        FontFamily="Segoe UI">
+        Style="{DynamicResource BaWindow}"
+        ShowInTaskbar="False">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
 
     <StackPanel Margin="20">
 
         <!-- Preview swatch -->
         <Border Height="50"
                 CornerRadius="4"
-                BorderBrush="#2A2A2C"
+                BorderBrush="{StaticResource Brush.ControlBorder}"
                 BorderThickness="1"
                 Background="{Binding PreviewBrush}"
                 Margin="0,0,0,16"/>
@@ -26,15 +33,15 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="44"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Text="R" Foreground="#B8B8B8" VerticalAlignment="Center"/>
+            <TextBlock Text="R" Style="{StaticResource BaMutedTextDark}"/>
             <Slider Grid.Column="1" Minimum="0" Maximum="255"
                     Value="{Binding R, Mode=TwoWay}"
                     VerticalAlignment="Center" Margin="8,0"/>
             <TextBox Grid.Column="2"
+                     Style="{StaticResource BaTextBox}"
+                     Height="Auto"
                      Text="{Binding R, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                     Background="#1A1A1D" Foreground="White"
-                     BorderBrush="#2A2A2C" BorderThickness="1"
-                     Padding="4,2" TextAlignment="Right"/>
+                     TextAlignment="Right"/>
         </Grid>
 
         <!-- G -->
@@ -44,15 +51,15 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="44"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Text="G" Foreground="#B8B8B8" VerticalAlignment="Center"/>
+            <TextBlock Text="G" Style="{StaticResource BaMutedTextDark}"/>
             <Slider Grid.Column="1" Minimum="0" Maximum="255"
                     Value="{Binding G, Mode=TwoWay}"
                     VerticalAlignment="Center" Margin="8,0"/>
             <TextBox Grid.Column="2"
+                     Style="{StaticResource BaTextBox}"
+                     Height="Auto"
                      Text="{Binding G, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                     Background="#1A1A1D" Foreground="White"
-                     BorderBrush="#2A2A2C" BorderThickness="1"
-                     Padding="4,2" TextAlignment="Right"/>
+                     TextAlignment="Right"/>
         </Grid>
 
         <!-- B -->
@@ -62,40 +69,36 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="44"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Text="B" Foreground="#B8B8B8" VerticalAlignment="Center"/>
+            <TextBlock Text="B" Style="{StaticResource BaMutedTextDark}"/>
             <Slider Grid.Column="1" Minimum="0" Maximum="255"
                     Value="{Binding B, Mode=TwoWay}"
                     VerticalAlignment="Center" Margin="8,0"/>
             <TextBox Grid.Column="2"
+                     Style="{StaticResource BaTextBox}"
+                     Height="Auto"
                      Text="{Binding B, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                     Background="#1A1A1D" Foreground="White"
-                     BorderBrush="#2A2A2C" BorderThickness="1"
-                     Padding="4,2" TextAlignment="Right"/>
+                     TextAlignment="Right"/>
         </Grid>
 
         <!-- Hex input -->
         <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
-            <TextBlock Text="Hex:" Foreground="#B8B8B8" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <TextBox Text="{Binding HexText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+            <TextBlock Text="Hex:" Style="{StaticResource BaMutedTextDark}" Margin="0,0,8,0"/>
+            <TextBox Style="{StaticResource BaTextBox}"
+                     Height="Auto"
+                     Text="{Binding HexText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                      Width="100"
-                     Background="#1A1A1D" Foreground="White"
-                     BorderBrush="#2A2A2C" BorderThickness="1"
                      Padding="6,4"/>
         </StackPanel>
 
         <!-- Buttons -->
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Cancel"
+                    Style="{StaticResource BaSecondaryButton}"
                     Width="80" Margin="0,0,8,0"
-                    Background="#1A1A1D" Foreground="White"
-                    BorderBrush="#2A2A2C" BorderThickness="1"
-                    Padding="0,6"
                     Click="BtnCancel_Click"/>
             <Button Content="OK"
+                    Style="{StaticResource BaPrimaryButton}"
                     Width="80"
-                    Background="#2A5A9E" Foreground="White"
-                    BorderBrush="#1E4A8E" BorderThickness="1"
-                    Padding="0,6"
                     Click="BtnOk_Click"/>
         </StackPanel>
 

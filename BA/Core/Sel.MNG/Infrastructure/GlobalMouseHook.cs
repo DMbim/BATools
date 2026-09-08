@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
 using Point = System.Windows.Point;
-namespace BATools.SelectionManager.Infrastructure
+namespace BA.SelectionManager.Infrastructure
 {
     public sealed class GlobalMouseHook : IDisposable
     {

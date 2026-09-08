@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace BATools.SelectionManager.Infrastructure
+namespace BA.SelectionManager.Infrastructure
 {
     /// <summary>
     /// Detects two rapid presses of a configurable key within a time window.

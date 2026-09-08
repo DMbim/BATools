@@ -23,58 +23,54 @@ namespace BA.Zoom.Helpers
         }
 
         /// <summary>
-        /// Resolves the room ID parameter from the element according to the configured mode.
-        /// Resolution priority:
-        ///   1. Shared GUID (when mode == "Shared" and GUID parses)
-        ///   2. BuiltIn ROOM_NUMBER (when mode == "BuiltIn" or unset)
-        ///   3. By name (when mode == "ByName" and RoomIdName is set)
-        /// Fallbacks (always attempted if above fails): ROOM_NUMBER, then BA_ID.
-        /// Returns null only when no string-typed parameter is found at all.
+        /// Resolves the room ID parameter from the element strictly according to the configured
+        /// mode. No fallback to ROOM_NUMBER or BA_ID on failure: if the configured mode fails to
+        /// resolve a valid string parameter, this returns null and the caller treats the room as
+        /// not matching, rather than silently matching against a parameter the user did not
+        /// actually configure in Zoom to Room Settings.
+        ///   "Shared"  -> the shared parameter identified by settings.RoomIdSharedGuid
+        ///   "ByName"  -> the parameter named settings.RoomIdName
+        ///   "BuiltIn" or unset -> BuiltInParameter.ROOM_NUMBER
         /// </summary>
-        public static Parameter? GetStringParameter(Element e, ZoomToRoomSettings settings)
+        public static Parameter? GetStringParameter(Element e, ZoomToRoomSettings settings) // <- CHANGED, full rewrite below
         {
-            // 1. Shared GUID
+            if (string.Equals(settings.RoomIdParamMode, "Shared", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    if (Guid.TryParse(settings.RoomIdSharedGuid, out Guid g))
+                    {
+                        var pS = e.get_Parameter(g);
+                        if (pS != null && pS.StorageType == StorageType.String) return pS;
+                    }
+                }
+                catch { }
+
+                return null;
+            }
+
+            if (string.Equals(settings.RoomIdParamMode, "ByName", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(settings.RoomIdName))
+                    {
+                        var pN = e.LookupParameter(settings.RoomIdName);
+                        if (pN != null && pN.StorageType == StorageType.String) return pN;
+                    }
+                }
+                catch { }
+
+                return null;
+            }
+
+            // "BuiltIn" or unset/unrecognized mode: BuiltInParameter.ROOM_NUMBER only, no fallback.
             try
             {
-                if (string.Equals(settings.RoomIdParamMode, "Shared", StringComparison.OrdinalIgnoreCase) &&
-                    Guid.TryParse(settings.RoomIdSharedGuid, out Guid g))
-                {
-                    var pS = e.get_Parameter(g);
-                    if (pS != null && pS.StorageType == StorageType.String) return pS;
-                }
+                var pB = e.get_Parameter(BuiltInParameter.ROOM_NUMBER);
+                if (pB != null && pB.StorageType == StorageType.String) return pB;
             }
             catch { }
-
-            // 2. BuiltIn ROOM_NUMBER
-            try
-            {
-                if (string.IsNullOrWhiteSpace(settings.RoomIdParamMode) ||
-                    string.Equals(settings.RoomIdParamMode, "BuiltIn", StringComparison.OrdinalIgnoreCase))
-                {
-                    var pB = e.get_Parameter(BuiltInParameter.ROOM_NUMBER);
-                    if (pB != null && pB.StorageType == StorageType.String) return pB;
-                }
-            }
-            catch { }
-
-            // 3. By name
-            try
-            {
-                if (!string.IsNullOrWhiteSpace(settings.RoomIdName))
-                {
-                    var pN = e.LookupParameter(settings.RoomIdName);
-                    if (pN != null && pN.StorageType == StorageType.String) return pN;
-                }
-            }
-            catch { }
-
-            // Fallback: ROOM_NUMBER
-            var pFallback = e.get_Parameter(BuiltInParameter.ROOM_NUMBER);
-            if (pFallback != null && pFallback.StorageType == StorageType.String) return pFallback;
-
-            // Fallback: BA_ID
-            var pBA = e.LookupParameter("BA_ID");
-            if (pBA != null && pBA.StorageType == StorageType.String) return pBA;
 
             return null;
         }

@@ -50,6 +50,13 @@ namespace BA.UI.ViewTemplates
         private bool _copyFilterVisibility = true;
         private bool _copyFilterOverrides = true;
         private bool _preserveFilterOrder = false;
+        private bool _copyFilterTransparency = false;
+        private bool _isAdvancedFilterOptionsVisible = false;
+
+        // <- NEW: collapse state for the three optional panels, all hidden by default
+        private bool _isPropertiesPanelVisible = false;
+        private bool _isAdvancedGraphicsPanelVisible = false;
+        private bool _isFilterPanelVisible = false;
 
         public ObservableCollection<CheckableViewTemplateItem> SourceTemplates { get; } = new();
         public ObservableCollection<CheckableViewTemplateItem> FilteredSourceTemplates { get; } = new();
@@ -59,10 +66,19 @@ namespace BA.UI.ViewTemplates
 
         public ObservableCollection<ViewFilterTransferItem> FilteredSourceFilters { get; } = new();
 
+        // <- CHANGED: was SourceViewTypeOptions (single select dropdown model), now a checkable list
+        public ObservableCollection<CheckableViewTypeItem> SourceViewTypeFilters { get; } = new();
+
         public BA.UI.Mvvm.RelayCommand ApplyViewFiltersCommand { get; }
         public BA.UI.Mvvm.RelayCommand SelectAllFiltersCommand { get; }
         public BA.UI.Mvvm.RelayCommand ClearAllFiltersCommand { get; }
         public BA.UI.Mvvm.RelayCommand InvertFiltersCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ToggleAdvancedFilterOptionsCommand { get; }
+
+        // <- NEW: top bar panel toggles
+        public BA.UI.Mvvm.RelayCommand TogglePropertiesPanelCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ToggleAdvancedGraphicsPanelCommand { get; }
+        public BA.UI.Mvvm.RelayCommand ToggleFilterPanelCommand { get; }
 
         public BA.UI.Mvvm.RelayCommand ApplyCategoryGraphicsCommand { get; }
         public BA.UI.Mvvm.RelayCommand SelectAllGraphicCategoriesCommand { get; }
@@ -91,6 +107,10 @@ namespace BA.UI.ViewTemplates
             SelectAllFiltersCommand = new BA.UI.Mvvm.RelayCommand(_ => SelectAllFilters());
             ClearAllFiltersCommand = new BA.UI.Mvvm.RelayCommand(_ => ClearAllFilters());
             InvertFiltersCommand = new BA.UI.Mvvm.RelayCommand(_ => InvertFilters());
+            ToggleAdvancedFilterOptionsCommand = new BA.UI.Mvvm.RelayCommand(_ => IsAdvancedFilterOptionsVisible = !IsAdvancedFilterOptionsVisible);
+            TogglePropertiesPanelCommand = new BA.UI.Mvvm.RelayCommand(_ => IsPropertiesPanelVisible = !IsPropertiesPanelVisible); // <- NEW
+            ToggleAdvancedGraphicsPanelCommand = new BA.UI.Mvvm.RelayCommand(_ => IsAdvancedGraphicsPanelVisible = !IsAdvancedGraphicsPanelVisible); // <- NEW
+            ToggleFilterPanelCommand = new BA.UI.Mvvm.RelayCommand(_ => IsFilterPanelVisible = !IsFilterPanelVisible); // <- NEW
             ApplyCommand = new BA.UI.Mvvm.RelayCommand(_ => Apply(), _ => CanApply());
             SelectAllPropertiesCommand = new BA.UI.Mvvm.RelayCommand(_ => SelectAllProperties());
             ClearAllPropertiesCommand = new BA.UI.Mvvm.RelayCommand(_ => ClearAllProperties());
@@ -126,6 +146,66 @@ namespace BA.UI.ViewTemplates
                 ApplyCommand.RaiseCanExecuteChanged();
             }
         }
+
+        // <- NEW: collapse state for the Properties panel, toggled from the top bar
+        public bool IsPropertiesPanelVisible
+        {
+            get => _isPropertiesPanelVisible;
+            set
+            {
+                if (_isPropertiesPanelVisible == value) return;
+                _isPropertiesPanelVisible = value;
+                OnPropertyChanged();
+            }
+        }
+
+        // <- NEW: collapse state for the Advanced Graphics panel, toggled from the top bar
+        public bool IsAdvancedGraphicsPanelVisible
+        {
+            get => _isAdvancedGraphicsPanelVisible;
+            set
+            {
+                if (_isAdvancedGraphicsPanelVisible == value) return;
+                _isAdvancedGraphicsPanelVisible = value;
+                OnPropertyChanged();
+            }
+        }
+
+        // <- NEW: collapse state for the Filter transfer panel, toggled from the top bar
+        public bool IsFilterPanelVisible
+        {
+            get => _isFilterPanelVisible;
+            set
+            {
+                if (_isFilterPanelVisible == value) return;
+                _isFilterPanelVisible = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public bool IsAdvancedFilterOptionsVisible
+        {
+            get => _isAdvancedFilterOptionsVisible;
+            set
+            {
+                if (_isAdvancedFilterOptionsVisible == value) return;
+                _isAdvancedFilterOptionsVisible = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public bool CopyFilterTransparency
+        {
+            get => _copyFilterTransparency;
+            set
+            {
+                if (_copyFilterTransparency == value) return;
+                _copyFilterTransparency = value;
+                OnPropertyChanged();
+                ApplyViewFiltersCommand.RaiseCanExecuteChanged();
+            }
+        }
+
         public string CategorySearchText
         {
             get => _categorySearchText;
@@ -216,7 +296,7 @@ namespace BA.UI.ViewTemplates
             if (SelectedSourceTemplate == null) return false;
             if (!_allTargets.Any(x => x.IsSelected)) return false;
             if (!_allSourceFilters.Any(x => x.IsSelected)) return false;
-            if (!CopyFilterEnabledState && !CopyFilterVisibility && !CopyFilterOverrides) return false;
+            if (!CopyFilterEnabledState && !CopyFilterVisibility && !CopyFilterOverrides && !CopyFilterTransparency) return false;
             return true;
         }
         private void LoadGraphicCategoriesForSelectedSource()
@@ -299,10 +379,10 @@ namespace BA.UI.ViewTemplates
                 return;
             }
 
-            if (!CopyFilterEnabledState && !CopyFilterVisibility && !CopyFilterOverrides)
+            if (!CopyFilterEnabledState && !CopyFilterVisibility && !CopyFilterOverrides && !CopyFilterTransparency)
             {
                 MessageBox.Show(_ownerWindow,
-                    "Enable at least one transfer option: Enabled State, Visibility, or Overrides.",
+                    "Enable at least one transfer option: Enabled State, Visibility, Overrides, or Transparency.",
                     "View Filter Transfer",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -318,6 +398,7 @@ namespace BA.UI.ViewTemplates
                 CopyEnabledState = CopyFilterEnabledState,
                 CopyVisibility = CopyFilterVisibility,
                 CopyOverrides = CopyFilterOverrides,
+                CopyTransparency = CopyFilterTransparency,
                 PreserveOrder = PreserveFilterOrder,
                 OnSuccess = result =>
                 {
@@ -695,6 +776,11 @@ namespace BA.UI.ViewTemplates
             FilteredSourceTemplates.Clear();
             FilteredTargets.Clear();
 
+            // <- NEW: unsubscribe old filter items before rebuilding the list
+            foreach (CheckableViewTypeItem existing in SourceViewTypeFilters)
+                existing.PropertyChanged -= ViewTypeFilterItem_PropertyChanged;
+            SourceViewTypeFilters.Clear();
+
             List<ViewTemplateItem> templates = ViewTemplateTransferService.GetAllViewTemplates(doc);
 
             foreach (ViewTemplateItem t in templates)
@@ -705,11 +791,30 @@ namespace BA.UI.ViewTemplates
                 SourceTemplates.Add(item);
             }
 
+            // <- NEW: one checkbox per distinct ViewType actually present, alphabetical
+            foreach (var group in _allSourceTemplates
+                .GroupBy(x => x.ViewType)
+                .OrderBy(g => g.First().ViewTypeName, StringComparer.OrdinalIgnoreCase))
+            {
+                var filterItem = new CheckableViewTypeItem(group.Key, group.First().ViewTypeName);
+                filterItem.PropertyChanged += ViewTypeFilterItem_PropertyChanged;
+                SourceViewTypeFilters.Add(filterItem);
+            }
+
             RebuildFilteredSources();
 
             SelectedSourceTemplate = _allSourceTemplates.FirstOrDefault();
 
             StatusText = $"Loaded {templates.Count} view templates.";
+        }
+
+        // <- NEW: any view type checkbox flipping re-filters the Source list
+        private void ViewTypeFilterItem_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(CheckableViewTypeItem.IsSelected))
+            {
+                RebuildFilteredSources();
+            }
         }
 
         private void LoadPropertiesForSelectedSource()
@@ -773,6 +878,17 @@ namespace BA.UI.ViewTemplates
             FilteredSourceTemplates.Clear();
 
             IEnumerable<CheckableViewTemplateItem> items = _allSourceTemplates;
+
+            // <- CHANGED: view type filter is now "any checked box" instead of one selected dropdown value
+            List<ViewType> checkedTypes = SourceViewTypeFilters
+                .Where(x => x.IsSelected)
+                .Select(x => x.ViewType)
+                .ToList();
+
+            if (checkedTypes.Count > 0)
+            {
+                items = items.Where(x => checkedTypes.Contains(x.ViewType));
+            }
 
             string text = (_sourceSearchText ?? string.Empty).Trim();
             if (!string.IsNullOrWhiteSpace(text))

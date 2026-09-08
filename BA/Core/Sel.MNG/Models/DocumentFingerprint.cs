@@ -1,7 +1,7 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 
-namespace BATools.SelectionManager.Models
+namespace BA.SelectionManager.Models
 {
     public static class DocumentFingerprint
     {

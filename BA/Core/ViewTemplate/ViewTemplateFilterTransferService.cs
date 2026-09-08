@@ -49,6 +49,7 @@ namespace BA.Core.ViewTemplates
             bool copyEnabledState,
             bool copyVisibility,
             bool copyOverrides,
+            bool copyTransparency, // <- NEW
             bool preserveOrder)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
@@ -70,9 +71,9 @@ namespace BA.Core.ViewTemplates
                 RequestedFilters = selectedFilterIds.Count
             };
 
-            if (!copyEnabledState && !copyVisibility && !copyOverrides)
+            if (!copyEnabledState && !copyVisibility && !copyOverrides && !copyTransparency) // <- CHANGED
             {
-                result.Messages.Add("Nothing selected to copy. Enable at least one filter transfer option.");
+                result.Messages.Add("Nothing selected to copy. Enable at least one filter transfer option."); // <- CHANGED wording still accurate, options list grew
                 return result;
             }
 
@@ -83,7 +84,6 @@ namespace BA.Core.ViewTemplates
             }
 
             List<ElementId> sourceOrderedFilterIds = sourceTemplate.GetOrderedFilters().ToList();
-
             List<ElementId> effectiveSelected = sourceOrderedFilterIds
                 .Where(id => selectedFilterIds.Any(x => x != null && x.Value == id.Value))
                 .ToList();
@@ -153,8 +153,8 @@ namespace BA.Core.ViewTemplates
                                 filterId,
                                 copyEnabledState,
                                 copyVisibility,
-                                copyOverrides);
-
+                                copyOverrides,
+                                copyTransparency); // <- NEW
                             appliedCount++;
                         }
 
@@ -205,7 +205,8 @@ namespace BA.Core.ViewTemplates
             ElementId filterId,
             bool copyEnabledState,
             bool copyVisibility,
-            bool copyOverrides)
+            bool copyOverrides,
+            bool copyTransparency) // <- NEW
         {
             if (sourceTemplate == null) throw new ArgumentNullException(nameof(sourceTemplate));
             if (targetTemplate == null) throw new ArgumentNullException(nameof(targetTemplate));
@@ -232,11 +233,15 @@ namespace BA.Core.ViewTemplates
                 targetTemplate.SetFilterVisibility(filterId, isVisible);
             }
 
-            if (copyOverrides)
+            // <- CHANGED: overrides and transparency are now independent flags that
+            // both feed into one merged OverrideGraphicSettings, built on top of
+            // whatever the target already has, instead of a blank object.
+            if (copyOverrides || copyTransparency)
             {
                 OverrideGraphicSettings sourceOgs = sourceTemplate.GetFilterOverrides(filterId);
-                OverrideGraphicSettings cloned = CloneOverrideGraphicSettings(sourceOgs);
-                targetTemplate.SetFilterOverrides(filterId, cloned);
+                OverrideGraphicSettings targetOgs = targetTemplate.GetFilterOverrides(filterId);
+                OverrideGraphicSettings merged = BuildFilterOverrides(sourceOgs, targetOgs, copyOverrides, copyTransparency);
+                targetTemplate.SetFilterOverrides(filterId, merged);
             }
         }
 
@@ -248,7 +253,6 @@ namespace BA.Core.ViewTemplates
             if (selectedFilterIdsInSourceOrder == null) throw new ArgumentNullException(nameof(selectedFilterIdsInSourceOrder));
 
             List<ElementId> currentlyApplied = targetTemplate.GetOrderedFilters().ToList();
-
             List<ElementId> selectedApplied = currentlyApplied
                 .Where(id => selectedFilterIdsInSourceOrder.Any(x => x.Value == id.Value))
                 .ToList();
@@ -267,45 +271,49 @@ namespace BA.Core.ViewTemplates
             }
         }
 
-        private static OverrideGraphicSettings CloneOverrideGraphicSettings(OverrideGraphicSettings source)
+        // <- CHANGED: renamed from CloneOverrideGraphicSettings, now merges instead of
+        // blindly cloning from blank. targetBase supplies everything neither flag touches.
+        private static OverrideGraphicSettings BuildFilterOverrides(
+            OverrideGraphicSettings source,
+            OverrideGraphicSettings targetBase,
+            bool copyOverrides,
+            bool copyTransparency)
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
+            if (targetBase == null) throw new ArgumentNullException(nameof(targetBase));
 
-            OverrideGraphicSettings clone = new OverrideGraphicSettings();
+            OverrideGraphicSettings merged = new OverrideGraphicSettings(targetBase);
 
-            clone.SetProjectionLineColor(source.ProjectionLineColor);
-            clone.SetProjectionLinePatternId(source.ProjectionLinePatternId);
-            clone.SetProjectionLineWeight(source.ProjectionLineWeight);
+            if (copyOverrides)
+            {
+                merged.SetProjectionLineColor(source.ProjectionLineColor);
+                merged.SetProjectionLinePatternId(source.ProjectionLinePatternId);
+                merged.SetProjectionLineWeight(source.ProjectionLineWeight);
+                merged.SetCutLineColor(source.CutLineColor);
+                merged.SetCutLinePatternId(source.CutLinePatternId);
+                merged.SetCutLineWeight(source.CutLineWeight);
+                merged.SetSurfaceForegroundPatternColor(source.SurfaceForegroundPatternColor);
+                merged.SetSurfaceForegroundPatternId(source.SurfaceForegroundPatternId);
+                merged.SetSurfaceForegroundPatternVisible(source.IsSurfaceForegroundPatternVisible);
+                merged.SetSurfaceBackgroundPatternColor(source.SurfaceBackgroundPatternColor);
+                merged.SetSurfaceBackgroundPatternId(source.SurfaceBackgroundPatternId);
+                merged.SetSurfaceBackgroundPatternVisible(source.IsSurfaceBackgroundPatternVisible);
+                merged.SetCutForegroundPatternColor(source.CutForegroundPatternColor);
+                merged.SetCutForegroundPatternId(source.CutForegroundPatternId);
+                merged.SetCutForegroundPatternVisible(source.IsCutForegroundPatternVisible);
+                merged.SetCutBackgroundPatternColor(source.CutBackgroundPatternColor);
+                merged.SetCutBackgroundPatternId(source.CutBackgroundPatternId);
+                merged.SetCutBackgroundPatternVisible(source.IsCutBackgroundPatternVisible);
+                merged.SetHalftone(source.Halftone);
+                merged.SetDetailLevel(source.DetailLevel);
+            }
 
-            clone.SetCutLineColor(source.CutLineColor);
-            clone.SetCutLinePatternId(source.CutLinePatternId);
-            clone.SetCutLineWeight(source.CutLineWeight);
+            if (copyTransparency)
+            {
+                merged.SetSurfaceTransparency(source.Transparency);
+            }
 
-            clone.SetSurfaceForegroundPatternColor(source.SurfaceForegroundPatternColor);
-            clone.SetSurfaceForegroundPatternId(source.SurfaceForegroundPatternId);
-            clone.SetSurfaceForegroundPatternVisible(source.IsSurfaceForegroundPatternVisible);
-
-            clone.SetSurfaceBackgroundPatternColor(source.SurfaceBackgroundPatternColor);
-            clone.SetSurfaceBackgroundPatternId(source.SurfaceBackgroundPatternId);
-            clone.SetSurfaceBackgroundPatternVisible(source.IsSurfaceBackgroundPatternVisible);
-
-            clone.SetCutForegroundPatternColor(source.CutForegroundPatternColor);
-            clone.SetCutForegroundPatternId(source.CutForegroundPatternId);
-            clone.SetCutForegroundPatternVisible(source.IsCutForegroundPatternVisible);
-
-            clone.SetCutBackgroundPatternColor(source.CutBackgroundPatternColor);
-            clone.SetCutBackgroundPatternId(source.CutBackgroundPatternId);
-            clone.SetCutBackgroundPatternVisible(source.IsCutBackgroundPatternVisible);
-
-            clone.SetHalftone(source.Halftone);
-
-            // Keep only if available in your referenced Revit API build.
-            // clone.SetTransparency(source.Transparency);
-
-            // Keep only if available in your referenced Revit API build.
-            clone.SetDetailLevel(source.DetailLevel);
-
-            return clone;
+            return merged;
         }
     }
 }

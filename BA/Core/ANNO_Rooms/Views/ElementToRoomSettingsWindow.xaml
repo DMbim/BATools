@@ -113,7 +113,8 @@
         <ComboBox x:Name="E2RCategories"
                   Grid.Row="2"
                   Style="{StaticResource BaDarkComboBox}"
-                  Margin="0,0,0,10"/>
+                  Margin="0,0,0,10"
+                  SelectionChanged="E2RCategories_SelectionChanged"/>
 
         <TextBlock x:Name="LblLink"
                    Grid.Row="3"
@@ -130,18 +131,18 @@
                    Text="Source Parameter (Room):"
                    Foreground="#A0A8B4"
                    Margin="0,0,0,4"/>
-        <TextBox x:Name="E2RLocalSourceCB"
+        <ComboBox x:Name="E2RLocalSourceCB"
                  Grid.Row="6"
-                 Style="{StaticResource DarkTextBoxStyle}"
+                 Style="{StaticResource BaDarkComboBox}"
                  Margin="0,0,0,10"/>
 
         <TextBlock Grid.Row="7"
                    Text="Destination Parameter (Element):"
                    Foreground="#A0A8B4"
                    Margin="0,0,0,4"/>
-        <TextBox x:Name="E2RTargetCB"
+        <ComboBox x:Name="E2RTargetCB"
                  Grid.Row="8"
-                 Style="{StaticResource DarkTextBoxStyle}"
+                 Style="{StaticResource BaDarkComboBox}"
                  Margin="0,0,0,10"/>
 
         <StackPanel Grid.Row="10"
@@ -158,5 +159,32 @@
                     Style="{StaticResource DarkButtonStyle}"
                     Click="CancelButton_Click"/>
         </StackPanel>
+        <Grid Grid.Row="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0"
+            Width="90"
+            Content="Run"
+            Style="{StaticResource DarkButtonStyle}"
+            Click="RunButton_Click"/>
+
+            <StackPanel Grid.Column="2"
+                Orientation="Horizontal">
+                <Button Width="90" Margin="0,0,8,0"
+                Content="OK"
+                IsDefault="True"
+                Style="{StaticResource DarkButtonStyle}"
+                Click="OkButton_Click"/>
+                <Button Width="90"
+                Content="Cancel"
+                IsCancel="True"
+                Style="{StaticResource DarkButtonStyle}"
+                Click="CancelButton_Click"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

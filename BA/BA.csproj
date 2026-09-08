@@ -4,18 +4,26 @@
 		<TargetFramework>net8.0-windows</TargetFramework>
 		<UseWPF>true</UseWPF>
 		<EnableDynamicLoading>true</EnableDynamicLoading>
-		<Configurations>;Debug R26</Configurations>
+		<Configurations>Debug R26;Release R26;Debug R25</Configurations>
 		<Configurations>$(Configurations);Release R26</Configurations>
+		<Configurations>$(Configurations);Debug R25</Configurations>
+		<Configurations>$(Configurations);Release R25</Configurations>
 		<RootNamespace>BA.UI</RootNamespace>
 
 	</PropertyGroup>
 	<PropertyGroup>
 		<UseWindowsForms>true</UseWindowsForms>
 	</PropertyGroup>
-	<PropertyGroup Condition="$(Configuration.Contains('R26'))">
-		<RevitVersion>2026</RevitVersion>
-		<TargetFramework>net8.0-windows</TargetFramework>
-	</PropertyGroup>
+<PropertyGroup Condition="$(Configuration.Contains('R26'))">
+    <RevitVersion>2026</RevitVersion>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <DefineConstants>$(DefineConstants);REVIT2026</DefineConstants>
+</PropertyGroup>
+<PropertyGroup Condition="$(Configuration.Contains('R25'))">
+    <RevitVersion>2025</RevitVersion>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <DefineConstants>$(DefineConstants);REVIT2025</DefineConstants>
+</PropertyGroup>
 
 	<PropertyGroup>
 		<StartAction>Program</StartAction>
@@ -31,25 +39,29 @@
 			<Private>False</Private>
 		</Reference>
 	</ItemGroup>
-	<ItemGroup>
-	  <Reference Include="AdWindows">
-		<HintPath>C:\Program Files\Autodesk\Revit 2026\AdWindows.dll</HintPath>
-		<Private>False</Private>
-	  </Reference>
-	</ItemGroup>
+<ItemGroup>
+  <Reference Include="AdWindows">
+	<HintPath>C:\Program Files\Autodesk\Revit $(RevitVersion)\AdWindows.dll</HintPath>
+	<Private>False</Private>
+  </Reference>
+</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="Clipper2" Version="2.0.0" />
 		<PackageReference Include="ClosedXML" Version="0.105.0" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
 		<PackageReference Include="Nice3point.Revit.Build.Tasks" Version="3.0.1" />
 		<PackageReference Include="Nice3point.Revit.Toolkit" Version="$(RevitVersion).*" />
-		<PackageReference Include="Nice3point.Revit.Extensions" Version="2026.0.2-preview.1.20251113" />
 		<PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" />
 		<PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" />
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
 		<PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4129.50" />
 	</ItemGroup>
-
+	<ItemGroup Condition="$(Configuration.Contains('R26'))">
+		<PackageReference Include="Nice3point.Revit.Extensions" Version="2026.0.2-preview.1.20251113" />
+	</ItemGroup>
+	<ItemGroup Condition="$(Configuration.Contains('R25'))">
+		<PackageReference Include="Nice3point.Revit.Extensions" Version="$(RevitVersion).*" />
+	</ItemGroup>
 	<ItemGroup>
 		<Compile Remove="Keyplan\New\**" />
 		<Compile Remove="Keyplan\Update\**" />
@@ -83,11 +95,13 @@
 	<ItemGroup>
 	  <None Remove="Application\Resources\Icons16\A2r_16.png" />
 	  <None Remove="Application\Resources\Icons16\ArAnno_16.png" />
+	  <None Remove="Application\Resources\Icons16\ArAnn_16.png" />
 	  <None Remove="Application\Resources\Icons16\areas_16.png" />
 	  <None Remove="Application\Resources\Icons16\ause16.png" />
 	  <None Remove="Application\Resources\Icons16\AxisToRoom16.png" />
 	  <None Remove="Application\Resources\Icons16\AxistoRoom_Link16.png" />
 	  <None Remove="Application\Resources\Icons16\AxistoRoom_Local16.png" />
+	  <None Remove="Application\Resources\Icons16\BATools_16.png" />
 	  <None Remove="Application\Resources\Icons16\BIM16.png" />
 	  <None Remove="Application\Resources\Icons16\brws_16.png" />
 	  <None Remove="Application\Resources\Icons16\CADPurge16.png" />
@@ -112,9 +126,11 @@
 	  <None Remove="Application\Resources\Icons16\DimOverride16.png" />
 	  <None Remove="Application\Resources\Icons16\Dim_16.png" />
 	  <None Remove="Application\Resources\Icons16\E2r_16.png" />
+	  <None Remove="Application\Resources\Icons16\EID_16.png" />
 	  <None Remove="Application\Resources\Icons16\ElementToRoom16.png" />
 	  <None Remove="Application\Resources\Icons16\ElementToRoom_link16.png" />
 	  <None Remove="Application\Resources\Icons16\ElementToRoom_local16.png" />
+	  <None Remove="Application\Resources\Icons16\ElemMng_16.png" />
 	  <None Remove="Application\Resources\Icons16\evilr16.png" />
 	  <None Remove="Application\Resources\Icons16\evilr_16.png" />
 	  <None Remove="Application\Resources\Icons16\ExpExc16.png" />
@@ -139,14 +155,17 @@
 	  <None Remove="Application\Resources\Icons16\Markup16.png" />
 	  <None Remove="Application\Resources\Icons16\men16.png" />
 	  <None Remove="Application\Resources\Icons16\Menu_16.png" />
+	  <None Remove="Application\Resources\Icons16\MLib_16.png" />
 	  <None Remove="Application\Resources\Icons16\Orient_16.png" />
 	  <None Remove="Application\Resources\Icons16\OverheadCommand16.png" />
 	  <None Remove="Application\Resources\Icons16\OverheadCommand_OverheadCommand166.png" />
 	  <None Remove="Application\Resources\Icons16\PDF16.png" />
+	  <None Remove="Application\Resources\Icons16\pMain16.png" />
 	  <None Remove="Application\Resources\Icons16\RayBounceCeiling16.png" />
 	  <None Remove="Application\Resources\Icons16\RevPar16.png" />
 	  <None Remove="Application\Resources\Icons16\RoomClassification16.png" />
 	  <None Remove="Application\Resources\Icons16\RoomCl_16.png" />
+	  <None Remove="Application\Resources\Icons16\RoomMng_16.png" />
 	  <None Remove="Application\Resources\Icons16\SaveFamilies16.png" />
 	  <None Remove="Application\Resources\Icons16\SB16.png" />
 	  <None Remove="Application\Resources\Icons16\scd_16.png" />
@@ -160,7 +179,9 @@
 	  <None Remove="Application\Resources\Icons16\SubmitIssue_16.png" />
 	  <None Remove="Application\Resources\Icons16\superS16.png" />
 	  <None Remove="Application\Resources\Icons16\ta16.png" />
+	  <None Remove="Application\Resources\Icons16\Tab16.png" />
 	  <None Remove="Application\Resources\Icons16\Tag16.png" />
+	  <None Remove="Application\Resources\Icons16\TagNAr_16.png" />
 	  <None Remove="Application\Resources\Icons16\tags16.png" />
 	  <None Remove="Application\Resources\Icons16\Temp16.png" />
 	  <None Remove="Application\Resources\Icons16\TextHub16.png" />
@@ -170,7 +191,9 @@
 	  <None Remove="Application\Resources\Icons16\UnhideAllElements16.png" />
 	  <None Remove="Application\Resources\Icons16\UnhideAllElements_16.png" />
 	  <None Remove="Application\Resources\Icons16\use16.png" />
+	  <None Remove="Application\Resources\Icons16\Visb32.png" />
 	  <None Remove="Application\Resources\Icons16\Warn16.png" />
+	  <None Remove="Application\Resources\Icons16\ZmSet16.png" />
 	  <None Remove="Application\Resources\Icons16\Zoom16.png" />
 	  <None Remove="Application\Resources\Icons16\ZoomE16.png" />
 	  <None Remove="Application\Resources\Icons16\ZoomL16.png" />
@@ -181,13 +204,16 @@
 	  <None Remove="Application\Resources\Icons32\ArAnnoSt_32.bak.png" />
 	  <None Remove="Application\Resources\Icons32\ArAnnoSt_32.png" />
 	  <None Remove="Application\Resources\Icons32\ArAnno_32-01.png" />
+	  <None Remove="Application\Resources\Icons32\ArAnn_32.png" />
 	  <None Remove="Application\Resources\Icons32\areas_32.png" />
+	  <None Remove="Application\Resources\Icons32\Arrang_32.png" />
 	  <None Remove="Application\Resources\Icons32\ause32.png" />
 	  <None Remove="Application\Resources\Icons32\AxisToRoom32.png" />
 	  <None Remove="Application\Resources\Icons32\AxisToRoom_Link32.png" />
 	  <None Remove="Application\Resources\Icons32\AxisToRoom_Local32.png" />
 	  <None Remove="Application\Resources\Icons32\AxisToRoo_Link32.png" />
 	  <None Remove="Application\Resources\Icons32\AxisToRoo_Local32.png" />
+	  <None Remove="Application\Resources\Icons32\BATools_32.png" />
 	  <None Remove="Application\Resources\Icons32\BIM32.png" />
 	  <None Remove="Application\Resources\Icons32\brws_32.png" />
 	  <None Remove="Application\Resources\Icons32\CADPurge32.png" />
@@ -211,9 +237,11 @@
 	  <None Remove="Application\Resources\Icons32\DimOverride32.png" />
 	  <None Remove="Application\Resources\Icons32\Dim_32.png" />
 	  <None Remove="Application\Resources\Icons32\E2r_32.png" />
+	  <None Remove="Application\Resources\Icons32\EID_32.png" />
 	  <None Remove="Application\Resources\Icons32\ElementToRoom32.png" />
 	  <None Remove="Application\Resources\Icons32\ElementToRoom_link32.png" />
 	  <None Remove="Application\Resources\Icons32\ElementToRoom_local32.png" />
+	  <None Remove="Application\Resources\Icons32\ElemMng_32.png" />
 	  <None Remove="Application\Resources\Icons32\evilr32.png" />
 	  <None Remove="Application\Resources\Icons32\evilr_32.png" />
 	  <None Remove="Application\Resources\Icons32\ExpExc32.png" />
@@ -237,13 +265,16 @@
 	  <None Remove="Application\Resources\Icons32\ManageIssues_32.png" />
 	  <None Remove="Application\Resources\Icons32\Markup32.png" />
 	  <None Remove="Application\Resources\Icons32\Menu_32.png" />
+	  <None Remove="Application\Resources\Icons32\MLib_32.png" />
 	  <None Remove="Application\Resources\Icons32\Orient_32.png" />
 	  <None Remove="Application\Resources\Icons32\OverheadCommand32.png" />
 	  <None Remove="Application\Resources\Icons32\PDF32.png" />
+	  <None Remove="Application\Resources\Icons32\pMain32.png" />
 	  <None Remove="Application\Resources\Icons32\RayBounceCeiling32.png" />
 	  <None Remove="Application\Resources\Icons32\RevPar32.png" />
 	  <None Remove="Application\Resources\Icons32\RoomClassification32.png" />
 	  <None Remove="Application\Resources\Icons32\RoomCl_32.png" />
+	  <None Remove="Application\Resources\Icons32\RoomMng_32.png" />
 	  <None Remove="Application\Resources\Icons32\SaveFamilies32.png" />
 	  <None Remove="Application\Resources\Icons32\SB32.png" />
 	  <None Remove="Application\Resources\Icons32\scd_32.png" />
@@ -273,8 +304,13 @@
 	  <None Remove="Application\Resources\Icons32\SS\txt32.png" />
 	  <None Remove="Application\Resources\Icons32\Standards32.png" />
 	  <None Remove="Application\Resources\Icons32\Sub32.png" />
+	  <None Remove="Application\Resources\Icons32\SubCatSK32.png" />
 	  <None Remove="Application\Resources\Icons32\SubmitIssue_32.png" />
 	  <None Remove="Application\Resources\Icons32\superS32.png" />
+	  <None Remove="Application\Resources\Icons32\ta32.png" />
+	  <None Remove="Application\Resources\Icons32\Tab32.png" />
+	  <None Remove="Application\Resources\Icons32\tag32.png" />
+	  <None Remove="Application\Resources\Icons32\TagNAr_32.png" />
 	  <None Remove="Application\Resources\Icons32\Temp32.png" />
 	  <None Remove="Application\Resources\Icons32\TextHub32.png" />
 	  <None Remove="Application\Resources\Icons32\TRA_32.png" />
@@ -283,7 +319,9 @@
 	  <None Remove="Application\Resources\Icons32\UnhideAllElements32.png" />
 	  <None Remove="Application\Resources\Icons32\UnhideAllElements_32.png" />
 	  <None Remove="Application\Resources\Icons32\use32.png" />
+	  <None Remove="Application\Resources\Icons32\Visb32.png" />
 	  <None Remove="Application\Resources\Icons32\Warn32.png" />
+	  <None Remove="Application\Resources\Icons32\ZmSet32.png" />
 	  <None Remove="Application\Resources\Icons32\Zoom32.png" />
 	  <None Remove="Application\Resources\Icons32\ZoomE32.png" />
 	  <None Remove="Application\Resources\Icons32\ZoomL32.png" />
@@ -293,6 +331,7 @@
 	  <None Remove="Assets\Families\BA_Axis.rfa" />
 	  <None Remove="Assets\Families\BA_TAG_Markup.rfa" />
 	  <None Remove="Assets\Families\BA_DetItem_Markup_RCP.rfa" />
+	  <None Remove="Core\CAD Purge\Config\corporate_standards.json" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -310,6 +349,9 @@
 		</Content>
 		<Content Include="Assets\Images\cad_warning.jpg">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="Core\CAD Purge\Config\corporate_standards.json">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>
 
@@ -343,8 +385,13 @@
 		<Folder Include="Core\GhostMarkup\Utilities\" />
 		<Folder Include="Core\GhostMarkup\ViewModels\" />
 		<Folder Include="Core\GhostMarkup\Views\" />
+		<Folder Include="Core\HLP_Sheets\Views\" />
+		<Folder Include="Core\NewFolder\" />
+		<Folder Include="Core\Preview\ExternalEvents\" />
+		<Folder Include="Core\Preview\Utilities\" />
+		<Folder Include="Core\Preview\ViewModels\" />
+		<Folder Include="Core\Preview\Views\" />
 		<Folder Include="Core\Warnings\Infrastructure\" />
-		<Folder Include="Core\Warnings\Services\" />
 		<Folder Include="Core\Warnings\Utilities\" />
 		<Folder Include="Models" />
 		<Folder Include="NewFolder\" />
@@ -360,6 +407,9 @@
 	  <Resource Include="Application\Resources\Icons16\ArAnno_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ArAnn_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\areas_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -373,6 +423,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\AxistoRoom_Local16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\BATools_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\BIM16 - Copy.png">
@@ -447,6 +500,9 @@
 	  <Resource Include="Application\Resources\Icons16\E2r_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\EID_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\ElementToRoom16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -454,6 +510,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\ElementToRoom_local16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ElemMng_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\evilr16.png">
@@ -525,6 +584,9 @@
 	  <Resource Include="Application\Resources\Icons16\Menu_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\MLib_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\Orient_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -537,6 +599,9 @@
 	  <Resource Include="Application\Resources\Icons16\PDF16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\pMain16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\RayBounceCeiling16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -547,6 +612,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\RoomCl_16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\RoomMng_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\SaveFamilies16.png">
@@ -588,7 +656,13 @@
 	  <Resource Include="Application\Resources\Icons16\ta16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\Tab16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\Tag16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\TagNAr_16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\tags16.png">
@@ -621,6 +695,9 @@
 	  <Resource Include="Application\Resources\Icons16\Warn16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons16\ZmSet16.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons16\Zoom16.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -642,7 +719,13 @@
 	  <Resource Include="Application\Resources\Icons32\ArAnno_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ArAnn_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\areas_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\Arrang_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\ause32.png">
@@ -661,6 +744,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\AxisToRoo_Local32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\BATools_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\BIM32.png">
@@ -729,6 +815,9 @@
 	  <Resource Include="Application\Resources\Icons32\E2r_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\EID_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\ElementToRoom32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -736,6 +825,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\ElementToRoom_local32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ElemMng_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\evilr32.png">
@@ -777,7 +869,9 @@
 	  <Resource Include="Application\Resources\Icons32\ImpExc32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
-	  <Resource Include="Application\Resources\Icons32\Issues_32.png" />
+	  <Resource Include="Application\Resources\Icons32\Issues_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\KeyPlan32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -802,6 +896,9 @@
 	  <Resource Include="Application\Resources\Icons32\Menu_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\MLib_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\Orient_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -809,6 +906,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\PDF32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\pMain32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\RayBounceCeiling32.png">
@@ -821,6 +921,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\RoomCl_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\RoomMng_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\SaveFamilies32.png">
@@ -841,7 +944,9 @@
 	  <Resource Include="Application\Resources\Icons32\SettingsP32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
-	  <Resource Include="Application\Resources\Icons32\Settings_32.png" />
+	  <Resource Include="Application\Resources\Icons32\Settings_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\SheetDateAndRevision32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -870,8 +975,25 @@
 	  <Resource Include="Application\Resources\Icons32\Sub32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
-	  <Resource Include="Application\Resources\Icons32\SubmitIssue_32.png" />
+	  <Resource Include="Application\Resources\Icons32\SubCatSK32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\SubmitIssue_32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\superS32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ta32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\Tab32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\tag32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\TagNAr_32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\Temp32.png">
@@ -898,7 +1020,13 @@
 	  <Resource Include="Application\Resources\Icons32\use32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\Visb32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\Warn32.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Application\Resources\Icons32\ZmSet32.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Application\Resources\Icons32\Zoom32.png">
@@ -922,12 +1050,6 @@
 		<Compile Update="Application\Ribbon\Core\RibbonExtensions.cs">
 			<Generator>MSBuild:Compile</Generator>
 		</Compile>
-	</ItemGroup>
-
-	<ItemGroup>
-	  <None Update="Core\CAD Purge\Config\corporate_standards.json">
-	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-	  </None>
 	</ItemGroup>
 
 </Project>

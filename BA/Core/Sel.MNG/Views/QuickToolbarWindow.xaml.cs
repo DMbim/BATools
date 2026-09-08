@@ -1,5 +1,5 @@
-﻿using BATools.SelectionManager.Infrastructure;
-using BATools.SelectionManager.ViewModels;
+﻿using BA.SelectionManager.Infrastructure;
+using BA.SelectionManager.ViewModels;
 using System;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -7,7 +7,9 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using Point = System.Windows.Point;
-namespace BATools.SelectionManager.Views
+
+
+namespace BA.SelectionManager.Views
 {
     public partial class QuickToolbarWindow : Window
     {
@@ -91,10 +93,11 @@ namespace BATools.SelectionManager.Views
                 switch (args.PropertyName)
                 {
                     case nameof(QuickToolbarViewModel.IsVisible):
-                        if (viewModel.IsVisible) ShowAtCursor();
-                        else HideToolbar();
+                        if (viewModel.IsVisible && BA.Core.Settings.QuickToolbarGate.Enabled)
+                            ShowAtCursor();
+                        else
+                            HideToolbar();
                         break;
-
                     case nameof(QuickToolbarViewModel.IsFrozen):
                         if (viewModel.IsFrozen) _tracker.Pause();
                         else _tracker.Resume();

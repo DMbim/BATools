@@ -17,6 +17,15 @@ namespace BA.Subcategories.Models
         /// <summary>Revit ElementId of the subcategory. Null for rows not yet created.</summary>
         public ElementId? CategoryId { get; set; }
 
+        /// <summary>
+        /// The name this subcategory is currently known by in Revit. Set once
+        /// when the row is loaded, or right after creation for a brand new row,
+        /// and only updated again after a successful Apply. Callers must resolve
+        /// the live Category by this value, never by the Name property while it
+        /// is still being edited, or a pending rename can never find its target.
+        /// </summary>
+        public string OriginalName { get; set; } = string.Empty; // <- NEW
+
         private string _name = string.Empty;
         public string Name
         {
@@ -28,10 +37,14 @@ namespace BA.Subcategories.Models
             }
         }
 
+        /// <summary>True when the edited Name no longer matches the live Revit name.</summary>
+        public bool IsRenamed => // <- NEW
+            !IsNew && !string.Equals(Name?.Trim(), OriginalName, System.StringComparison.OrdinalIgnoreCase);
+
         // ── Appearance ────────────────────────────────────────────────────────
 
         private Color _lineColor = Colors.Black;
-        /// <summary>WPF color — converted to Revit Color on Apply.</summary>
+        /// <summary>WPF color, converted to Revit Color on Apply.</summary>
         public Color LineColor
         {
             get => _lineColor;
@@ -48,7 +61,7 @@ namespace BA.Subcategories.Models
         public SolidColorBrush LineColorBrush => new(_lineColor);
 
         private int _lineWeight = 1;
-        /// <summary>Projection line weight (1-16).</summary>
+        /// <summary>Projection line weight (1 to 16).</summary>
         public int LineWeight
         {
             get => _lineWeight;
@@ -77,7 +90,7 @@ namespace BA.Subcategories.Models
             set => SetProperty(ref _pendingDelete, value);
         }
 
-        /// <summary>True when CategoryId is null — row was added in this session.</summary>
+        /// <summary>True when CategoryId is null, row was added in this session.</summary>
         public bool IsNew => CategoryId == null;
     }
 }

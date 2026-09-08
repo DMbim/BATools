@@ -5,9 +5,9 @@ using System.Linq;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using BATools.SelectionManager.Models;
+using BA.SelectionManager.Models;
 
-namespace BATools.SelectionManager.ViewModels
+namespace BA.SelectionManager.ViewModels
 {
     public class FamilyFavGroupViewModel : ObservableObject
     {

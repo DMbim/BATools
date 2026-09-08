@@ -5,26 +5,57 @@
         Title="BA CAD Purge"
         Width="980" Height="640"
         WindowStartupLocation="CenterOwner"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        Style="{DynamicResource BaWindow}">
     <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        </ResourceDictionary>
     </Window.Resources>
     <DockPanel Margin="10">
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
-            <Button Content="Scan" Command="{Binding ScanCommand}" Width="90" Margin="0,0,6,0"/>
-            <Button Content="Select All Mappable" Command="{Binding SelectAllMappableCommand}" Width="140" Margin="0,0,6,0"/>
-            <Button Content="Clear Selection" Command="{Binding ClearSelectionCommand}" Width="120" Margin="0,0,6,0"/>
-            <Button Content="Apply Selected" Command="{Binding ApplySelectedCommand}" Width="120" Margin="0,0,20,0"/>
-            <TextBlock Text="Working..." Foreground="DarkOrange" VerticalAlignment="Center"
+            <Button Content="Scan"
+                    Style="{StaticResource BaPrimaryButton}"
+                    Command="{Binding ScanCommand}"
+                    Width="90" Margin="0,0,6,0"/>
+            <Button Content="Select All Mappable"
+                    Style="{StaticResource BaSecondaryButton}"
+                    Command="{Binding SelectAllMappableCommand}"
+                    Width="140" Margin="0,0,6,0"/>
+            <Button Content="Clear Selection"
+                    Style="{StaticResource BaSecondaryButton}"
+                    Command="{Binding ClearSelectionCommand}"
+                    Width="120" Margin="0,0,6,0"/>
+            <Button Content="Apply Selected"
+                    Style="{StaticResource BaPrimaryButton}"
+                    Command="{Binding ApplySelectedCommand}"
+                    Width="120" Margin="0,0,20,0"/>
+            <TextBlock Text="Working..."
+                       Foreground="DarkOrange"
+                       VerticalAlignment="Center"
                        Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
         </StackPanel>
 
-        <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusMessage}" Margin="0,10,0,0" TextWrapping="Wrap"/>
+        <TextBlock DockPanel.Dock="Bottom"
+                   Style="{StaticResource BaMutedTextDark}"
+                   Text="{Binding StatusMessage}"
+                   Margin="0,10,0,0"
+                   TextWrapping="Wrap"/>
 
-        <TabControl>
+        <TabControl Style="{StaticResource BaTabControl}">
             <TabItem Header="Line Patterns">
-                <DataGrid ItemsSource="{Binding LinePatternCandidates}" AutoGenerateColumns="False"
-                          CanUserAddRows="False" CanUserDeleteRows="False">
+                <DataGrid x:Name="LinePatternGrid"
+                          Style="{StaticResource BaDataGrid}"
+                          ItemsSource="{Binding LinePatternCandidates}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          SelectionMode="Extended"
+                          SelectionUnit="FullRow"
+                          SelectionChanged="LinePatternGrid_SelectionChanged">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="220" IsReadOnly="True"/>
                         <DataGridTextColumn Header="Usage" Binding="{Binding UsageCount}" Width="70" IsReadOnly="True"/>
@@ -32,7 +63,8 @@
                         <DataGridTemplateColumn Header="Action" Width="170">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox ItemsSource="{Binding AvailableActions}"
+                                    <ComboBox Style="{StaticResource BaDarkComboBox}"
+                                              ItemsSource="{Binding AvailableActions}"
                                               SelectedItem="{Binding SelectedAction, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
@@ -43,8 +75,15 @@
             </TabItem>
 
             <TabItem Header="Text Styles">
-                <DataGrid ItemsSource="{Binding TextStyleCandidates}" AutoGenerateColumns="False"
-                          CanUserAddRows="False" CanUserDeleteRows="False">
+                <DataGrid x:Name="TextStyleGrid"
+                          Style="{StaticResource BaDataGrid}"
+                          ItemsSource="{Binding TextStyleCandidates}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          SelectionMode="Extended"
+                          SelectionUnit="FullRow"
+                          SelectionChanged="TextStyleGrid_SelectionChanged">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="220" IsReadOnly="True"/>
                         <DataGridTextColumn Header="Usage" Binding="{Binding UsageCount}" Width="70" IsReadOnly="True"/>
@@ -52,7 +91,8 @@
                         <DataGridTemplateColumn Header="Action" Width="170">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox ItemsSource="{Binding AvailableActions}"
+                                    <ComboBox Style="{StaticResource BaDarkComboBox}"
+                                              ItemsSource="{Binding AvailableActions}"
                                               SelectedItem="{Binding SelectedAction, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
@@ -63,12 +103,19 @@
             </TabItem>
 
             <TabItem Header="DWG Imports (Report Only)">
-                <DataGrid ItemsSource="{Binding DwgImportReport}" AutoGenerateColumns="False"
-                          CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="True">
+                <DataGrid Style="{StaticResource BaDataGrid}"
+                          ItemsSource="{Binding DwgImportReport}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          IsReadOnly="True">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="200"/>
                         <DataGridTextColumn Header="Category" Binding="{Binding CategoryName}" Width="160"/>
-                        <DataGridCheckBoxColumn Header="Linked" Binding="{Binding IsLinked}" Width="60"/>
+                        <DataGridCheckBoxColumn Header="Linked"
+                                                 Binding="{Binding IsLinked}"
+                                                 Width="60"
+                                                 ElementStyle="{StaticResource BaCheckBox}"/>
                         <DataGridTextColumn Header="Workset" Binding="{Binding WorksetName}" Width="120"/>
                         <DataGridTextColumn Header="Owner View" Binding="{Binding OwnerViewName}" Width="160"/>
                         <DataGridTextColumn Header="Linked File Path" Binding="{Binding LinkedFilePath}" Width="*"/>

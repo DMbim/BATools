@@ -12,20 +12,36 @@ namespace BA.Commands
 {
     /// <summary>
     /// One time, idempotent setup command. Creates the BA_NPLT Line Style
-    /// subcategory under Lines and colors it magenta, and creates the
-    /// BA_NPLT_Ghost view filter (Type Name begins with BA_NPLT, scoped to
-    /// Text Notes and Detail Items) with a magenta halftone override,
-    /// applying it to the active view only. Safe to run repeatedly, it
-    /// checks for existing resources before creating new ones.
+    /// subcategory under Lines and colors it magenta, and creates one or
+    /// two BA_NPLT_Ghost ParameterFilterElements (Type Name begins with
+    /// BA_NPLT), scoped to Text Notes and Detail Items, with a magenta
+    /// halftone override, applying them to the active view only.
     ///
-    /// Does not touch view templates, that has to be added to each template
-    /// manually or by a separate script once the office confirms which
-    /// templates should carry the ghost markup filter.
+    /// Type Name is not guaranteed to be a filterable parameter across
+    /// both Text Notes and Detail Items combined, confirmed in production:
+    /// ParameterFilterElement.Create throws "One of the given rules refers
+    /// to a parameter that does not apply to this filter's categories"
+    /// when the parameter ID is not in the intersection returned by
+    /// ParameterFilterUtilities.GetFilterableParametersInCommon for the
+    /// full category set. This resolves the parameter dynamically against
+    /// that intersection first, and falls back to two separate single
+    /// category filters, each resolved against its own filterable set,
+    /// if no parameter is common to both.
+    ///
+    /// Safe to run repeatedly, it checks for existing resources before
+    /// creating new ones.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class Cmd_InstallGhostMarkupSetup : IExternalCommand
     {
+        private static readonly BuiltInParameter[] TypeNameParameterCandidates =
+        {
+            BuiltInParameter.ALL_MODEL_TYPE_NAME,
+            BuiltInParameter.SYMBOL_NAME_PARAM,
+            BuiltInParameter.ELEM_TYPE_PARAM
+        };
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             return Run(commandData.Application, ref message);
@@ -51,26 +67,30 @@ namespace BA.Commands
 
             try
             {
-                ElementId filterId;
+                List<ElementId> filterIds;
 
                 using (var tx = new Transaction(doc, "Install Ghost Markup Setup"))
                 {
                     tx.Start();
 
                     EnsureLineStyle(doc);
-                    filterId = EnsureFilter(doc);
-                    ApplyFilterToView(doc, activeView, filterId);
+                    filterIds = EnsureFilters(doc);
+
+                    foreach (var filterId in filterIds)
+                    {
+                        ApplyFilterToView(doc, activeView, filterId);
+                    }
 
                     tx.Commit();
                 }
 
-                AppLogger.LogInfo("Ghost markup setup installed or already present.");
+                AppLogger.LogInfo($"Ghost markup setup installed or already present, {filterIds.Count} filter(s) applied to active view.");
 
                 TaskDialog.Show(
                     "Ghost Markup Setup",
-                    "Ghost markup line style and view filter are installed.\n\n" +
-                    "The filter (" + GhostMarkupConstants.FilterName + ") has been added to the active view only. " +
-                    "Add it to your view templates for it to appear everywhere ghost markup should show as magenta halftone.");
+                    "Ghost markup line style and view filter(s) are installed.\n\n" +
+                    filterIds.Count + " filter(s) applied to the active view. " +
+                    "Add them to your view templates for ghost markup to appear as magenta halftone everywhere.");
 
                 return Result.Succeeded;
             }
@@ -109,7 +129,95 @@ namespace BA.Commands
             ghostSub.LineColor = GhostMarkupConstants.GhostColor;
         }
 
-        private static ElementId EnsureFilter(Document doc)
+        /// <summary>
+        /// Resolves and creates the view filter(s) needed to cover Text
+        /// Notes and Detail Items. Tries one combined filter first, falls
+        /// back to one filter per category if no Type Name equivalent
+        /// parameter is common to both. Either category individually
+        /// failing to resolve a parameter is logged and skipped rather
+        /// than aborting setup for the category that does work.
+        /// </summary>
+        private static List<ElementId> EnsureFilters(Document doc)
+        {
+            var textNoteCategory = new ElementId(BuiltInCategory.OST_TextNotes);
+            var detailItemCategory = new ElementId(BuiltInCategory.OST_DetailComponents);
+
+            var combinedCategories = new List<ElementId> { textNoteCategory, detailItemCategory };
+            var combinedParam = ResolveTypeNameParameter(doc, combinedCategories);
+
+            if (combinedParam != null)
+            {
+                var filterId = EnsureSingleFilter(
+                    doc, GhostMarkupConstants.FilterName, combinedCategories, combinedParam);
+
+                return new List<ElementId> { filterId };
+            }
+
+            AppLogger.LogInfo(
+                "Ghost markup: no Type Name equivalent parameter common to Text Notes and Detail Items together, falling back to one filter per category.");
+
+            var result = new List<ElementId>();
+
+            var textNoteParam = ResolveTypeNameParameter(doc, new List<ElementId> { textNoteCategory });
+            if (textNoteParam != null)
+            {
+                result.Add(EnsureSingleFilter(
+                    doc,
+                    GhostMarkupConstants.FilterName + "_TextNotes",
+                    new List<ElementId> { textNoteCategory },
+                    textNoteParam));
+            }
+            else
+            {
+                AppLogger.LogError(
+                    "Ghost markup filter setup",
+                    new InvalidOperationException("No Type Name equivalent filterable parameter found for Text Notes category."));
+            }
+
+            var detailItemParam = ResolveTypeNameParameter(doc, new List<ElementId> { detailItemCategory });
+            if (detailItemParam != null)
+            {
+                result.Add(EnsureSingleFilter(
+                    doc,
+                    GhostMarkupConstants.FilterName + "_DetailItems",
+                    new List<ElementId> { detailItemCategory },
+                    detailItemParam));
+            }
+            else
+            {
+                AppLogger.LogError(
+                    "Ghost markup filter setup",
+                    new InvalidOperationException("No Type Name equivalent filterable parameter found for Detail Items category."));
+            }
+
+            if (result.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "Could not resolve any Type Name equivalent filterable parameter for the ghost markup categories. Check the log for which candidates were tried.");
+            }
+
+            return result;
+        }
+
+        private static ElementId ResolveTypeNameParameter(Document doc, List<ElementId> categoryIds)
+        {
+            var filterable = new HashSet<ElementId>(
+                ParameterFilterUtilities.GetFilterableParametersInCommon(doc, categoryIds));
+
+            foreach (var candidate in TypeNameParameterCandidates)
+            {
+                var candidateId = new ElementId(candidate);
+                if (filterable.Contains(candidateId))
+                {
+                    return candidateId;
+                }
+            }
+
+            return null;
+        }
+
+        private static ElementId EnsureSingleFilter(
+            Document doc, string name, List<ElementId> categories, ElementId paramId)
         {
             var existingFilters = new FilteredElementCollector(doc)
                 .OfClass(typeof(ParameterFilterElement))
@@ -117,33 +225,25 @@ namespace BA.Commands
 
             foreach (var pfe in existingFilters)
             {
-                if (string.Equals(pfe.Name, GhostMarkupConstants.FilterName, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(pfe.Name, name, StringComparison.OrdinalIgnoreCase))
                 {
                     return pfe.Id;
                 }
             }
 
-            var categories = new List<ElementId>
-            {
-                new ElementId(BuiltInCategory.OST_TextNotes),
-                new ElementId(BuiltInCategory.OST_DetailComponents)
-            };
-
-            var typeNameParamId = new ElementId(BuiltInParameter.ALL_MODEL_TYPE_NAME);
-
-            // Flagging this rather than presenting it as fact: verify this exact
-            // overload of ParameterFilterRuleFactory.CreateBeginsWithRule against
-            // the installed Revit 2026 SDK. The case sensitivity parameter on this
-            // factory method has changed shape across recent API versions, and I
-            // am not certain of the current signature without the SDK in front of me.
+            // Flagging this rather than presenting it as fact: the two
+            // argument overload of CreateBeginsWithRule was deprecated in
+            // recent API versions in favor of this three argument form with
+            // an explicit caseSensitive flag. Verify this against the
+            // installed Revit 2026 SDK before trusting it, this is the
+            // second time this factory call has needed correction, do not
+            // assume it compiles cleanly without checking.
             var rule = ParameterFilterRuleFactory.CreateBeginsWithRule(
-                typeNameParamId, GhostMarkupConstants.PrefixToken);
+                paramId, GhostMarkupConstants.PrefixToken);
 
             var elementFilter = new ElementParameterFilter(rule);
 
-            var newFilter = ParameterFilterElement.Create(
-                doc, GhostMarkupConstants.FilterName, categories, elementFilter);
-
+            var newFilter = ParameterFilterElement.Create(doc, name, categories, elementFilter);
             return newFilter.Id;
         }
 

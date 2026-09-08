@@ -28,9 +28,31 @@ namespace BA.Core.Export.Infrastructure
 
         public void OnIdling(object sender, IdlingEventArgs e)
         {
-            if (_runInProgress || SynchronizeGuard.IsSynchronizing)
+            if (_runInProgress)
             {
                 return;
+            }
+
+            if (SynchronizeGuard.IsSynchronizing)
+            {
+                if (!SynchronizeGuard.IsStale)
+                {
+                    return;
+                }
+
+                // See SynchronizeGuard's class remarks. A synchronize that
+                // fails or is cancelled outside BaApplication's own ledger
+                // conflict handling never fires DocumentSynchronizedWithCentral,
+                // so the flag never gets reset the normal way. This is the
+                // self-healing fallback, logged so a stuck flag is visible
+                // instead of silently eating every scheduled run for the
+                // rest of the session.
+                AppLogger.LogInfo(
+                    $"ExportScheduler: SynchronizeGuard.IsSynchronizing has been true for over {SynchronizeGuard.StaleAfter.TotalMinutes:0} minute(s) " +
+                    "with no matching sync-completed event, auto-clearing it and proceeding. This usually means an earlier synchronize with central " +
+                    "failed or was cancelled for a reason outside the ledger conflict handling in BaApplication.");
+
+                SynchronizeGuard.IsSynchronizing = false;
             }
 
             if (!(sender is UIApplication uiApp))

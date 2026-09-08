@@ -1,4 +1,5 @@
 using Autodesk.Revit.DB;
+using BA.Core.Standards;
 using BA.Subcategories.Models;
 using System;
 using System.Collections.Generic;
@@ -12,30 +13,50 @@ namespace BA.Subcategories.Services
 
         public static bool IsFamilyGeometryCandidate(Element e)
         {
-            if (e == null || e.Category == null) return false;
+            if (e == null) return false; // <- CHANGED, Category is no longer checked here
+
+            // GenericForm covers Extrusion, Blend, Revolution, Sweep, SweptBlend,
+            // the standard family solid and void modeling classes. Form is the
+            // older conceptual mass and adaptive component blend and loft class.
+            // Element.Category mirrors the assigned subcategory for these types
+            // and is null until one has actually been assigned, so Category must
+            // never gate them out, that is exactly the case this filter exists
+            // to surface. <- NEW block
+            bool isKnownGeometryType =
+                e is CurveElement ||
+                e is GenericForm ||
+                e is Form ||
+                e is FreeFormElement ||
+                e is FamilyInstance ||
+                e is DirectShape;
+
+            if (!isKnownGeometryType)
+            {
+                // Outside the known geometry types, Category is a legitimate
+                // filter, an element with no category here is not family editor
+                // geometry this tool understands.
+                if (e.Category == null) return false;
+                if (IsExcludedCategory(e)) return false;
+                return e.get_Parameter(BuiltInParameter.FAMILY_ELEM_SUBCATEGORY) != null;
+            }
+
+            // IsExcludedCategory is null safe on Category, safe to call even
+            // when the known geometry type currently has no category assigned.
             if (IsExcludedCategory(e)) return false;
 
-            if (e is CurveElement) return true;
-            if (e is Form) return true;
-            if (e is FamilyInstance) return true;
-            if (e is FreeFormElement) return true;
-            if (e is DirectShape) return true;
-
-            return e.get_Parameter(BuiltInParameter.FAMILY_ELEM_SUBCATEGORY) != null;
+            return true;
         }
 
         // ── Read current subcategory ──────────────────────────────────────────
 
         public static string GetSubcategoryName(Document doc, Element e)
         {
-            // CurveElement stores subcategory as LineStyle
             if (e is CurveElement ce)
             {
                 var ls = ce.LineStyle as GraphicsStyle;
                 return ls?.GraphicsStyleCategory?.Name ?? string.Empty;
             }
 
-            // Standard elements use FAMILY_ELEM_SUBCATEGORY parameter
             Parameter? p = e.get_Parameter(BuiltInParameter.FAMILY_ELEM_SUBCATEGORY);
             if (p != null)
             {
@@ -48,7 +69,6 @@ namespace BA.Subcategories.Services
                 }
             }
 
-            // Reflection fallback for types that expose Subcategory property
             try
             {
                 var pi = e.GetType().GetProperty("Subcategory");
@@ -88,15 +108,16 @@ namespace BA.Subcategories.Services
                 var e = doc.GetElement(row.Id);
                 if (e == null || !IsFamilyGeometryCandidate(e)) continue;
 
-                bool currentHasSub = !string.IsNullOrWhiteSpace(GetSubcategoryName(doc, e));
+                string currentSubName = GetSubcategoryName(doc, e);
+                bool currentHasBaSub = BaSubcategoryRules.IsBaName(currentSubName);
 
                 bool include = scope switch
                 {
-                    ApplyScope.All                  => true,
-                    ApplyScope.AllSelected          => row.IsSelected,
-                    ApplyScope.AllWithNoSubcategory => !currentHasSub,
-                    ApplyScope.AllButSelected       => !row.IsSelected,
-                    _                               => false
+                    ApplyScope.All => true,
+                    ApplyScope.AllSelected => row.IsSelected,
+                    ApplyScope.AllWithNoSubcategory => !currentHasBaSub,
+                    ApplyScope.AllButSelected => !row.IsSelected,
+                    _ => false
                 };
 
                 if (!include) continue;
@@ -128,7 +149,6 @@ namespace BA.Subcategories.Services
                     }
                     else
                     {
-                        // Reflection fallback
                         try
                         {
                             var pi = e.GetType().GetProperty("Subcategory");

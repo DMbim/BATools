@@ -1,4 +1,5 @@
 using Autodesk.Revit.DB;
+using Autodesk.Revit.UI; // <- NEW
 using BA.Subcategories.Models;
 using BA.Subcategories.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -16,9 +17,10 @@ namespace BA.Subcategories.ViewModels
 {
     public class SubcategoryManagerViewModel : ObservableObject
     {
-        // ── Revit context (set before showing window, read-only after) ─────────
+        // ── Revit context (set before showing window, read only after) ─────────
 
         public Document Doc { get; init; } = null!;
+        public UIDocument UiDoc { get; init; } = null!; // <- NEW
         public Category ParentCategory { get; init; } = null!;
         public Family OwnerFamily { get; init; } = null!;
 
@@ -59,6 +61,44 @@ namespace BA.Subcategories.ViewModels
             set => SetProperty(ref _selectedGeometryRow, value);
         }
 
+        /// <summary>
+        /// Pushes the given rows into the Revit selection so they highlight in
+        /// the active view exactly as if picked there directly. Called from
+        /// the geometry DataGrid's SelectionChanged handler in code behind,
+        /// since DataGrid.SelectedItems is not bindable. Safe to call with an
+        /// empty or null list, which clears the Revit selection. Depends on
+        /// this window running on Revit's API thread, true as long as it is
+        /// always shown with ShowDialog() directly inside an
+        /// IExternalCommand.Execute(), the same assumption Apply() already
+        /// relies on for its direct Transaction usage.
+        /// </summary>
+        public void UpdateGeometrySelection(IReadOnlyList<FamilyGeometryRow> selectedRows)
+        {
+            if (UiDoc == null) return;
+
+            try
+            {
+                var ids = new List<ElementId>();
+
+                if (selectedRows != null)
+                {
+                    foreach (var row in selectedRows)
+                    {
+                        if (row == null || row.Id == ElementId.InvalidElementId) continue;
+                        if (Doc.GetElement(row.Id) == null) continue;
+                        ids.Add(row.Id);
+                    }
+                }
+
+                UiDoc.Selection.SetElementIds(ids);
+            }
+            catch
+            {
+                // Selection highlight is a convenience only, never let a failure
+                // here propagate into the rest of the UI.
+            }
+        }
+
         // ── Assignment controls ───────────────────────────────────────────────
 
         public IEnumerable<ApplyScope> ApplyScopes { get; } = Enum.GetValues<ApplyScope>();
@@ -90,7 +130,7 @@ namespace BA.Subcategories.ViewModels
             set => SetProperty(ref _statusText, value);
         }
 
-        // ── Result — read by code-behind after dialog closes ──────────────────
+        // ── Result, read by code behind after dialog closes ──────────────────
 
         public bool Applied { get; private set; }
         public List<string> ApplyLog { get; } = new();
@@ -105,7 +145,7 @@ namespace BA.Subcategories.ViewModels
         public RelayCommand ApplyCommand { get; }
         public RelayCommand CancelCommand { get; }
 
-        // ── Action callbacks wired by code-behind ─────────────────────────────
+        // ── Action callbacks wired by code behind ─────────────────────────────
 
         public Action? RequestClose { get; set; }
         public Func<Color, Color?>? RequestColorPick { get; set; }
@@ -129,7 +169,7 @@ namespace BA.Subcategories.ViewModels
 
         // ── Initialisation ────────────────────────────────────────────────────
 
-        /// <summary>Call after setting Doc/ParentCategory/OwnerFamily.</summary>
+        /// <summary>Call after setting Doc/UiDoc/ParentCategory/OwnerFamily.</summary>
         public void Initialise()
         {
             LoadSubcategories();
@@ -166,7 +206,7 @@ namespace BA.Subcategories.ViewModels
             }
         }
 
-        // ── Subcategory CRUD (pending — applied on Apply) ─────────────────────
+        // ── Subcategory CRUD (pending, applied on Apply) ─────────────────────
 
         private void AddSubcategory()
         {
@@ -182,7 +222,7 @@ namespace BA.Subcategories.ViewModels
 
             Subcategories.Add(new SubcategoryRow
             {
-                CategoryId = null, // not yet in Revit
+                CategoryId = null,
                 Name = name,
                 LineWeight = 1,
                 LineColor = Colors.Black,
@@ -190,7 +230,7 @@ namespace BA.Subcategories.ViewModels
             });
 
             NewSubcategoryName = string.Empty;
-            StatusText = $"Added '{name}' — will be created on Apply.";
+            StatusText = $"Added '{name}', will be created on Apply.";
         }
 
         private void DeleteSubcategory()
@@ -199,7 +239,6 @@ namespace BA.Subcategories.ViewModels
 
             if (SelectedSubcategory.IsNew)
             {
-                // Not yet in Revit — just remove from list
                 Subcategories.Remove(SelectedSubcategory);
                 StatusText = "Removed unsaved subcategory.";
             }
@@ -230,7 +269,6 @@ namespace BA.Subcategories.ViewModels
                 added++;
             }
 
-            // Also add category-specific extras
             if (OwnerFamily?.FamilyCategory != null)
             {
                 foreach (var name in BaSubcategoryCatalog.GetExtrasForFamilyCategory(
@@ -253,7 +291,7 @@ namespace BA.Subcategories.ViewModels
             }
 
             StatusText = added > 0
-                ? $"Added {added} BA core subcategories — Apply to create in Revit."
+                ? $"Added {added} BA core subcategories, Apply to create in Revit."
                 : "All core subcategories already present.";
         }
 
@@ -265,8 +303,6 @@ namespace BA.Subcategories.ViewModels
                 return;
             }
 
-            // Assignment is deferred to Apply — just record the intent.
-            // The Apply method will execute the Revit transaction.
             StatusText = $"Assignment staged: '{TargetSubcategoryRow.Name}' " +
                          $"to {SelectedScope}. Click Apply to execute.";
         }
@@ -280,7 +316,7 @@ namespace BA.Subcategories.ViewModels
                 SelectedSubcategory.LineColor = picked.Value;
         }
 
-        // ── Apply — executes all pending changes in one transaction ───────────
+        // ── Apply, executes all pending changes in one transaction ───────────
 
         private void Apply()
         {
@@ -291,7 +327,6 @@ namespace BA.Subcategories.ViewModels
                 using var tx = new Transaction(Doc, "BA | Subcategory Manager");
                 tx.Start();
 
-                // 1. Delete subcategories marked for deletion
                 foreach (var row in Subcategories
                     .Where(r => r.PendingDelete && r.CategoryId != null)
                     .ToList())
@@ -301,30 +336,43 @@ namespace BA.Subcategories.ViewModels
                     if (ok) Subcategories.Remove(row);
                 }
 
-                // 2. Create new subcategories (CategoryId == null)
                 foreach (var row in Subcategories.Where(r => r.IsNew).ToList())
                 {
                     var created = SubcategoryService.CreateSubcategory(
                         Doc, ParentCategory, row.Name, ApplyLog);
                     if (created != null)
-                        row.CategoryId = created.Id;
-                }
-
-                // 3. Apply appearance to all dirty rows
-                var existingMap = SubcategoryService.GetExistingSubcategories(ParentCategory);
-                foreach (var row in Subcategories.Where(r => r.IsDirty && !r.PendingDelete))
-                {
-                    if (existingMap.TryGetValue(row.Name, out var cat))
                     {
-                        SubcategoryService.ApplyAppearance(Doc, cat, row, ApplyLog);
-                        row.IsDirty = false;
+                        row.CategoryId = created.Id;
+                        row.OriginalName = created.Name;
                     }
                 }
 
-                // 4. Geometry assignment
+                var existingMap = SubcategoryService.GetExistingSubcategories(ParentCategory);
+                foreach (var row in Subcategories.Where(r => r.IsDirty && !r.PendingDelete).ToList())
+                {
+                    if (!existingMap.TryGetValue(row.OriginalName, out var cat))
+                    {
+                        ApplyLog.Add($"Could not resolve subcategory '{row.OriginalName}' for update.");
+                        continue;
+                    }
+
+                    bool renameOk = true;
+
+                    if (row.IsRenamed)
+                    {
+                        renameOk = SubcategoryService.RenameSubcategory(Doc, cat, row.Name, ApplyLog);
+                        if (renameOk)
+                            row.OriginalName = row.Name.Trim();
+                    }
+
+                    SubcategoryService.ApplyAppearance(Doc, cat, row, ApplyLog);
+
+                    if (renameOk)
+                        row.IsDirty = false;
+                }
+
                 if (TargetSubcategoryRow != null)
                 {
-                    // Re-resolve the category after potential creation above
                     var updatedMap = SubcategoryService.GetExistingSubcategories(ParentCategory);
                     if (updatedMap.TryGetValue(TargetSubcategoryRow.Name, out var targetCat))
                     {
@@ -347,7 +395,6 @@ namespace BA.Subcategories.ViewModels
                 StatusText = "Applied successfully.";
                 ApplyLog.Insert(0, "=== Apply completed ===");
 
-                // Refresh geometry subcategory display names
                 foreach (var row in GeometryItems)
                 {
                     var e = Doc.GetElement(row.Id);
@@ -358,13 +405,12 @@ namespace BA.Subcategories.ViewModels
             catch (Exception ex)
             {
                 ApplyLog.Add($"Transaction failed: {ex.Message}");
-                StatusText = "Apply failed — see log.";
+                StatusText = "Apply failed, see log.";
             }
 
-            // Show log to user
             MessageBox.Show(
                 string.Join(Environment.NewLine, ApplyLog),
-                "BA Subcategory Manager — Result",
+                "BA Subcategory Manager, Result",
                 MessageBoxButton.OK,
                 Applied ? MessageBoxImage.Information : MessageBoxImage.Warning);
 

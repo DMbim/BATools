@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace BATools.SelectionManager.Models
+namespace BA.SelectionManager.Models
 {
     public class FavoriteFamiliesProfile
     {

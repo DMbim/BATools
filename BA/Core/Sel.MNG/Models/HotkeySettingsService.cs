@@ -1,12 +1,12 @@
 ﻿
-using BATools.SelectionManager.Models;
+using BA.SelectionManager.Models;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace BATools.SelectionManager.Services
+namespace BA.SelectionManager.Services
 {
     public static class HotkeySettingsService
     {

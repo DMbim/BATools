@@ -2,9 +2,9 @@
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using BATools.SelectionManager.Infrastructure;
+using BA.SelectionManager.Infrastructure;
 
-namespace BATools.SelectionManager.Commands
+namespace BA.SelectionManager.Commands
 {
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]

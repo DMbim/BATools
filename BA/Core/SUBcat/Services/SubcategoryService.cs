@@ -13,6 +13,20 @@ namespace BA.Subcategories.Services
     /// </summary>
     public static class SubcategoryService
     {
+        // ── Ownership check ──────────────────────────────────────────────────
+
+        /// <summary>
+        /// Real, user creatable subcategories, the ones created through
+        /// NewSubcategory, always carry a positive, document owned ElementId.
+        /// Negative ids represent built in, Revit reserved pseudo elements
+        /// such as &lt;Hidden Lines&gt;, which cannot be deleted or renamed
+        /// through the API, the same way Revit's own UI does not allow it.
+        /// </summary>
+        private static bool IsUserOwnedSubcategory(ElementId id) // <- NEW
+        {
+            return id != null && id != ElementId.InvalidElementId && id.Value > 0;
+        }
+
         // ── Read ──────────────────────────────────────────────────────────────
 
         public static Dictionary<string, Category> GetExistingSubcategories(Category parent)
@@ -29,7 +43,12 @@ namespace BA.Subcategories.Services
 
         /// <summary>
         /// Builds a SubcategoryRow list from existing subcategories on the parent,
-        /// pre-populated with their current color and line weight.
+        /// pre populated with their current color and line weight. Built in,
+        /// Revit reserved styles such as &lt;Hidden Lines&gt; are skipped entirely,
+        /// they cannot be deleted or renamed, so there is nothing this editor
+        /// can meaningfully do with them. OriginalName is set to the live Revit
+        /// name, callers must use it to look up the Category again later, never
+        /// the possibly edited Name property.
         /// </summary>
         public static List<SubcategoryRow> BuildRows(Document doc, Category parent)
         {
@@ -39,10 +58,12 @@ namespace BA.Subcategories.Services
             foreach (Category sub in parent.SubCategories)
             {
                 if (sub == null || string.IsNullOrEmpty(sub.Name)) continue;
+                if (!IsUserOwnedSubcategory(sub.Id)) continue; // <- NEW
 
                 var row = new SubcategoryRow
                 {
                     CategoryId = sub.Id,
+                    OriginalName = sub.Name,
                     Name = sub.Name,
                     LineWeight = ReadLineWeight(sub),
                     LineColor = ReadLineColor(sub),
@@ -74,6 +95,56 @@ namespace BA.Subcategories.Services
             {
                 log.Add($"Error creating '{name}': {ex.Message}");
                 return null;
+            }
+        }
+
+        // ── Rename ────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Renames an existing subcategory. Category.Name has no setter in the
+        /// Revit API, the rename is written through the subcategory's Projection
+        /// GraphicsStyle, which is what actually carries the display name.
+        /// Returns true if the name already matches or the rename succeeded,
+        /// false if it failed. Callers should leave the row marked dirty on
+        /// failure so the edit is retried on the next Apply.
+        /// </summary>
+        public static bool RenameSubcategory(
+            Document doc,
+            Category subcat,
+            string newName,
+            List<string> log)
+        {
+            if (subcat == null || string.IsNullOrWhiteSpace(newName)) return false;
+
+            if (!IsUserOwnedSubcategory(subcat.Id)) // <- NEW
+            {
+                log.Add($"Refused to rename '{subcat.Name}', it is a built in Revit reserved style.");
+                return false;
+            }
+
+            string trimmed = newName.Trim();
+            string oldName = subcat.Name;
+
+            if (string.Equals(oldName, trimmed, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            try
+            {
+                GraphicsStyle? gs = subcat.GetGraphicsStyle(GraphicsStyleType.Projection);
+                if (gs == null)
+                {
+                    log.Add($"Rename failed for '{oldName}': no Projection GraphicsStyle found.");
+                    return false;
+                }
+
+                gs.Name = trimmed;
+                log.Add($"Renamed '{oldName}' to '{trimmed}'.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                log.Add($"Rename error on '{oldName}' to '{trimmed}': {ex.Message}");
+                return false;
             }
         }
 
@@ -113,14 +184,22 @@ namespace BA.Subcategories.Services
         /// <summary>
         /// Deletes a subcategory by ElementId.
         /// Revit only allows deleting subcategories that are not in use;
-        /// the API will throw if geometry is still assigned.
+        /// the API will throw if geometry is still assigned. Built in,
+        /// Revit reserved styles are refused before ever calling Delete,
+        /// that call cannot succeed for them and previously surfaced a
+        /// raw ArgumentException instead of a clean log message.
         /// Returns true on success.
         /// </summary>
         public static bool DeleteSubcategory(Document doc, ElementId categoryId, List<string> log)
         {
+            if (!IsUserOwnedSubcategory(categoryId)) // <- NEW
+            {
+                log.Add($"Refused to delete subcategory (id {categoryId?.Value}), it is a built in Revit reserved style and cannot be deleted through the API.");
+                return false;
+            }
+
             try
             {
-                // Category elements are deleted via Document.Delete
                 var ids = doc.Delete(categoryId);
                 log.Add($"Deleted subcategory (id {categoryId.Value}).");
                 return ids != null && ids.Count > 0;
@@ -144,7 +223,6 @@ namespace BA.Subcategories.Services
 
             try
             {
-                // Line color
                 var revitColor = new Autodesk.Revit.DB.Color(
                     row.LineColor.R,
                     row.LineColor.G,
@@ -158,7 +236,6 @@ namespace BA.Subcategories.Services
 
             try
             {
-                // Projection line weight
                 subcat.SetLineWeight(row.LineWeight, GraphicsStyleType.Projection);
             }
             catch (Exception ex)

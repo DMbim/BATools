@@ -1,4 +1,5 @@
 ﻿using Autodesk.Revit.UI;
+using BA.Core.Parameters;
 using BA.Core.Settings;
 using System;
 using System.Collections.Generic;
@@ -27,6 +28,8 @@ namespace BA.UI.Settings
             _path = settingsPath ?? PluginSettingsStore.GetDefaultPath();
             _settings = PluginSettingsStore.Load(_path);
 
+            TxtCurrentVersion.Text = $"Version: {ReadCurrentVersion()}"; // <- NEW
+
             // Build UI rows
             foreach (var b in _bindings.OrderBy(x => x.Group).ThenBy(x => x.Name))
             {
@@ -41,6 +44,34 @@ namespace BA.UI.Settings
             {
                 view.GroupDescriptions?.Clear();
                 view.GroupDescriptions?.Add(new System.Windows.Data.PropertyGroupDescription(nameof(ToggleRow.Group)));
+            }
+
+            // Shared parameter file path, defaults to the confirmed WIP2 default if
+            // this settings.json has never had this key written to it.
+            TxtWip2Path.Text = _settings.GetString(SharedParamPaths.SettingsKeyWip2Path, SharedParamPaths.DefaultWip2);
+            RefreshWip2Warning();
+        }
+
+        // Reads the same BATools.version file Publish.ps1 writes into the build
+        // output, from whatever directory this assembly is actually running
+        // from. Mirrors exactly what the installer's "Current version" shows,
+        // so the two surfaces never disagree.
+        private static string ReadCurrentVersion()
+        {
+            try
+            {
+                var dir = System.IO.Path.GetDirectoryName(
+                    System.Reflection.Assembly.GetExecutingAssembly().Location);
+                if (string.IsNullOrWhiteSpace(dir)) return "unknown";
+
+                var versionFile = System.IO.Path.Combine(dir, "BATools.version");
+                return System.IO.File.Exists(versionFile)
+                    ? System.IO.File.ReadAllText(versionFile).Trim()
+                    : "unknown";
+            }
+            catch
+            {
+                return "unknown";
             }
         }
 
@@ -86,6 +117,8 @@ namespace BA.UI.Settings
         {
             foreach (var r in Rows)
                 r.Value = r.DefaultValue;
+
+            TxtWip2Path.Text = SharedParamPaths.DefaultWip2;
         }
 
         private void BtnApply_Click(object sender, RoutedEventArgs e)
@@ -102,18 +135,72 @@ namespace BA.UI.Settings
 
         private void ApplyToRuntimeAndStore(bool saveToDisk)
         {
-            // 1) Apply to runtime (your guards)
             foreach (var r in Rows)
             {
                 r.Setter(r.Value);
             }
 
-            // 2) Persist
+            var wip2Path = (TxtWip2Path.Text ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(wip2Path))
+                wip2Path = SharedParamPaths.DefaultWip2;
+
+            SharedParamPaths.SetWip2Path(wip2Path);
+
             foreach (var r in Rows)
                 _settings.SetBool(r.Key, r.Value);
 
+            _settings.SetString(SharedParamPaths.SettingsKeyWip2Path, wip2Path);
+
             if (saveToDisk)
                 PluginSettingsStore.Save(_settings, _path);
+        }
+
+        private void TxtWip2Path_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            RefreshWip2Warning();
+        }
+
+        private void RefreshWip2Warning()
+        {
+            if (SharedParamPaths.TryValidateWip2(TxtWip2Path.Text, out var warning))
+            {
+                TxtWip2Warning.Text = "";
+                TxtWip2Warning.Visibility = System.Windows.Visibility.Collapsed;
+            }
+            else
+            {
+                TxtWip2Warning.Text = warning;
+                TxtWip2Warning.Visibility = System.Windows.Visibility.Visible;
+            }
+        }
+
+        private void BtnBrowseWip2_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Select Shared Parameter File (WIP2)",
+                Filter = "Shared Parameter Files (*.txt)|*.txt|All files (*.*)|*.*",
+                CheckFileExists = true
+            };
+
+            var current = TxtWip2Path.Text;
+            if (!string.IsNullOrWhiteSpace(current))
+            {
+                try
+                {
+                    var dir = System.IO.Path.GetDirectoryName(current);
+                    if (!string.IsNullOrWhiteSpace(dir) && System.IO.Directory.Exists(dir))
+                        dlg.InitialDirectory = dir;
+                }
+                catch
+                {
+                }
+            }
+
+            if (dlg.ShowDialog(this) == true)
+            {
+                TxtWip2Path.Text = dlg.FileName;
+            }
         }
     }
 

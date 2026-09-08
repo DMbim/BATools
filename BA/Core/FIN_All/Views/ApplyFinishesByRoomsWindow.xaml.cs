@@ -2,6 +2,7 @@
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
+using BA.Core.Settings;
 using BA.UI.Core.Finishes;
 using BA.UI.TextHub;
 using System;
@@ -20,9 +21,36 @@ namespace BA.UI.Finishes
         private readonly Document _doc;
         private readonly RevitExternalEventRunner _runner;
 
+        private readonly PluginSettings _settings;
 
         private readonly ObservableCollection<RoomPickRow> _rooms = new();
         private List<RoomPickRow> _roomsAll = new();
+
+        // ---- persisted settings keys ----
+        // Deliberately does NOT persist the room selection itself, that's document/session
+        // specific and would either go stale or point at the wrong rooms in a different file.
+        // Only the finish option fields are remembered.
+        private const string KeyApplyWalls = "ApplyFinishesByRooms.ApplyWalls";
+        private const string KeyApplyFloors = "ApplyFinishesByRooms.ApplyFloors";
+        private const string KeyApplyCeilings = "ApplyFinishesByRooms.ApplyCeilings";
+
+        private const string KeyUseRoomDefinedTypes = "ApplyFinishesByRooms.UseRoomDefinedTypes";
+
+        // Type selections are stored by Type Name, not ElementId, ids aren't stable across
+        // documents/sessions. Restored by matching name against whatever's actually loaded
+        // in the current document; if no match, falls back to whatever LoadTypeCombos()
+        // already defaulted to (first item).
+        private const string KeyWallTypeName = "ApplyFinishesByRooms.WallTypeName";
+        private const string KeyFloorTypeName = "ApplyFinishesByRooms.FloorTypeName";
+        private const string KeyCeilingTypeName = "ApplyFinishesByRooms.CeilingTypeName";
+
+        private const string KeyUseTopOffset = "ApplyFinishesByRooms.UseTopOffset";
+        private const string KeyTopOffsetMm = "ApplyFinishesByRooms.TopOffsetMm";
+        private const string KeyBaseOffsetMm = "ApplyFinishesByRooms.BaseOffsetMm";
+
+        private const string KeyCeilingUseRoomHeightOffset = "ApplyFinishesByRooms.CeilingUseRoomHeightOffset";
+        private const string KeyCeilingTopOffsetMm = "ApplyFinishesByRooms.CeilingTopOffsetMm";
+        private const string KeyCeilingHeightAboveLevelMm = "ApplyFinishesByRooms.CeilingHeightAboveLevelMm";
 
         public ApplyFinishesByRoomsWindow(UIApplication uiApp, RevitExternalEventRunner runner)
         {
@@ -33,11 +61,16 @@ namespace BA.UI.Finishes
             _doc = _uiDoc.Document;
             _runner = runner ?? throw new ArgumentNullException(nameof(runner));
 
+            _settings = PluginSettingsStore.Load();
+
             ListRooms.ItemsSource = _rooms;
 
             LoadTypeCombos();
+            ApplySavedSettings();
             RefreshRooms();
             UpdateFinishTypeSourceUi();
+
+            Closing += ApplyFinishesByRoomsWindow_Closing;
         }
 
         private void LoadTypeCombos()
@@ -75,6 +108,91 @@ namespace BA.UI.Finishes
             CmbCeilingType.ItemsSource = ceilTypes;
             CmbCeilingType.DisplayMemberPath = "Name";
             CmbCeilingType.SelectedItem = ceilTypes.FirstOrDefault();
+        }
+
+        /// <summary>
+        /// Applies values loaded from PluginSettingsStore to the UI. Must run after
+        /// LoadTypeCombos() so the combo ItemsSources exist to match saved type names against.
+        /// Every read has a sensible default matching the XAML's original hardcoded defaults,
+        /// so a fresh install (no settings.json yet) behaves exactly as before this change.
+        /// </summary>
+        private void ApplySavedSettings()
+        {
+            ChkWalls.IsChecked = _settings.GetBool(KeyApplyWalls, true);
+            ChkFloors.IsChecked = _settings.GetBool(KeyApplyFloors, false);
+            ChkCeilings.IsChecked = _settings.GetBool(KeyApplyCeilings, false);
+
+            bool useRoomDefinedTypes = _settings.GetBool(KeyUseRoomDefinedTypes, false);
+            RadioRoomDefinedType.IsChecked = useRoomDefinedTypes;
+            RadioFixedType.IsChecked = !useRoomDefinedTypes;
+
+            RestoreComboSelectionByName(CmbWallType, _settings.GetString(KeyWallTypeName, ""));
+            RestoreComboSelectionByName(CmbFloorType, _settings.GetString(KeyFloorTypeName, ""));
+            RestoreComboSelectionByName(CmbCeilingType, _settings.GetString(KeyCeilingTypeName, ""));
+
+            ChkUseTopOffset.IsChecked = _settings.GetBool(KeyUseTopOffset, true);
+            TxtTopOffsetMm.Text = FormatMm(_settings.GetDouble(KeyTopOffsetMm, 100));
+            TxtBaseOffsetMm.Text = FormatMm(_settings.GetDouble(KeyBaseOffsetMm, 0));
+
+            ChkCeilingUseRoomHeightOffset.IsChecked = _settings.GetBool(KeyCeilingUseRoomHeightOffset, true);
+            TxtCeilingTopOffsetMm.Text = FormatMm(_settings.GetDouble(KeyCeilingTopOffsetMm, 100));
+            TxtCeilingHeightAboveLevelMm.Text = FormatMm(_settings.GetDouble(KeyCeilingHeightAboveLevelMm, 2400));
+        }
+
+        private static void RestoreComboSelectionByName(System.Windows.Controls.ComboBox combo, string savedName)
+        {
+            if (string.IsNullOrWhiteSpace(savedName)) return; // leave LoadTypeCombos()'s default
+
+            foreach (var item in combo.Items)
+            {
+                var name = (item as ElementType)?.Name;
+                if (string.Equals(name, savedName, StringComparison.OrdinalIgnoreCase))
+                {
+                    combo.SelectedItem = item;
+                    return;
+                }
+            }
+
+            // Saved type no longer exists in this document (renamed/deleted/different project),
+            // silently keep whatever LoadTypeCombos() already defaulted to.
+        }
+
+        private static string FormatMm(double v) =>
+            v.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
+        private void ApplyFinishesByRoomsWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            SaveCurrentSettings();
+        }
+
+        private void SaveCurrentSettings()
+        {
+            _settings.SetBool(KeyApplyWalls, ChkWalls.IsChecked == true);
+            _settings.SetBool(KeyApplyFloors, ChkFloors.IsChecked == true);
+            _settings.SetBool(KeyApplyCeilings, ChkCeilings.IsChecked == true);
+
+            _settings.SetBool(KeyUseRoomDefinedTypes, RadioRoomDefinedType.IsChecked == true);
+
+            _settings.SetString(KeyWallTypeName, (CmbWallType.SelectedItem as WallType)?.Name ?? "");
+            _settings.SetString(KeyFloorTypeName, (CmbFloorType.SelectedItem as FloorType)?.Name ?? "");
+            _settings.SetString(KeyCeilingTypeName, (CmbCeilingType.SelectedItem as CeilingType)?.Name ?? "");
+
+            _settings.SetBool(KeyUseTopOffset, ChkUseTopOffset.IsChecked == true);
+            _settings.SetDouble(KeyTopOffsetMm, ParseMm(TxtTopOffsetMm.Text, 100));
+            _settings.SetDouble(KeyBaseOffsetMm, ParseMm(TxtBaseOffsetMm.Text, 0));
+
+            _settings.SetBool(KeyCeilingUseRoomHeightOffset, ChkCeilingUseRoomHeightOffset.IsChecked == true);
+            _settings.SetDouble(KeyCeilingTopOffsetMm, ParseMm(TxtCeilingTopOffsetMm.Text, 100));
+            _settings.SetDouble(KeyCeilingHeightAboveLevelMm, ParseMm(TxtCeilingHeightAboveLevelMm.Text, 2400));
+
+            try
+            {
+                PluginSettingsStore.Save(_settings);
+            }
+            catch
+            {
+                // Best-effort, don't block window close over a settings write failure.
+            }
         }
 
         private void RefreshRooms()
@@ -150,9 +268,6 @@ namespace BA.UI.Finishes
         /// </summary>
         private void UpdateFinishTypeSourceUi()
         {
-            // Guard: called once from the constructor before InitializeComponent's radio
-            // buttons are guaranteed wired, but WPF resolves named fields during
-            // InitializeComponent so this is safe post-InitializeComponent.
             bool fixedMode = RadioFixedType?.IsChecked == true;
 
             if (CmbWallType != null) CmbWallType.IsEnabled = fixedMode;

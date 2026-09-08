@@ -4,6 +4,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using BA.BAApplication;
+using BA.UI.ExternalEvents;
 using BA.Warnings.Views;
 
 namespace BA.Commands.Management
@@ -20,6 +21,8 @@ namespace BA.Commands.Management
         {
             try
             {
+                _ = AppExternalInvoker.Instance;
+
                 WarningsDashboardWindow.GetOrCreate(uiApp).Show();
                 return Result.Succeeded;
             }

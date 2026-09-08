@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
-using BATools.SelectionManager.Actions;
-using BATools.SelectionManager.Models;
-using BATools.SelectionManager.Services;
+using BA.SelectionManager.Actions;
+using BA.SelectionManager.Models;
+using BA.SelectionManager.Services;
 
-namespace BATools.SelectionManager.Views
+namespace BA.SelectionManager.Views
 {
     /// <summary>Flat view model for the combined function list.</summary>
     public class AddFunctionDialogItem

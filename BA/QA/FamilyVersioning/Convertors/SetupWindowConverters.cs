@@ -8,7 +8,7 @@ namespace BA.QA.FamilyVersioning.Converters
 {
     /// <summary>
     /// Standard bool-to-Visibility converter: true -> Visible, false -> Collapsed.
-    /// Defined locally rather than referencing BATools.SelectionManager.Converters.
+    /// Defined locally rather than referencing BA.SelectionManager.Converters.
     /// InverseBoolToVisibilityConverter elsewhere in the codebase, that converter has
     /// the opposite mapping (true -> Collapsed) and lives in an unrelated feature
     /// module under a legacy "BATools" namespace root that is being phased out in

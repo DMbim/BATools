@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Autodesk.Revit.UI;
-using BATools.SelectionManager.Actions;
-using BATools.SelectionManager.Models;
+using BA.SelectionManager.Actions;
+using BA.SelectionManager.Models;
 
-namespace BATools.SelectionManager.Services
+namespace BA.SelectionManager.Services
 {
     public static class RevitCommandCatalog
     {
@@ -175,7 +175,6 @@ namespace BATools.SelectionManager.Services
             new(PostableCommand.Toposolid, "Toposolid", "Massing & Site"),
             new(PostableCommand.ToposolidByFace, "Toposolid by Face", "Massing & Site"),
             new(PostableCommand.ToposolidSmoothShading, "Toposolid Smooth Shading", "Massing & Site"),
-            new(PostableCommand.TopographyCutVoidStability, "Topography Cut Void Stability", "Massing & Site"),
             new(PostableCommand.LinkTopography, "Link Topography", "Massing & Site"),
             new(PostableCommand.CreateFromImport, "Create from Import", "Massing & Site"),
             new(PostableCommand.SiteComponent, "Site Component", "Massing & Site"),

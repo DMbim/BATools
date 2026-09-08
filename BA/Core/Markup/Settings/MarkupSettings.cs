@@ -20,8 +20,13 @@ namespace BA.Markup.Settings
         public string FamilySearchRoot { get; set; } =
             @"S:\CAD\Autodesk Revit\BA_Families\BA_Families_v26\BATools";
 
-        public string SharedParameterFilePath { get; set; } =
-            @"S:\CAD\Autodesk Revit\BA_Resources\BA_Shared parameters\BA_SharedParametersWIP2.txt";
+        // Removed SharedParameterFilePath: it duplicated BA.Core.Parameters.SharedParamPaths.WIP2
+        // as a per-user default, but because AppSettingsBase persists this class to
+        // %AppData%\BA\Markup\MarkupSettings.json and only applies the compiled default when
+        // that file does not exist yet, a workstation with an existing settings file would keep
+        // whatever value got serialized there forever, even after this class's default changed.
+        // There is no legitimate case where this should differ from SharedParamPaths.WIP2, so
+        // MarkupService now reads that constant directly instead of a settings value.
 
         public double TagOffsetXMm { get; set; } = 200.0;
         public double TagOffsetYMm { get; set; } = 200.0;

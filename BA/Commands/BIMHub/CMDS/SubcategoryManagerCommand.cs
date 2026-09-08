@@ -61,6 +61,7 @@ namespace BA.Subcategories.Commands
             var vm = new SubcategoryManagerViewModel
             {
                 Doc = doc,
+                UiDoc = uiDoc, // <- NEW
                 ParentCategory = parentCategory,
                 OwnerFamily = fam!
             };
@@ -68,8 +69,8 @@ namespace BA.Subcategories.Commands
 
             var window = new SubcategoryManagerWindow(vm);
             new WindowInteropHelper(window).Owner = uiApp.MainWindowHandle;
-            bool? result = window.ShowDialog();
 
+            bool? result = window.ShowDialog();
             return result == true ? Result.Succeeded : Result.Cancelled;
         }
 

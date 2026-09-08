@@ -3,11 +3,11 @@ using System.Windows.Input;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using BATools.SelectionManager.Models;
+using BA.SelectionManager.Models;
 using Color = System.Windows.Media.Color;
 using Brush = System.Windows.Media.Brush;
 
-namespace BATools.SelectionManager.ViewModels
+namespace BA.SelectionManager.ViewModels
 {
     public class SetRowViewModel : ObservableObject
     {

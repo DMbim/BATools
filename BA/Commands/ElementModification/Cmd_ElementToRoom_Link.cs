@@ -54,6 +54,7 @@ namespace BA.Commands.Rooms
                 t.Commit();
                 TaskDialog.Show("Element \u2192 Room (Link)",
                     $"Considered: {stats.ElementsConsidered}\n" +
+                    $"Category: {settings.SelectedCategoryToken}\n" +
                     $"Written: {stats.ElementsWritten}\n" +
                     $"  (via source fallback: {stats.ElementsWrittenViaSourceFallback}, via destination fallback: {stats.ElementsWrittenViaDestinationFallback})\n" +
                     $"No point: {stats.ElementsNoPoint}\n" +

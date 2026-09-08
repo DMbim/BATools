@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using BATools.SelectionManager.Models;
-using BATools.SelectionManager.Services;
+using BA.SelectionManager.Models;
+using BA.SelectionManager.Services;
 
-namespace BATools.SelectionManager.ExternalEvents
+namespace BA.SelectionManager.ExternalEvents
 {
     public class SaveCurrentSelectionHandler : IExternalEventHandler
     {

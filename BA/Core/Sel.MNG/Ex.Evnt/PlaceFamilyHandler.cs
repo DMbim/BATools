@@ -3,7 +3,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 
-namespace BATools.SelectionManager.ExternalEvents
+namespace BA.SelectionManager.ExternalEvents
 {
     public class PlaceFamilyHandler : IExternalEventHandler
     {

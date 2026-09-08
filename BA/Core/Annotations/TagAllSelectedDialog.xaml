@@ -6,39 +6,51 @@
         SizeToContent="Height"
         WindowStartupLocation="Manual"
         ResizeMode="NoResize"
+        Style="{DynamicResource BaWindow}"
         ShowInTaskbar="False"
         Closing="Window_Closing"
         Loaded="Window_Loaded">
 
     <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
 
-        <Style TargetType="GroupBox">
-            <Setter Property="Margin" Value="0,6,0,0"/>
-            <Setter Property="Padding" Value="8"/>
-        </Style>
+            <!-- BuildCategoryRows in the code-behind creates CheckBox/ComboBox/TextBlock
+                 instances directly, none set an explicit Style, so both need implicit
+                 registration here to pick up dark theming without touching the .cs file. -->
 
-        <Style TargetType="TextBlock" x:Key="LabelStyle">
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="0,0,8,0"/>
-            <Setter Property="Width" Value="150"/>
-        </Style>
+            <Style TargetType="{x:Type GroupBox}" BasedOn="{StaticResource BaGroupBox}">
+                <Setter Property="Margin" Value="0,6,0,0"/>
+                <Setter Property="Padding" Value="8"/>
+            </Style>
 
-        <Style TargetType="TextBox">
-            <Setter Property="Margin" Value="0,2,0,2"/>
-            <Setter Property="Width" Value="80"/>
-            <Setter Property="HorizontalAlignment" Value="Left"/>
-        </Style>
+            <Style TargetType="{x:Type TextBlock}" x:Key="LabelStyle" BasedOn="{StaticResource BaLabelText}">
+                <Setter Property="Margin" Value="0,0,8,0"/>
+                <Setter Property="Width" Value="150"/>
+            </Style>
 
-        <Style TargetType="ComboBox">
-            <Setter Property="Margin" Value="0,2,0,2"/>
-            <Setter Property="MinWidth" Value="200"/>
-        </Style>
+            <Style TargetType="{x:Type TextBox}" BasedOn="{StaticResource BaTextBox}">
+                <Setter Property="Height" Value="Auto"/>
+                <Setter Property="Margin" Value="0,2,0,2"/>
+                <Setter Property="Width" Value="80"/>
+                <Setter Property="HorizontalAlignment" Value="Left"/>
+            </Style>
 
-        <Style TargetType="ToolTip">
-            <Setter Property="MaxWidth" Value="320"/>
-            <Setter Property="Placement" Value="Mouse"/>
-        </Style>
+            <Style TargetType="{x:Type ComboBox}" BasedOn="{StaticResource BaDarkComboBox}">
+                <Setter Property="Margin" Value="0,2,0,2"/>
+                <Setter Property="MinWidth" Value="200"/>
+            </Style>
 
+            <Style TargetType="{x:Type CheckBox}" BasedOn="{StaticResource BaCheckBox}"/>
+
+            <Style TargetType="{x:Type ToolTip}" BasedOn="{StaticResource {x:Type ToolTip}}">
+                <Setter Property="MaxWidth" Value="320"/>
+                <Setter Property="Placement" Value="Mouse"/>
+            </Style>
+
+        </ResourceDictionary>
     </Window.Resources>
 
     <StackPanel Margin="12"
@@ -51,6 +63,7 @@
                 <TextBlock x:Name="TbSelectionSummary" TextWrapping="Wrap" Margin="0,0,0,6"/>
                 <StackPanel Orientation="Horizontal">
                     <Button x:Name="BtnExpandView" Content="All instances: visible in view"
+                            Style="{StaticResource BaSecondaryButton}"
                             Width="195" Margin="0,0,8,0" Click="BtnExpandView_Click">
                         <Button.ToolTip>
                             <ToolTip Placement="Mouse">
@@ -64,6 +77,7 @@
                         </Button.ToolTip>
                     </Button>
                     <Button x:Name="BtnExpandProject" Content="All instances: entire project"
+                            Style="{StaticResource BaSecondaryButton}"
                             Width="195" Click="BtnExpandProject_Click">
                         <Button.ToolTip>
                             <ToolTip Placement="Mouse">
@@ -208,8 +222,10 @@
         <!-- ===== BUTTONS ===== -->
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
             <Button x:Name="BtnApply" Content="Apply" Width="80"
+                    Style="{StaticResource BaPrimaryButton}"
                     Margin="0,0,8,0" Click="BtnApply_Click" IsDefault="True"/>
             <Button x:Name="BtnCancel" Content="Cancel" Width="80"
+                    Style="{StaticResource BaSecondaryButton}"
                     Click="BtnCancel_Click" IsCancel="True"/>
         </StackPanel>
 

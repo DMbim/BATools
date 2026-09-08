@@ -4,9 +4,15 @@
         Title="BA – Parameter Manager"
         Width="1100" Height="650"
         WindowStartupLocation="CenterOwner"
-        Background="#0F0F10"
-        Foreground="#F2F2F2"
-        FontFamily="Segoe UI">
+        Style="{DynamicResource BaWindow}">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
 
     <Grid Margin="10">
         <Grid.RowDefinitions>
@@ -23,28 +29,36 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Search:" Margin="0,0,8,0"/>
-            <TextBox Grid.Column="1" x:Name="TxtSearch" Height="26"
-                     TextChanged="TxtSearch_TextChanged"
-                     Background="#1B1B1C" Foreground="#F2F2F2" BorderBrush="#3A3A3D" Padding="6,3"/>
+            <TextBlock Grid.Column="0"
+                       Style="{StaticResource BaLabelText}"
+                       Text="Search:"
+                       Margin="0,0,8,0"/>
+
+            <TextBox Grid.Column="1"
+                     x:Name="TxtSearch"
+                     Style="{StaticResource BaTextBox}"
+                     TextChanged="TxtSearch_TextChanged"/>
 
             <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Margin="10,0,0,0" Width="90" Content="Refresh" Click="BtnRefresh_Click"/>
+                <Button Margin="10,0,0,0"
+                        Width="90"
+                        Style="{StaticResource BaSecondaryButton}"
+                        Content="Refresh"
+                        Click="BtnRefresh_Click"/>
             </StackPanel>
         </Grid>
 
         <!-- Grid -->
         <DataGrid Grid.Row="1"
                   x:Name="GridParams"
+                  Style="{StaticResource BaDataGrid}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
                   IsReadOnly="True"
                   SelectionMode="Extended"
                   SelectionUnit="FullRow"
-                  Background="#F2F2F2"
-                  Foreground="#1B1B1C"
-                  BorderBrush="#3A3A3D" SelectionChanged="GridParams_SelectionChanged">
+                  SelectionChanged="GridParams_SelectionChanged">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="2*"/>
                 <DataGridTextColumn Header="Shared" Binding="{Binding IsShared}" Width="80"/>
@@ -71,11 +85,21 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Shared Params file:" Margin="0,0,8,0"/>
-                <TextBox Grid.Column="1" x:Name="TxtSpPath" Height="26" IsReadOnly="True"
-                         Background="#1B1B1C" Foreground="#F2F2F2" BorderBrush="#3A3A3D" Padding="6,3"
-                         VerticalContentAlignment="Center"/>
-                <Button Grid.Column="2" Margin="8,0,0,0" Width="90" Content="Browse..." Click="BtnBrowseSp_Click"/>
+                <TextBlock Grid.Column="0"
+                           Style="{StaticResource BaLabelText}"
+                           Text="Shared Params file:"
+                           Margin="0,0,8,0"/>
+
+                <TextBox Grid.Column="1"
+                         x:Name="TxtSpPath"
+                         Style="{StaticResource BaReadOnlyTextBox}"/>
+
+                <Button Grid.Column="2"
+                        Margin="8,0,0,0"
+                        Width="90"
+                        Style="{StaticResource BaSecondaryButton}"
+                        Content="Browse..."
+                        Click="BtnBrowseSp_Click"/>
             </Grid>
 
             <!-- Selection summary + action buttons row -->
@@ -85,13 +109,30 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0" x:Name="TxtSelectionSummary" VerticalAlignment="Center" Foreground="#B7B7BC"/>
+                <TextBlock Grid.Column="0"
+                           x:Name="TxtSelectionSummary"
+                           Style="{StaticResource BaMutedTextDark}"/>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Width="170" Margin="0,0,8,0" Content="Create / Bind Shared" Click="BtnAddShared_Click"/>
-                    <Button Width="120" Margin="0,0,8,0" Content="Edit Binding" Click="BtnEdit_Click"/>
-                    <Button Width="110" Margin="0,0,8,0" Content="Remove Binding" Click="BtnRemove_Click"/>
-                    <Button Width="90" IsCancel="True" Content="Close"/>
+                    <Button Width="170"
+                            Margin="0,0,8,0"
+                            Style="{StaticResource BaPrimaryButton}"
+                            Content="Create / Bind Shared"
+                            Click="BtnAddShared_Click"/>
+                    <Button Width="120"
+                            Margin="0,0,8,0"
+                            Style="{StaticResource BaSecondaryButton}"
+                            Content="Edit Binding"
+                            Click="BtnEdit_Click"/>
+                    <Button Width="110"
+                            Margin="0,0,8,0"
+                            Style="{StaticResource BaSecondaryButton}"
+                            Content="Remove Binding"
+                            Click="BtnRemove_Click"/>
+                    <Button Width="90"
+                            Style="{StaticResource BaSecondaryButton}"
+                            IsCancel="True"
+                            Content="Close"/>
                 </StackPanel>
             </Grid>
         </Grid>

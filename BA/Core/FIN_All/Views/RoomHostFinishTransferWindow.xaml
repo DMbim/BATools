@@ -2,6 +2,7 @@
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:conv="clr-namespace:BA.UI.Converters"
         Title="Room ⇄ Floor/Ceiling Transfer"
         Width="1700" Height="650"
         WindowStartupLocation="CenterOwner"
@@ -103,6 +104,9 @@
                 <sys:String>Ceiling</sys:String>
                 <sys:String>Floor</sys:String>
             </x:Array>
+
+            <!-- Category to parameters converter, populated from code behind after each model scan -->
+            <conv:CategoryToParametersConverter x:Key="CatToSourceParamsConverter"/>
 
             <!-- DataGrid header style -->
             <Style x:Key="DarkDataGridHeaderStyle" TargetType="{x:Type DataGridColumnHeader}">
@@ -255,19 +259,39 @@
                               SelectionMode="Extended"
                               Foreground="#F2F2F2"
                               ColumnHeaderStyle="{StaticResource DarkDataGridHeaderStyle}"
-                              CellStyle="{StaticResource DarkDataGridCellStyle}">
+                              CellStyle="{StaticResource DarkDataGridCellStyle}"
+                              CellEditEnding="GridMappings_CellEditEnding">
 
                         <DataGrid.Columns>
-                            <DataGridComboBoxColumn Header="Source Category"
+                            <DataGridComboBoxColumn x:Name="ColSourceCategory"
+                                                Header="Source Category"
                                                 Width="160"
                                                 SelectedItemBinding="{Binding SourceCategory, UpdateSourceTrigger=PropertyChanged}"
                                                 ItemsSource="{StaticResource SourceCategoryItems}" />
-                            <DataGridTextColumn Header="Source Parameter Name (Floor/Ceiling)"
+
+                            <DataGridTemplateColumn x:Name="ColSourceParam"
+                                                Header="Source Parameter Name (Floor/Ceiling)"
+                                                Width="260">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding SourceParameterName}"
+                                                   Padding="6,0" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <ComboBox Style="{StaticResource BaDarkComboBox}"
+                                                  ItemsSource="{Binding SourceCategory, Converter={StaticResource CatToSourceParamsConverter}}"
+                                                  SelectedItem="{Binding SourceParameterName, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridComboBoxColumn x:Name="ColTargetParam"
+                                                Header="Target Room Parameter Name"
                                                 Width="260"
-                                                Binding="{Binding SourceParameterName, UpdateSourceTrigger=PropertyChanged}" />
-                            <DataGridTextColumn Header="Target Room Parameter Name"
-                                                Width="260"
-                                                Binding="{Binding TargetRoomParameterName, UpdateSourceTrigger=PropertyChanged}" />
+                                                SelectedItemBinding="{Binding TargetRoomParameterName, UpdateSourceTrigger=PropertyChanged}" />
+
                             <DataGridCheckBoxColumn Header="Write If Target Empty Only"
                                                     Width="180"
                                                     Binding="{Binding WriteOnlyIfEmpty}" />

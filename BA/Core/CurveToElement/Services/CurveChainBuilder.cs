@@ -1,5 +1,5 @@
 ﻿// File: BA/Core/CurveToElement/Services/CurveChainBuilder.cs
-// Action: CREATE NEW
+// Action: REPLACE (full file)
 
 using System;
 using System.Collections.Generic;
@@ -48,7 +48,12 @@ namespace BA.Core.CurveToElement.Services
 
                 XYZ chainStart = chainSegments[0].GetEndPoint(0);
                 XYZ chainEnd = chainSegments[chainSegments.Count - 1].GetEndPoint(1);
-                bool isClosed = chainSegments.Count > 1 && chainStart.IsAlmostEqualTo(chainEnd, _pointTolerance);
+                // <- FIXED: was "chainSegments.Count > 1 && chainStart.IsAlmostEqualTo(...)". A
+                // lone closed curve (e.g. a circle drawn as one full Arc, start == end) has count
+                // 1 and was previously always reported as an open chain. A single Line can never
+                // false-positive here since Line.CreateBound disallows coincident endpoints, so
+                // dropping the count guard is strictly more correct with no new failure mode.
+                bool isClosed = chainStart.IsAlmostEqualTo(chainEnd, _pointTolerance);
 
                 chains.Add(new CurveChain(chainSegments, isClosed));
             }

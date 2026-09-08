@@ -58,6 +58,11 @@ namespace BA.Commands.Export
                         summary.AppendLine(result.HasJobLevelError
                             ? $"{job.JobName} ({result.Format}): FAILED - {result.JobLevelError}"
                             : $"{job.JobName} ({result.Format}): {result.SuccessCount} succeeded, {result.FailureCount} failed");
+
+                        if (!string.IsNullOrEmpty(result.DateRevisionBumpSummary))
+                        {
+                            summary.AppendLine($"  {result.DateRevisionBumpSummary}");
+                        }
                     }
                 }
 

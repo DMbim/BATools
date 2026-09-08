@@ -6,9 +6,9 @@ using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using BATools.SelectionManager.ExternalEvents;
+using BA.SelectionManager.ExternalEvents;
 
-namespace BATools.SelectionManager.Views
+namespace BA.SelectionManager.Views
 {
     public partial class PickFamilyTypeDialog : Window, INotifyPropertyChanged
     {

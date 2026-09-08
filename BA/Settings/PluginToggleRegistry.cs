@@ -14,11 +14,9 @@ namespace BA.App.Settings
         public static IReadOnlyList<ToggleBinding> Build()
         {
             if (_cache != null) return _cache;
-
             lock (_lock)
             {
                 if (_cache != null) return _cache;
-
                 _cache = new List<ToggleBinding>
                 {
                     new ToggleBinding(
@@ -30,7 +28,6 @@ namespace BA.App.Settings
                         getter: () => ImportCadWarningGuard.Enabled,
                         setter: v => ImportCadWarningGuard.Enabled = v
                     ),
-
                     new ToggleBinding(
                         key: "Guards.ImportCad.BindGenericImport",
                         group: "Guards",
@@ -40,7 +37,6 @@ namespace BA.App.Settings
                         getter: () => ImportCadWarningGuard.BindGenericImport,
                         setter: v => ImportCadWarningGuard.BindGenericImport = v
                     ),
-
                     // ✅ YOUR OVERHEAD AUTO PROXY TOGGLE
                     new ToggleBinding(
                         key: "Overhead.AutoProxy.Enabled",
@@ -52,14 +48,21 @@ namespace BA.App.Settings
                         setter: v =>
                         {
                             OverheadProxyUpdater.Enabled = v;
-
                             // When turning OFF: do cleanup via Idling (transaction-safe)
                             if (!v)
                                 OverheadToggleController.RequestDisableCleanup();
                         }
                     ),
+                    new ToggleBinding(
+                        key: "QuickToolbar.Enabled",
+                        group: "Selection Manager",
+                        name: "Quick Toolbar",
+                        description: "Show the floating toolbar near the cursor after a selection.",
+                        defaultValue: true,
+                        getter: () => QuickToolbarGate.Enabled,
+                        setter: v => QuickToolbarGate.Enabled = v
+                    ),
                 };
-
                 return _cache;
             }
         }

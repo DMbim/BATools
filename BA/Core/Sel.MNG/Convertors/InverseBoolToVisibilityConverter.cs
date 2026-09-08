@@ -4,7 +4,7 @@ using System.Windows;
 using System.Windows.Data;
 using Visibility = System.Windows.Visibility;
 
-namespace BATools.SelectionManager.Converters
+namespace BA.SelectionManager.Converters
 {
     [ValueConversion(typeof(bool), typeof(Visibility))]
     public class InverseBoolToVisibilityConverter : IValueConverter

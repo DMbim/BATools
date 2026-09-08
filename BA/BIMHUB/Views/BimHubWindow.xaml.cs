@@ -251,7 +251,7 @@ namespace BA.UI.BimHub.Views
             RunCommand("Import Room Classification", uiApp =>
             {
                 string msg = string.Empty;
-                RoomClassificationImportCommand.Run(uiApp, ref msg);
+                BA.RoomClassification.Commands.RoomClassificationImportCommand.Run(uiApp, ref msg);
                 if (!string.IsNullOrWhiteSpace(msg))
                     ShowError("Import Room Classification", new Exception(msg));
             });

@@ -3,7 +3,7 @@ using System.Windows.Media;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 
-namespace BATools.SelectionManager.Actions
+namespace BA.SelectionManager.Actions
 {
     public interface IQuickAction
     {

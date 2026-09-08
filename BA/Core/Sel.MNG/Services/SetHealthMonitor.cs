@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Events;
-using BATools.SelectionManager.Models;
+using BA.SelectionManager.Models;
 
-namespace BATools.SelectionManager.Services
+namespace BA.SelectionManager.Services
 {
     /// <summary>
     /// Subscribes to DocumentChanged and updates set health status

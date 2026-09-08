@@ -2,9 +2,11 @@
 using BA.IssueReporter.Services;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Windows.Media.Imaging;
 
 namespace BA.IssueReporter.Views;
 
@@ -42,6 +44,7 @@ public partial class ManageIssuesWindow : Window
             IssueDetailsTextBox.Text = string.Empty;
             ManagerCommentTextBox.Text = string.Empty;
             StatusComboBox.SelectedItem = null;
+            UpdateScreenshotPreview();
             return;
         }
 
@@ -59,6 +62,76 @@ public partial class ManageIssuesWindow : Window
 
         ManagerCommentTextBox.Text = _selectedIssue.ManagerComment ?? string.Empty;
         StatusComboBox.SelectedItem = _selectedIssue.Status;
+
+        UpdateScreenshotPreview(); // NEW
+    }
+
+    // NEW: loads the attached screenshot, if any, for the currently selected issue.
+    private void UpdateScreenshotPreview()
+    {
+        string? imagePath = _selectedIssue?.ImagePath;
+
+        if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath))
+        {
+            ScreenshotThumbnailImage.Source = null;
+            ScreenshotThumbnailBorder.Visibility = System.Windows.Visibility.Collapsed;
+            OpenScreenshotButton.Visibility = System.Windows.Visibility.Collapsed;
+            NoScreenshotTextBlock.Visibility = System.Windows.Visibility.Visible;
+            return;
+        }
+
+        try
+        {
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.CacheOption = BitmapCacheOption.OnLoad; // loads and releases the file handle immediately
+            bitmap.UriSource = new Uri(imagePath, UriKind.Absolute);
+            bitmap.EndInit();
+            bitmap.Freeze();
+
+            ScreenshotThumbnailImage.Source = bitmap;
+            ScreenshotThumbnailBorder.Visibility = System.Windows.Visibility.Visible;
+            OpenScreenshotButton.Visibility = System.Windows.Visibility.Visible;
+            NoScreenshotTextBlock.Visibility = System.Windows.Visibility.Collapsed;
+        }
+        catch (Exception)
+        {
+            // Corrupt or unreadable image file, fall back to the "no screenshot" state
+            // rather than throwing out of a SelectionChanged handler.
+            ScreenshotThumbnailImage.Source = null;
+            ScreenshotThumbnailBorder.Visibility = System.Windows.Visibility.Collapsed;
+            OpenScreenshotButton.Visibility = System.Windows.Visibility.Collapsed;
+            NoScreenshotTextBlock.Visibility = System.Windows.Visibility.Visible;
+        }
+    }
+
+    // NEW
+    private void OpenScreenshotButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedIssue == null
+            || string.IsNullOrWhiteSpace(_selectedIssue.ImagePath)
+            || !File.Exists(_selectedIssue.ImagePath))
+        {
+            return;
+        }
+
+        try
+        {
+            var startInfo = new ProcessStartInfo(_selectedIssue.ImagePath)
+            {
+                UseShellExecute = true
+            };
+
+            Process.Start(startInfo);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Could not open the screenshot file.\n\n{ex.Message}",
+                "Open Screenshot Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
     }
 
     private async void SaveUpdateButton_Click(object sender, RoutedEventArgs e)

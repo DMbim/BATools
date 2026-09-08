@@ -243,7 +243,18 @@ namespace BA.Core.Content.Services
                 throw new InvalidOperationException("Output image folder could not be resolved.");
 
             Directory.CreateDirectory(folder);
-            DeleteExistingMatchingImageFiles(folder, fileBase);
+
+            // Scope the cleanup to only the extension this specific call is
+            // about to produce. Previously this deleted every png/jpg/jpeg
+            // sharing the base name regardless of which format was being
+            // written, so the JPG export call was silently deleting the PNG
+            // the prior call in ExportSinglePreview had just written.
+            string normalizedExpected = expectedExtension.ToLowerInvariant();
+            string[] extensionsToDelete = normalizedExpected == ".jpg"
+                ? new[] { ".jpg", ".jpeg" }
+                : new[] { normalizedExpected };
+
+            DeleteExistingMatchingImageFiles(folder, fileBase, extensionsToDelete);
 
             var opts = new ImageExportOptions
             {
@@ -274,7 +285,7 @@ namespace BA.Core.Content.Services
             }
         }
 
-        private static void DeleteExistingMatchingImageFiles(string folder, string fileBase)
+        private static void DeleteExistingMatchingImageFiles(string folder, string fileBase, IReadOnlyCollection<string> extensionsToDelete)
         {
             if (!Directory.Exists(folder))
                 return;
@@ -282,7 +293,7 @@ namespace BA.Core.Content.Services
             foreach (string file in Directory.GetFiles(folder, fileBase + ".*"))
             {
                 string ext = Path.GetExtension(file).ToLowerInvariant();
-                if (ext == ".png" || ext == ".jpg" || ext == ".jpeg")
+                if (extensionsToDelete.Contains(ext))
                 {
                     try
                     {

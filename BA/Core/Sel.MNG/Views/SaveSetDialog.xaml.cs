@@ -1,7 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Input;
 
-namespace BATools.SelectionManager.Views
+namespace BA.SelectionManager.Views
 {
     public partial class SaveSetDialog : Window
     {

@@ -45,6 +45,10 @@ namespace BA.UI
 
         private readonly AddParamEventHandler _addParamHandler;
         private readonly ExternalEvent _addParamEvent;
+
+        private readonly AddFavoriteParamsEventHandler _addFavoritesHandler; // <- NEW
+        private readonly ExternalEvent _addFavoritesEvent; // <- NEW
+
         private readonly ObservableCollection<FavoriteItem> _favorites = new(); // <- ADD
         // ===================== Constructors =====================
 
@@ -65,7 +69,8 @@ namespace BA.UI
             LoadParameters();
             InitializeEventHandlers(out _handler, out _extEvent,
                                     out _duplicateHandler, out _duplicateEvent,
-                                    out _addParamHandler, out _addParamEvent);
+                                    out _addParamHandler, out _addParamEvent,
+                                    out _addFavoritesHandler, out _addFavoritesEvent); // <- NEW
             InitializeFilterAndFavorites(); // <- ADD this line to both constructors
         }
 
@@ -85,7 +90,8 @@ namespace BA.UI
             LoadParameters();
             InitializeEventHandlers(out _handler, out _extEvent,
                                     out _duplicateHandler, out _duplicateEvent,
-                                    out _addParamHandler, out _addParamEvent);
+                                    out _addParamHandler, out _addParamEvent,
+                                    out _addFavoritesHandler, out _addFavoritesEvent); // <- NEW
             InitializeFilterAndFavorites(); // <- ADD this line to both constructors
         }
 
@@ -94,7 +100,8 @@ namespace BA.UI
         private void InitializeEventHandlers(
             out HarmonizerEventHandler handler, out ExternalEvent extEvent,
             out DuplicateParamEventHandler dupHandler, out ExternalEvent dupEvent,
-            out AddParamEventHandler addHandler, out ExternalEvent addEvent)
+            out AddParamEventHandler addHandler, out ExternalEvent addEvent,
+            out AddFavoriteParamsEventHandler addFavoritesHandler, out ExternalEvent addFavoritesEvent) // <- NEW
         {
             handler = new HarmonizerEventHandler
             {
@@ -109,6 +116,9 @@ namespace BA.UI
 
             addHandler = new AddParamEventHandler { Document = _doc };
             addEvent = ExternalEvent.Create(addHandler);
+
+            addFavoritesHandler = new AddFavoriteParamsEventHandler { Document = _doc }; // <- NEW
+            addFavoritesEvent = ExternalEvent.Create(addFavoritesHandler); // <- NEW
         }
 
         // ===================== Parameter loading =====================
@@ -632,6 +642,8 @@ namespace BA.UI
                     SubText = subText,
                     TargetName = row.TargetName ?? "",
                     MatchedShared = row.MatchedShared ?? "",
+                    IsInstance = string.Equals(row.Scope, "Instance", StringComparison.OrdinalIgnoreCase), // <- NEW
+                    GroupTypeId = row.GroupTypeId ?? "" // <- NEW
                 });
                 added++;
             }
@@ -685,6 +697,136 @@ namespace BA.UI
 
             MessageBox.Show(msg);
         }
+
+        // ===================== Add favorites as new parameters ===================== // <- NEW
+
+        private void BtnAddFavoritesToFamily_Click(object sender, RoutedEventArgs e) // <- NEW
+        {
+            if (_doc == null || !_doc.IsFamilyDocument)
+            {
+                MessageBox.Show("Active document is not a family.");
+                return;
+            }
+
+            var checkedFavs = _favorites.Where(f => f.IsChecked).ToList();
+            if (checkedFavs.Count == 0)
+            {
+                MessageBox.Show("Check one or more favorites to add.");
+                return;
+            }
+
+            // Resolve against the currently configured shared parameter file, same as
+            // Preview / Custom Replace / Add Parameter already do above.
+            Dictionary<string, Definition> lookup;
+            try
+            {
+                var spOverride = TxtSharedParamPath?.Text ?? string.Empty;
+                SharedParamUtils.LoadSharedParameterFile(
+                    _uiApp.Application,
+                    string.IsNullOrWhiteSpace(spOverride) ? null : spOverride);
+                lookup = SharedParamUtils.BuildExternalDefinitionLookup();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed to load shared parameter file: " + ex.Message);
+                return;
+            }
+
+            var existingNames = new HashSet<string>(
+                Parameters.Select(p => p.Name),
+                StringComparer.OrdinalIgnoreCase);
+
+            var requests = new List<FavoriteAddRequest>();
+            var preSkipped = new List<string>();
+
+            foreach (var fav in checkedFavs)
+            {
+                var sharedName = (fav.MatchedShared ?? fav.TargetName ?? "").Trim();
+
+                if (string.IsNullOrWhiteSpace(sharedName))
+                {
+                    preSkipped.Add($"{fav.DisplayName} (no shared parameter saved on this favorite)");
+                    continue;
+                }
+
+                if (existingNames.Contains(sharedName))
+                {
+                    preSkipped.Add($"{sharedName} (already exists in this family)");
+                    continue;
+                }
+
+                if (!lookup.TryGetValue(sharedName, out var def) || def is not ExternalDefinition extDef)
+                {
+                    preSkipped.Add($"{sharedName} (not found in shared parameter file)");
+                    continue;
+                }
+
+                ForgeTypeId groupId;
+                try
+                {
+                    groupId = string.IsNullOrWhiteSpace(fav.GroupTypeId)
+                        ? GroupTypeId.Data
+                        : new ForgeTypeId(fav.GroupTypeId);
+                }
+                catch
+                {
+                    groupId = GroupTypeId.Data;
+                }
+
+                requests.Add(new FavoriteAddRequest
+                {
+                    DisplayName = sharedName,
+                    SharedDefinition = extDef,
+                    TargetGroupTypeId = groupId,
+                    IsInstance = fav.IsInstance
+                });
+            }
+
+            if (requests.Count == 0)
+            {
+                var msg = "Nothing to add.";
+                if (preSkipped.Count > 0)
+                    msg += "\n\nSkipped:\n" + string.Join("\n", preSkipped);
+                MessageBox.Show(msg, "Add Favorites to Family");
+                return;
+            }
+
+            _addFavoritesHandler.Requests.Clear();
+            _addFavoritesHandler.Requests.AddRange(requests);
+            _addFavoritesHandler.Document = _doc;
+
+            _addFavoritesHandler.OnComplete = newNames =>
+            {
+                LoadParameters();
+
+                var succeeded = newNames.Where(n => n != null).ToList();
+                var failed = newNames.Count(n => n == null);
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"Added {succeeded.Count} of {requests.Count} favorite parameter(s).");
+                foreach (var n in succeeded) sb.AppendLine($"  \u2192 {n}");
+                if (failed > 0)
+                    sb.AppendLine($"\n{failed} failed. Check the log.");
+                if (preSkipped.Count > 0)
+                    sb.AppendLine("\nSkipped before running:\n" + string.Join("\n", preSkipped));
+
+                MessageBox.Show(sb.ToString(), "Add Favorites to Family");
+
+                if (succeeded.Count > 0)
+                {
+                    var lastNew = Parameters.FirstOrDefault(p =>
+                        p.Name.Equals(succeeded.Last(), StringComparison.OrdinalIgnoreCase));
+                    if (lastNew != null)
+                    {
+                        DgParameters.SelectedItem = lastNew;
+                        DgParameters.ScrollIntoView(lastNew);
+                    }
+                }
+            };
+
+            _addFavoritesEvent.Raise();
+        }
+
         // ===================== Favorites persistence =====================
 
         private static readonly string FavoritesPath = System.IO.Path.Combine(
@@ -801,6 +943,19 @@ namespace BA.UI
         public string SubText { get; set; } = "";
         public string TargetName { get; set; } = "";
         public string MatchedShared { get; set; } = "";
+
+        /// <summary>
+        /// Instance/Type scope captured from the source row when the favorite was
+        /// saved. Used when this favorite is added as a brand new parameter.
+        /// </summary>
+        public bool IsInstance { get; set; } = true; // <- NEW
+
+        /// <summary>
+        /// ForgeTypeId.TypeId string of the parameter group captured from the source
+        /// row when the favorite was saved. Used when this favorite is added as a
+        /// brand new parameter. Falls back to GroupTypeId.Data if empty or invalid.
+        /// </summary>
+        public string GroupTypeId { get; set; } = ""; // <- NEW
 
         [JsonIgnore]   // <- ADD: UI toggle state must not be persisted
         public bool IsChecked

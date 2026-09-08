@@ -492,7 +492,7 @@ namespace BA.Markup.Services
 
             SharedParameterBindingService.EnsureBound(
                 _doc,
-                _settings.SharedParameterFilePath,
+                SharedParamPaths.WIP2,
                 SharedParamGroupName,
                 paramName,
                 builtInCategory,

@@ -1,4 +1,4 @@
-﻿// File: BA_Tools/CadPurge/ViewModels/CadPurgeViewModel.cs
+﻿// File: BA_Tools/CAD Purge/ViewModels/CadPurgeViewModel.cs
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -11,14 +11,15 @@ using BA.CadPurge.Models;
 using BA.CadPurge.Services;
 using BA.UI.ExternalEvents;
 using BA.UI.Mvvm;
-using CommunityToolkit.Mvvm.ComponentModel;
+using RelayCommand = BA.UI.Mvvm.RelayCommand;
+
 
 namespace BA.CadPurge.ViewModels
 {
     /// <summary>
     /// Top-level ViewModel for the CAD Purge tool window. Deliberately holds no cached Document or
-    /// UIDocument reference: this is a modeless window (see CadPurgeCommand, Stage 5), so the
-    /// active document can change while the window stays open. Every operation re-resolves
+    /// UIDocument reference: this is a modeless window (see CadPurgeCommand), so the active
+    /// document can change while the window stays open. Every operation re-resolves
     /// uiApp.ActiveUIDocument fresh, inside the AppExternalInvoker callback, at the moment the
     /// operation actually runs.
     ///
@@ -36,6 +37,24 @@ namespace BA.CadPurge.ViewModels
         private readonly PurgeBatchExecutor _batchExecutor;
 
         private MappingConfig _loadedConfig;
+
+        /// <summary>
+        /// The set of candidate row view models currently highlighted together in the active
+        /// DataGrid, as reported by CadPurgeWindow's SelectionChanged bridge (see
+        /// SetHighlightedGroup). When SelectedAction changes on a member of a group with more than
+        /// one entry, that same action is applied to every other member. Deliberately named
+        /// "Highlighted" rather than "Selected" to avoid colliding with the existing meaning of
+        /// SelectedAction and ApplySelectedCommand, which refer to a candidate having an action
+        /// queued, not to a row being highlighted in the grid.
+        /// </summary>
+        private readonly List<PurgeCandidateViewModel> _highlightedGroup = new();
+
+        /// <summary>
+        /// Guards against re-entrant propagation while OnCandidateVmPropertyChanged is itself
+        /// setting SelectedAction on the other members of the highlighted group, since each of
+        /// those assignments raises its own PropertyChanged back into this same handler.
+        /// </summary>
+        private bool _isApplyingGroupAction;
 
         public ObservableCollection<PurgeCandidateViewModel> LinePatternCandidates { get; } = new();
         public ObservableCollection<PurgeCandidateViewModel> TextStyleCandidates { get; } = new();
@@ -57,10 +76,10 @@ namespace BA.CadPurge.ViewModels
             private set => SetProperty(ref _statusMessage, value);
         }
 
-        public BA.UI.Mvvm.RelayCommand ScanCommand { get; }
-        public BA.UI.Mvvm.RelayCommand ApplySelectedCommand { get; }
-        public BA.UI.Mvvm.RelayCommand SelectAllMappableCommand { get; }
-        public BA.UI.Mvvm.RelayCommand ClearSelectionCommand { get; }
+        public RelayCommand ScanCommand { get; }
+        public RelayCommand ApplySelectedCommand { get; }
+        public RelayCommand SelectAllMappableCommand { get; }
+        public RelayCommand ClearSelectionCommand { get; }
 
         public CadPurgeViewModel()
         {
@@ -70,13 +89,26 @@ namespace BA.CadPurge.ViewModels
             _resolverService = new CorporateStandardResolverService(_templateLoader);
             _batchExecutor = new PurgeBatchExecutor(_resolverService, new LinePatternMappingService(), new TextStyleMappingService());
 
-            ScanCommand = new BA.UI.Mvvm.RelayCommand(_ => Scan(), _ => !IsBusy);
-            ApplySelectedCommand = new BA.UI.Mvvm.RelayCommand(_ => ApplySelected(), _ => !IsBusy && HasActionableSelection());
-            SelectAllMappableCommand = new BA.UI.Mvvm.RelayCommand(_ => SelectAllMappable(), _ => !IsBusy);
-            ClearSelectionCommand = new BA.UI.Mvvm.RelayCommand(_ => ClearSelection(), _ => !IsBusy);
+            ScanCommand = new RelayCommand(_ => Scan(), _ => !IsBusy);
+            ApplySelectedCommand = new RelayCommand(_ => ApplySelected(), _ => !IsBusy && HasActionableSelection());
+            SelectAllMappableCommand = new RelayCommand(_ => SelectAllMappable(), _ => !IsBusy);
+            ClearSelectionCommand = new RelayCommand(_ => ClearSelection(), _ => !IsBusy);
 
             LinePatternCandidates.CollectionChanged += (_, __) => OnPropertyChanged(nameof(TotalCandidateCount));
             TextStyleCandidates.CollectionChanged += (_, __) => OnPropertyChanged(nameof(TotalCandidateCount));
+        }
+
+        /// <summary>
+        /// Called by CadPurgeWindow whenever a DataGrid's row highlight settles, after applying
+        /// its own "sticky" logic to survive WPF collapsing a multi row highlight down to one row
+        /// when an interactive cell control is clicked. Replaces the current highlighted group
+        /// wholesale; the caller is expected to pass the full, current membership each time, not a
+        /// delta.
+        /// </summary>
+        public void SetHighlightedGroup(IEnumerable<PurgeCandidateViewModel> items)
+        {
+            _highlightedGroup.Clear();
+            _highlightedGroup.AddRange(items);
         }
 
         private bool HasActionableSelection()
@@ -97,15 +129,29 @@ namespace BA.CadPurge.ViewModels
             StatusMessage = "Scanning active document...";
             RaiseCommandsCanExecuteChanged();
 
+            AppLogger.LogInfo("[CadPurge] Scan: starting. Raising ExternalEvent."); // <- NEW
+
             AppExternalInvoker.Instance.Run(
                 uiApp =>
                 {
+                    AppLogger.LogInfo("[CadPurge] Scan: ExternalEvent fired, running on Revit thread. Resolving active document..."); // <- NEW
+
                     Document doc = uiApp.ActiveUIDocument?.Document
                         ?? throw new InvalidOperationException("No active document. Open a project document before scanning.");
 
+                    AppLogger.LogInfo($"[CadPurge] Scan: active document = '{doc.Title}'. Opening reference template '{config.TemplateFilePath}' for baseline..."); // <- NEW
+
                     TemplateBaselineSnapshot baseline = _templateLoader.LoadBaseline(uiApp.Application, config.TemplateFilePath);
+
+                    AppLogger.LogInfo($"[CadPurge] Scan: baseline loaded ({baseline.LinePatternNames.Count} line pattern name(s), {baseline.TextStyleNames.Count} text style name(s)). Scanning line patterns and text styles..."); // <- NEW
+
                     List<PurgeCandidate> lineAndTextCandidates = _scanService.ScanLinePatternsAndTextStyles(doc, config, baseline);
+
+                    AppLogger.LogInfo($"[CadPurge] Scan: found {lineAndTextCandidates.Count} line pattern/text style candidate(s). Scanning DWG imports..."); // <- NEW
+
                     List<DwgImportReportEntry> dwgReport = _scanService.ScanDwgImports(doc);
+
+                    AppLogger.LogInfo($"[CadPurge] Scan: found {dwgReport.Count} DWG import(s). Scan complete, returning to UI thread."); // <- NEW
 
                     return (lineAndTextCandidates, dwgReport);
                 },
@@ -115,6 +161,8 @@ namespace BA.CadPurge.ViewModels
 
                     foreach (PurgeCandidateViewModel existing in LinePatternCandidates.Concat(TextStyleCandidates))
                         existing.PropertyChanged -= OnCandidateVmPropertyChanged;
+
+                    _highlightedGroup.Clear();
 
                     LinePatternCandidates.Clear();
                     TextStyleCandidates.Clear();
@@ -221,10 +269,42 @@ namespace BA.CadPurge.ViewModels
             RaiseCommandsCanExecuteChanged();
         }
 
+        /// <summary>
+        /// Also carries the group propagation: when SelectedAction changes on a candidate that
+        /// belongs to a highlighted group of more than one row, the same new action value is
+        /// applied to every other member of that group. Siblings without a proposed mapping are
+        /// left untouched when the new value is MapToStandard, since PurgeCandidateViewModel's own
+        /// SelectedAction setter already no-ops that case; this mirrors what the per row dropdown
+        /// has always done, it just now also happens as a side effect of editing a sibling.
+        /// </summary>
         private void OnCandidateVmPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(PurgeCandidateViewModel.SelectedAction))
-                RaiseCommandsCanExecuteChanged();
+            if (e.PropertyName != nameof(PurgeCandidateViewModel.SelectedAction))
+                return;
+
+            if (!_isApplyingGroupAction
+                && sender is PurgeCandidateViewModel changedVm
+                && _highlightedGroup.Count > 1
+                && _highlightedGroup.Contains(changedVm))
+            {
+                _isApplyingGroupAction = true;
+                try
+                {
+                    PurgeAction newAction = changedVm.SelectedAction;
+
+                    foreach (PurgeCandidateViewModel vm in _highlightedGroup)
+                    {
+                        if (!ReferenceEquals(vm, changedVm))
+                            vm.SelectedAction = newAction;
+                    }
+                }
+                finally
+                {
+                    _isApplyingGroupAction = false;
+                }
+            }
+
+            RaiseCommandsCanExecuteChanged();
         }
 
         private void RaiseCommandsCanExecuteChanged()

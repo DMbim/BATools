@@ -1,10 +1,10 @@
 // File: BA_Tools/CAD Purge/Config/corporate_standards.json
 {
-  "templateFilePath": "C:\\BA\\Templates\\BA_RevitTemplate_v26.rte",
+  "templateFilePath": "S:\\CAD\\Autodesk Revit\\_WIP\\Templates\\BA_RevitTemplate_Study_v26.rte",
   "standardPrefix": "BA_",
   "rules": [
 
-    // ---- LinePattern rules: standard AutoCAD ACAD.lin names (English-language DWG sources) ----
+    // ---- LinePattern rules: standard AutoCAD ACAD.lin names (English-language DWG sources) ----S:\CAD\Autodesk Revit\_WIP\Templates
     {
       "itemType": "LinePattern",
       "sourceNamePattern": "ACAD_ISO02*",

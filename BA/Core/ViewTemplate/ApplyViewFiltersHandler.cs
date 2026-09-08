@@ -10,12 +10,11 @@ namespace BA.Core.ViewTemplates
         public ElementId SourceTemplateId { get; set; } = ElementId.InvalidElementId;
         public List<ElementId> TargetTemplateIds { get; } = new List<ElementId>();
         public List<ElementId> SelectedFilterIds { get; } = new List<ElementId>();
-
         public bool CopyEnabledState { get; set; } = true;
         public bool CopyVisibility { get; set; } = true;
         public bool CopyOverrides { get; set; } = true;
+        public bool CopyTransparency { get; set; } = false; // <- NEW, independent from CopyOverrides
         public bool PreserveOrder { get; set; } = false;
-
         public Action<ApplyViewFiltersResult>? OnSuccess { get; set; }
         public Action<Exception>? OnError { get; set; }
     }
@@ -51,6 +50,7 @@ namespace BA.Core.ViewTemplates
                         request.CopyEnabledState,
                         request.CopyVisibility,
                         request.CopyOverrides,
+                        request.CopyTransparency, // <- NEW
                         request.PreserveOrder);
 
                 request.OnSuccess?.Invoke(result);

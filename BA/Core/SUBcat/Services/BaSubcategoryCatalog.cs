@@ -13,20 +13,21 @@ namespace BA.Subcategories.Services
             "BA_Frame",
             "BA_Panel",
             "BA_Glass",
-            "BA_Accessory",
+            "BA_Main",
             "BA_Structure",
-            "BA_Finish_Int",
-            "BA_Finish_Ext",
-            "BA_Coating"
+            "BA_Hardware",
+            "BA_Secondary",
+            "BA_Finish",
+
         };
 
         private static readonly Dictionary<string, IReadOnlyList<string>> ExtrasByName =
             new(System.StringComparer.OrdinalIgnoreCase)
             {
-                { "Doors",               new List<string> { "BA_Threshold", "BA_SwingSymbol" } },
+                { "Doors",               new List<string> { "BA_Threshold", "BA_SwingSymbol", "BA_Trim" } },
                 { "Windows",             new List<string> { "BA_Sill", "BA_Reveal", "BA_Sash" } },
-                { "Casework",            new List<string> { "BA_Carcass", "BA_DrawerFront", "BA_Kickboard" } },
-                { "Furniture",           new List<string> { "BA_Upholstery", "BA_Backrest" } },
+                { "Casework",            new List<string> { "BA_Carcass", "BA_DrawerFront", "BA_Kickboard","BA_Drawers","BA_Shelves","BA_Countertop" } },
+                { "Furniture",           new List<string> { "BA_Upholstery", "BA_Backrest", "BA_Drawers", "BA_Shelves", "BA_Countertop" } },
                 { "Curtain Panels",      new List<string> { "BA_Panel_Vision", "BA_Panel_Spandrel", "BA_Panel_Louver" } },
                 { "Curtain Wall Mullions", new List<string> { "BA_Mullion_Vertical", "BA_Mullion_Horizontal", "BA_PressurePlate" } },
             };
@@ -34,10 +35,10 @@ namespace BA.Subcategories.Services
         private static readonly Dictionary<BuiltInCategory, IReadOnlyList<string>> ExtrasByBic =
             new()
             {
-                { BuiltInCategory.OST_Doors,               new List<string> { "BA_Threshold", "BA_SwingSymbol" } },
+                { BuiltInCategory.OST_Doors,               new List<string> { "BA_Threshold", "BA_SwingSymbol", "BA_Trim" } },
                 { BuiltInCategory.OST_Windows,             new List<string> { "BA_Sill", "BA_Reveal", "BA_Sash" } },
-                { BuiltInCategory.OST_Casework,            new List<string> { "BA_Carcass", "BA_DrawerFront", "BA_Kickboard" } },
-                { BuiltInCategory.OST_Furniture,           new List<string> { "BA_Upholstery", "BA_Backrest" } },
+                { BuiltInCategory.OST_Casework,            new List<string> { "BA_Carcass", "BA_DrawerFront", "BA_Kickboard","BA_Drawers","BA_Shelves","BA_Countertop" } },
+                { BuiltInCategory.OST_Furniture,           new List<string> { "BA_Upholstery", "BA_Backrest", "BA_Drawers", "BA_Shelves", "BA_Countertop" } },
                 { BuiltInCategory.OST_CurtainWallPanels,   new List<string> { "BA_Panel_Vision", "BA_Panel_Spandrel", "BA_Panel_Louver" } },
                 { BuiltInCategory.OST_CurtainWallMullions, new List<string> { "BA_Mullion_Vertical", "BA_Mullion_Horizontal", "BA_PressurePlate" } },
             };

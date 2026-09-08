@@ -11,22 +11,27 @@ namespace BA.BAApplication.Ribbon
     {
         internal static void Build(RibbonPanel panel)
         {
-            panel.AddPushButton<Cmd_FamilyVersioningSetup>(
+
+            var vers = panel.AddPulldownButton<Cmd_FamilyVersioningSetup>(
+                "Versioning", "Family\nVersioning",
+                "Family versioning tools.",
+                IconResources.FamilyParVer_16, IconResources.FamilyParVer_32);
+            vers.AddPushButton<Cmd_FamilyVersioningSetup>(
                 "VersionSetup", "Version\nSetUp",
                 "Set up family versioning.",
                 IconResources.FamilyParVer_16, IconResources.FamilyParVer_32);
 
-            panel.AddPushButton<Cmd_FamilyVersioningDashboard>(
+            vers.AddPushButton<Cmd_FamilyVersioningDashboard>(
                 "VersionDashboard", "Version\nDashboard",
                 "Open the family versioning dashboard.",
                 IconResources.FamilyParVer_16, IconResources.FamilyParVer_32);
 
-            panel.AddPushButton<CmdPublishTypeData>(
+            vers.AddPushButton<CmdPublishTypeData>(
                 "PublishTypeData", "Publish\nType Data",
                 "Publish type data for families.",
                 IconResources.FamilyVer_16, IconResources.FamilyVer_32);
 
-            panel.AddPushButton<CmdOpenLedgerSettings>(
+            vers.AddPushButton<CmdOpenLedgerSettings>(
                 "OpenLedgerSettings", "Ledger\nSettings",
                 "Open the ledger settings.",
                 IconResources.FamilyVer_16, IconResources.FamilyVer_32);

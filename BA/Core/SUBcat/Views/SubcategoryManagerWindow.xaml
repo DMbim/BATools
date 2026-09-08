@@ -1,7 +1,7 @@
 <Window x:Class="BA.Subcategories.Views.SubcategoryManagerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:models="clr-namespace:BA.Subcategories.Models;assembly=BA_Tools"
+        xmlns:models="clr-namespace:BA.Subcategories.Models"
         Title="BA — Subcategory Manager"
         Width="1200" Height="720"
         MinWidth="900" MinHeight="560"
@@ -326,8 +326,10 @@
                                Style="{StaticResource SectionLabel}"/>
 
                     <DataGrid Grid.Row="1"
+                              x:Name="GeometryDataGrid"
                               ItemsSource="{Binding GeometryItems}"
                               SelectedItem="{Binding SelectedGeometryRow}"
+                              SelectionChanged="GeometryDataGrid_SelectionChanged"
                               Style="{StaticResource SmDataGridStyle}"
                               ColumnHeaderStyle="{StaticResource SmHeaderStyle}"
                               RowStyle="{StaticResource SmRowStyle}"

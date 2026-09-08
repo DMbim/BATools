@@ -1,4 +1,4 @@
-﻿namespace BATools.SelectionManager.Models
+﻿namespace BA.SelectionManager.Models
 {
     public enum SetHealthStatus
     {

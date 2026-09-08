@@ -4,6 +4,7 @@ using System.IO;
 using Autodesk.Revit.DB;
 using BA.BAApplication;
 using BA.Core.Export.Models;
+using BA.Core.GhostMarkup;
 
 namespace BA.Core.Export.Services
 {
@@ -12,6 +13,13 @@ namespace BA.Core.Export.Services
     /// in Views mode, ViewSheet derives from View so one method covers
     /// both) to a single DWG. Must be called from a valid Revit API thread
     /// context.
+    ///
+    /// Before the actual export, resolves and hides any BA_NPLT ghost
+    /// markup elements (Text Notes, Detail Lines, Detail Items) so they
+    /// never appear in the output. Uses GhostMarkupHideScope, a
+    /// TransactionGroup rolled back immediately after the export call, so
+    /// the hide never persists in the saved model regardless of export
+    /// success or failure.
     ///
     /// When DwgSettings.PredefinedSetupName is set, every other DwgSettings
     /// field is ignored, the loaded setup (via GetPredefinedOptions(), from
@@ -110,7 +118,16 @@ namespace BA.Core.Export.Services
 
                 var viewIds = new List<ElementId> { view.Id };
 
-                var success = doc.Export(folderPath, fileNameWithoutExtension, viewIds, options);
+                var ghostElementsByView = view is ViewSheet ghostSheet
+                    ? GhostMarkupCollector.CollectForSheet(doc, ghostSheet)
+                    : GhostMarkupCollector.CollectForView(doc, view);
+
+                bool success;
+
+                using (GhostMarkupHideScope.Begin(doc, ghostElementsByView))
+                {
+                    success = doc.Export(folderPath, fileNameWithoutExtension, viewIds, options);
+                }
 
                 outcome.Success = success;
 

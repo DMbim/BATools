@@ -57,7 +57,7 @@
                                     <TextBlock Grid.Column="1"
                                                Style="{StaticResource BaMutedTextDark}"
                                                VerticalAlignment="Center"
-                                               Text="{Binding CurveCount, StringFormat='{}{0} curve(s)'}" />
+                                               Text="{Binding SourceElementCount, StringFormat='{}{0} curve(s)'}" />
                                 </Grid>
 
                                 <!-- Wall type + base level -->

@@ -6,38 +6,53 @@
         SizeToContent="Height"
         WindowStartupLocation="Manual"
         ResizeMode="NoResize"
+        Style="{DynamicResource BaWindow}"
         ShowInTaskbar="False"
         Closing="Window_Closing"
         Loaded="Window_Loaded">
 
     <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BA;component/UI/Resources/AppResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
 
-        <Style TargetType="GroupBox">
-            <Setter Property="Margin" Value="0,6,0,0"/>
-            <Setter Property="Padding" Value="8"/>
-        </Style>
+            <!-- All local implicit styles below extend the shared Ba* styles via BasedOn,
+                 keeping this file's own margin/width tweaks while inheriting dark theming.
+                 Every RadioButton/TextBox/CheckBox/ToolTip in this file is declared bare
+                 (no explicit Style=), relying on these implicit styles picking them up. -->
 
-        <Style TargetType="RadioButton">
-            <Setter Property="Margin" Value="0,3,0,3"/>
-        </Style>
+            <Style TargetType="{x:Type GroupBox}" BasedOn="{StaticResource BaGroupBox}">
+                <Setter Property="Margin" Value="0,6,0,0"/>
+                <Setter Property="Padding" Value="8"/>
+            </Style>
 
-        <Style TargetType="TextBlock" x:Key="LabelStyle">
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="0,0,8,0"/>
-            <Setter Property="Width" Value="150"/>
-        </Style>
+            <Style TargetType="{x:Type RadioButton}" BasedOn="{StaticResource BaRadioButton}">
+                <Setter Property="Margin" Value="0,3,0,3"/>
+            </Style>
 
-        <Style TargetType="TextBox">
-            <Setter Property="Margin" Value="0,2,0,2"/>
-            <Setter Property="Width" Value="80"/>
-            <Setter Property="HorizontalAlignment" Value="Left"/>
-        </Style>
+            <Style TargetType="{x:Type CheckBox}" BasedOn="{StaticResource BaCheckBox}"/>
 
-        <Style TargetType="ToolTip">
-            <Setter Property="MaxWidth" Value="320"/>
-            <Setter Property="Placement" Value="Mouse"/>
-        </Style>
+            <Style TargetType="{x:Type TextBlock}" x:Key="LabelStyle" BasedOn="{StaticResource BaLabelText}">
+                <Setter Property="Margin" Value="0,0,8,0"/>
+                <Setter Property="Width" Value="150"/>
+            </Style>
 
+            <Style TargetType="{x:Type TextBox}" BasedOn="{StaticResource BaTextBox}">
+                <Setter Property="Height" Value="Auto"/>
+                <Setter Property="Margin" Value="0,2,0,2"/>
+                <Setter Property="Width" Value="80"/>
+                <Setter Property="HorizontalAlignment" Value="Left"/>
+            </Style>
+
+            <!-- Extends the app-wide implicit ToolTip style already merged in via
+                 AppResources.xaml, referenced by its own implicit key {x:Type ToolTip}. -->
+            <Style TargetType="{x:Type ToolTip}" BasedOn="{StaticResource {x:Type ToolTip}}">
+                <Setter Property="MaxWidth" Value="320"/>
+                <Setter Property="Placement" Value="Mouse"/>
+            </Style>
+
+        </ResourceDictionary>
     </Window.Resources>
 
     <StackPanel Margin="12"
@@ -314,7 +329,7 @@
                 </StackPanel>
 
                 <TextBlock TextWrapping="Wrap" FontStyle="Italic"
-                           Foreground="Gray" FontSize="11" Margin="0,2,0,0">
+                           Style="{StaticResource BaMutedTextDark}" FontSize="11" Margin="0,2,0,0">
                     Grid topology (columns x rows) grows automatically to keep each element
                     within Max Displacement of its original position.
                 </TextBlock>
@@ -325,8 +340,10 @@
         <!-- ===== BUTTONS ===== -->
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
             <Button x:Name="BtnApply" Content="Apply" Width="80"
+                    Style="{StaticResource BaPrimaryButton}"
                     Margin="0,0,8,0" Click="BtnApply_Click" IsDefault="True"/>
             <Button x:Name="BtnCancel" Content="Cancel" Width="80"
+                    Style="{StaticResource BaSecondaryButton}"
                     Click="BtnCancel_Click" IsCancel="True"/>
         </StackPanel>
 

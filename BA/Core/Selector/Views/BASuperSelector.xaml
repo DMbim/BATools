@@ -7,7 +7,7 @@
         MinHeight="680" MinWidth="800"
         Background="#0B0C0F"
         Foreground="#F2F2F2"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="Manual"
         FontFamily="Segoe UI"
         SnapsToDevicePixels="True">
 

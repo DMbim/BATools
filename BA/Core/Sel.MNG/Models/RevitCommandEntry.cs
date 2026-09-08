@@ -1,6 +1,6 @@
 ﻿using Autodesk.Revit.UI;
 
-namespace BATools.SelectionManager.Models
+namespace BA.SelectionManager.Models
 {
     public record RevitCommandEntry(
         PostableCommand Command,

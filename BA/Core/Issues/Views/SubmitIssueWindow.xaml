@@ -2,13 +2,14 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Submit Issue"
-        Height="610"
+        Height="660"
         Width="660"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         Background="#0B0C0F"
         Foreground="#F2F2F2"
-        FontFamily="Segoe UI">
+        FontFamily="Segoe UI"
+        PreviewKeyDown="Window_PreviewKeyDown">
 
     <Window.Resources>
         <ResourceDictionary>
@@ -20,6 +21,7 @@
 
     <Grid Margin="18">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -49,6 +51,7 @@
                            Foreground="{StaticResource Brush.DarkPanelFg}"/>
             </StackPanel>
         </Border>
+
         <!-- Category row -->
         <Grid Grid.Row="2" Margin="0,0,0,12">
             <Grid.ColumnDefinitions>
@@ -63,22 +66,8 @@
             <ComboBox x:Name="CategoryComboBox"
               Grid.Column="1"
               Height="30"
+              SelectionChanged="CategoryComboBox_SelectionChanged"
               Style="{StaticResource BaDarkComboBox}"/>
-        </Grid>
-        <!-- Command row -->
-        <!-- Category row -->
-        <Grid Grid.Row="2" Margin="0,0,0,12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="110"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <TextBlock Text="Category:"
-               Foreground="{StaticResource Brush.MutedTextDarkShell}"
-               VerticalAlignment="Center"/>
-
-
-
         </Grid>
 
         <!-- Source row -->
@@ -98,6 +87,48 @@
               IsEditable="True"
               Style="{StaticResource BaDarkComboBox}"/>
         </Grid>
+
+        <!-- Screenshot row (NEW) -->
+        <StackPanel Grid.Row="4" Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="110"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="Screenshot:"
+                           Foreground="{StaticResource Brush.MutedTextDarkShell}"
+                           VerticalAlignment="Center"/>
+
+                <TextBlock Grid.Column="1"
+                           Text="Press Win+Shift+S to snip an area, then Ctrl+V anywhere in this window to attach it."
+                           Foreground="{StaticResource Brush.MutedTextDarkShell}"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Center"/>
+
+                <Button x:Name="RemoveScreenshotButton"
+                        Grid.Column="2"
+                        Content="Remove Image"
+                        Width="110"
+                        Style="{StaticResource BaSecondaryButton}"
+                        Click="RemoveScreenshotButton_Click"
+                        Visibility="Collapsed"/>
+            </Grid>
+
+            <Border x:Name="ScreenshotPreviewBorder"
+                    Style="{StaticResource BaDarkPanelBorder}"
+                    Margin="0,8,0,0"
+                    Padding="4"
+                    HorizontalAlignment="Left"
+                    Visibility="Collapsed">
+                <Image x:Name="ScreenshotPreviewImage"
+                       MaxHeight="140"
+                       MaxWidth="300"
+                       Stretch="Uniform"/>
+            </Border>
+        </StackPanel>
+
         <!-- Issue -->
         <Grid Grid.Row="5" Margin="0,0,0,12">
             <Grid.RowDefinitions>

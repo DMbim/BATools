@@ -133,6 +133,7 @@ namespace BA.IssueReporter.Services
             existing.Command = updatedIssue.Command;
             existing.Issue = updatedIssue.Issue;
             existing.Suggestion = updatedIssue.Suggestion;
+            existing.ImagePath = updatedIssue.ImagePath; // NEW, keeps the attachment path in sync on any update
             existing.User = updatedIssue.User;
             existing.SubmittedAt = updatedIssue.SubmittedAt;
             existing.ProjectName = updatedIssue.ProjectName;
@@ -148,7 +149,7 @@ namespace BA.IssueReporter.Services
         {
             var sb = new StringBuilder();
 
-            sb.AppendLine("Number,Category,Status,Command,User,SubmittedAt,ProjectName,ProjectPath,Issue,Suggestion,ManagerComment,LastUpdatedBy,LastUpdatedAt");
+            sb.AppendLine("Number,Category,Status,Command,User,SubmittedAt,ProjectName,ProjectPath,Issue,Suggestion,ManagerComment,LastUpdatedBy,LastUpdatedAt,ImagePath");
 
             foreach (var issue in issues)
             {
@@ -165,7 +166,8 @@ namespace BA.IssueReporter.Services
                     Csv(issue.Suggestion),
                     Csv(issue.ManagerComment),
                     Csv(issue.LastUpdatedBy),
-                    Csv(issue.LastUpdatedAt?.ToString("yyyy-MM-dd HH:mm") ?? "")
+                    Csv(issue.LastUpdatedAt?.ToString("yyyy-MM-dd HH:mm") ?? ""),
+                    Csv(issue.ImagePath) // NEW
                 ));
             }
 

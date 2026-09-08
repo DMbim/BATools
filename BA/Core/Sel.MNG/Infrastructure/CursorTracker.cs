@@ -4,7 +4,7 @@ using System.Windows;
 using System.Windows.Threading;
 using Point = System.Windows.Point;
 
-namespace BATools.SelectionManager.Infrastructure
+namespace BA.SelectionManager.Infrastructure
 {
     /// <summary>
     /// Polls cursor position at ~60fps and fires PositionChanged.

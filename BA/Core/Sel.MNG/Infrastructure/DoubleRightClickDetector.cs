@@ -2,7 +2,7 @@
 using System.Windows;
 using Point = System.Windows.Point;
 
-namespace BATools.SelectionManager.Infrastructure
+namespace BA.SelectionManager.Infrastructure
 {
     /// <summary>
     /// Detects two right-clicks within a time window and spatial proximity.

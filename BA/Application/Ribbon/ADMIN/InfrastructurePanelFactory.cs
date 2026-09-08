@@ -8,7 +8,7 @@ using BA.Commands.Management;
 using BA.Ribbon;
 using BA.UI.BimHub.Commands;
 using BA.UI.Commands.Management;
-using BATools.SelectionManager.Commands;
+using BA.SelectionManager.Commands;
 
 namespace BA.BAApplication.Ribbon
 {
@@ -38,7 +38,7 @@ namespace BA.BAApplication.Ribbon
             var (settings, updates) = panel.AddStackedButtons<Cmd_Settings, Cmd_CheckForUpdates>(
                 "Settings", "Project\nSettings",
                 "CheckForUpdates", "Check for\nUpdates",
-                IconResources.ArAnno16, IconResources.ArAnno16,
+                IconResources.BATools_16, IconResources.BATools_32,
                 "General Plugin Settings",
                 "Check GitHub for a newer BA Tools release and update now if one is available.");
 
@@ -57,10 +57,7 @@ namespace BA.BAApplication.Ribbon
                 "Open the Content Browser to browse and load content from the BIM Hub.",
                 IconResources.ContentBrowser16, IconResources.ContentBrowser32);    
 
-            panel.AddPushButton<Cmd_ViewTemplateTransfer>(
-                "ViewTemplateTransfer", "View Template\nTransfer",
-                "Transfer view templates from one view to another.",
-                IconResources.ViewTemplate16, IconResources.ViewTemplate32);
+
 
             panel.AddPushButton<Cmd_OpenWarningsDashboard>(
                   "OpenWarningsDashboard", "Warnings\nDashboard",

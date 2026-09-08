@@ -8,12 +8,13 @@ using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 
 namespace BA.Zoom.Commands
 {
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     public class Cmd_ZoomToSelectedElement : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uiDoc = commandData.Application.ActiveUIDocument;
+            UIApplication uiApp = commandData.Application;
+            UIDocument uiDoc = uiApp.ActiveUIDocument;
             Document doc = uiDoc.Document;
             var view = doc.ActiveView;
 
@@ -48,15 +49,31 @@ namespace BA.Zoom.Commands
             XYZ maxXY = new XYZ(Math.Max(bb.Min.X, bb.Max.X), Math.Max(bb.Min.Y, bb.Max.Y), 0);
             ZoomGeometryHelper.NormalizeAndBufferRectangle(ref minXY, ref maxXY, 600);
 
-            var uiView = uiDoc.GetOpenUIViews().FirstOrDefault(v => v.ViewId == view.Id);
-            if (uiView == null)
-            {
-                TaskDialog.Show("Zoom to Element", "UIView for the active view not found.");
-                return Result.Failed;
-            }
+            long elId = el.Id.Value;
+            bool cropWasDisabled = false;
+            string adjustmentNote = null;
+            string cropLockedMessage = null;
 
-            uiView.ZoomAndCenterRectangle(minXY, maxXY);
-            TaskDialog.Show("Zoom to Element", $"Zoomed to element {el.Id.Value}.");
+            ZoomDeferredExecutor.RunAfterViewIsOpen(uiApp, view,
+                onEachTick: () =>
+                {
+                    var uiView = uiDoc.GetOpenUIViews().FirstOrDefault(v => v.ViewId == view.Id);
+                    if (uiView == null) return;
+
+                    cropWasDisabled = ZoomCropHelper.EnsureRectangleVisible(doc, view, minXY, maxXY, out cropLockedMessage, out adjustmentNote); // <- CHANGED, argument order fixed
+                    uiView.ZoomAndCenterRectangle(minXY, maxXY);
+                },
+                onFinished: () =>
+                {
+                    if (cropLockedMessage != null)
+                        TaskDialog.Show("Zoom to Element", cropLockedMessage);
+
+                    string resultMessage = $"Zoomed to element {elId}.";
+                    if (cropWasDisabled)
+                        resultMessage += " " + adjustmentNote;
+                    TaskDialog.Show("Zoom to Element", resultMessage);
+                });
+
             return Result.Succeeded;
         }
     }

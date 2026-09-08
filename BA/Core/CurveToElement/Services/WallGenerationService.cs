@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq; // <- NEW, needed for Select/Distinct in CollectGroupCurvesForDeletion
 using Autodesk.Revit.DB;
 using BA.BAApplication;
 using BA.Core.CurveToElement.Models;
@@ -102,6 +103,12 @@ namespace BA.Core.CurveToElement.Services
         /// curve count, but greater than zero) nothing in the group is queued for deletion, and
         /// a warning explains why - deleting a line whose wall never got created would silently
         /// destroy the user's only remaining reference to that geometry.
+        ///
+        /// DetailLineClassificationService facets Ellipse/spline source curves into several
+        /// ClassifiableCurve entries that all share one SourceElementId. Distinct() here keeps
+        /// this a one-id-per-source-element list instead of queueing the same source element for
+        /// deletion once per facet (Document.Delete tolerates duplicate ids, but there is no
+        /// reason to rely on that).
         /// </summary>
         private void CollectGroupCurvesForDeletion(
             GroupGenerationRequest request,
@@ -113,16 +120,16 @@ namespace BA.Core.CurveToElement.Services
 
             if (createdInGroup == totalCurvesInGroup && totalCurvesInGroup > 0)
             {
-                foreach (ClassifiableCurve curve in request.Group.Curves)
+                foreach (ElementId sourceId in request.Group.Curves.Select(c => c.SourceElementId).Distinct()) // <- CHANGED (was a plain foreach over Curves, now deduped by source)
                 {
-                    elementIdsToDelete.Add(curve.SourceElementId);
+                    elementIdsToDelete.Add(sourceId);
                 }
             }
             else if (createdInGroup > 0)
             {
                 int failedCount = totalCurvesInGroup - createdInGroup;
                 warnings.Add(
-                    $"Group '{request.Group.StyleName}': {failedCount} of {totalCurvesInGroup} source line(s) did not " +
+                    $"Group '{request.Group.StyleName}': {failedCount} of {totalCurvesInGroup} curve segment(s) did not " + // <- CHANGED wording ("curve segment(s)", was "source line(s)") since totalCurvesInGroup now counts facets, not just source elements
                     "produce a wall. None of this group's source lines were deleted, to avoid losing geometry that " +
                     "has no corresponding wall.");
             }

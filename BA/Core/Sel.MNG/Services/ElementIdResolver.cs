@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 
-namespace BATools.SelectionManager.Services
+namespace BA.SelectionManager.Services
 {
     /// <summary>
     /// Resolves UniqueIds (persistent across sessions) to runtime ElementIds.

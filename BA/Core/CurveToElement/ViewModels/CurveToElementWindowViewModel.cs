@@ -18,8 +18,8 @@ using System.Windows.Input;
 namespace BA.ViewModels.CurveToElement
 {
     /// <summary>
-    /// Container ViewModel for the Curve-to-Element (detail line -> wall) settings window.
-    /// Owns the per-group ViewModels, routes async preview results from
+    /// Container ViewModel for the Curve-to-Element (detail line/model line -> wall) settings
+    /// window. Owns the per-group ViewModels, routes async preview results from
     /// WallFaceOffsetPreviewHandler back to the correct group, aggregates validation across
     /// all groups, and hands off a fully-validated generation payload via RequestGenerate.
     ///
@@ -42,7 +42,8 @@ namespace BA.ViewModels.CurveToElement
             ObservableCollection<WallTypeOption> availableWallTypes,
             ObservableCollection<LevelOption> availableLevels,
             Units documentUnits,
-            WallFaceOffsetPreviewHandler previewHandler)
+            WallFaceOffsetPreviewHandler previewHandler,
+            LevelOption defaultBaseLevel) // <- NEW parameter
         {
             if (classifiedGroups == null) throw new ArgumentNullException(nameof(classifiedGroups));
             AvailableWallTypes = availableWallTypes ?? throw new ArgumentNullException(nameof(availableWallTypes));
@@ -64,14 +65,15 @@ namespace BA.ViewModels.CurveToElement
                     AvailableWallTypes,
                     AvailableLevels,
                     documentUnits,
-                    RequestPreviewForGroup);
+                    RequestPreviewForGroup,
+                    defaultBaseLevel); // <- NEW argument, same default handed to every group
 
                 Groups.Add(groupViewModel);
             }
 
             _previewHandler.ResultReady += OnPreviewResultReady;
 
-            GenerateCommand = new BA.UI.Mvvm.RelayCommand(_ => ExecuteGenerate (), _ => CanExecuteGenerate());
+            GenerateCommand = new BA.UI.Mvvm.RelayCommand(_ => ExecuteGenerate(), _ => CanExecuteGenerate());
             CancelCommand = new BA.UI.Mvvm.RelayCommand(_ => ExecuteCancel());
         }
 

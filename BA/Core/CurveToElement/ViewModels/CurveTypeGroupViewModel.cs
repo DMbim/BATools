@@ -2,9 +2,10 @@
 // Action: REPLACE (full file)
 
 using System;
-using System.Collections.Generic; // <- NEW
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Linq; // <- NEW, needed for SourceElementCount
 using Autodesk.Revit.DB;
 using BA.Core.CurveToElement.Models;
 using BA.Core.CurveToElement.Services;
@@ -37,21 +38,29 @@ namespace BA.ViewModels.CurveToElement
 
         public CurveTypeGroupViewModel(
             CurveTypeGroup group,
-            IReadOnlyList<CurveChain> chains, // <- NEW (replaces the old standalone hasOpenChain bool)
+            IReadOnlyList<CurveChain> chains,
             ObservableCollection<WallTypeOption> availableWallTypes,
             ObservableCollection<LevelOption> availableLevels,
             Units documentUnits,
-            Action<Guid, ElementId> requestPreview)
+            Action<Guid, ElementId> requestPreview,
+            LevelOption defaultBaseLevel) // <- NEW parameter
         {
             Group = group ?? throw new ArgumentNullException(nameof(group));
-            Chains = chains ?? throw new ArgumentNullException(nameof(chains)); // <- NEW
+            Chains = chains ?? throw new ArgumentNullException(nameof(chains));
             _requestPreview = requestPreview ?? throw new ArgumentNullException(nameof(requestPreview));
             _documentUnits = documentUnits ?? throw new ArgumentNullException(nameof(documentUnits));
 
             GroupId = Guid.NewGuid();
-            HasOpenChain = Chains.Count > 0 && !AllChainsClosed(Chains); // <- CHANGED (derived, not passed in)
+            HasOpenChain = Chains.Count > 0 && !AllChainsClosed(Chains);
             AvailableWallTypes = availableWallTypes ?? throw new ArgumentNullException(nameof(availableWallTypes));
             AvailableLevels = availableLevels ?? throw new ArgumentNullException(nameof(availableLevels));
+
+            // <- NEW: preselect Base Level directly on the backing field. This runs before
+            // DataContext is assigned in the window's code-behind, so no WPF binding is
+            // subscribed to PropertyChanged yet - going through the SelectedBaseLevel setter
+            // (SetProperty) here would be harmless but pointless, this is the same pattern the
+            // codebase already uses for _unconnectedHeightText below.
+            _selectedBaseLevel = defaultBaseLevel;
 
             _unconnectedHeightText = FormatFeetForDisplay(9.8425);
         }
@@ -65,10 +74,21 @@ namespace BA.ViewModels.CurveToElement
         /// generation time, so the UI's HasOpenChain state and the generated geometry are
         /// guaranteed to be based on identical chain data.
         /// </summary>
-        public IReadOnlyList<CurveChain> Chains { get; } // <- NEW
+        public IReadOnlyList<CurveChain> Chains { get; }
 
         public string StyleName => Group.StyleName;
         public int CurveCount => Group.Curves.Count;
+
+        /// <summary>
+        /// Number of distinct source elements (DetailCurve/ModelCurve) the user actually picked
+        /// for this group, as opposed to CurveCount, which counts individual ClassifiableCurve
+        /// entries and therefore includes every facet DetailLineClassificationService produced
+        /// when faceting an Ellipse or spline into Line segments. The window's header displays
+        /// this, not CurveCount, so a single selected ellipse reads as "1 curve(s)" rather than
+        /// however many facets it was broken into.
+        /// </summary>
+        public int SourceElementCount => Group.Curves.Select(c => c.SourceElementId).Distinct().Count(); // <- NEW
+
         public bool HasOpenChain { get; }
 
         public ObservableCollection<WallTypeOption> AvailableWallTypes { get; }
@@ -320,7 +340,7 @@ namespace BA.ViewModels.CurveToElement
             return true;
         }
 
-        private static bool AllChainsClosed(IReadOnlyList<CurveChain> chains) // <- NEW
+        private static bool AllChainsClosed(IReadOnlyList<CurveChain> chains)
         {
             for (int i = 0; i < chains.Count; i++)
             {

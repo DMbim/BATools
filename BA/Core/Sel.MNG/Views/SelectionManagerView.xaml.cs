@@ -1,11 +1,11 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using BATools.SelectionManager.ViewModels;
+using BA.SelectionManager.ViewModels;
 using TextBox = System.Windows.Controls.TextBox;
 using UserControl = System.Windows.Controls.UserControl;
 
-namespace BATools.SelectionManager.Views
+namespace BA.SelectionManager.Views
 {
     public partial class SelectionManagerView : UserControl
     {

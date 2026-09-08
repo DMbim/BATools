@@ -3,10 +3,10 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
-using BATools.SelectionManager.ViewModels;
+using BA.SelectionManager.ViewModels;
 using Point = System.Windows.Point;
 
-namespace BATools.SelectionManager.Views
+namespace BA.SelectionManager.Views
 {
     public partial class RecentToolbarWindow : Window
     {

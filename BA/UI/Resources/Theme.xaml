@@ -1,48 +1,35 @@
-﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+﻿ <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
     <!-- =========================================================
          BA UI THEME
          Single flat dark theme.
-         Consolidated from the previous light panel / dark shell
-         split. All former "light" and "Dark" key pairs are kept
-         for backward compatibility with existing XAML, but now
-         resolve to the same values, so nothing needs to change
-         in windows that already reference the old keys.
          ========================================================= -->
 
     <!-- =========================================================
          Brushes
          ========================================================= -->
 
-    <!-- Window / shell -->
     <SolidColorBrush x:Key="Brush.WindowBg" Color="#0F0F10"/>
     <SolidColorBrush x:Key="Brush.WindowFg" Color="#F2F2F2"/>
 
-    <!-- Panel (formerly split into light and dark, now one) -->
     <SolidColorBrush x:Key="Brush.PanelBg" Color="#17181A"/>
     <SolidColorBrush x:Key="Brush.PanelFg" Color="#F2F2F2"/>
     <SolidColorBrush x:Key="Brush.PanelBorder" Color="#3A3A3D"/>
 
-    <!-- Kept as aliases so BaDarkPanelBorder, BaDarkPanelText, etc still resolve -->
     <SolidColorBrush x:Key="Brush.DarkPanelBg" Color="#17181A"/>
     <SolidColorBrush x:Key="Brush.DarkPanelFg" Color="#F2F2F2"/>
     <SolidColorBrush x:Key="Brush.DarkPanelBorder" Color="#3A3A3D"/>
 
-    <!-- Standard control colors -->
     <SolidColorBrush x:Key="Brush.ControlBg" Color="#1B1B1C"/>
     <SolidColorBrush x:Key="Brush.ControlFg" Color="#F2F2F2"/>
     <SolidColorBrush x:Key="Brush.ControlBorder" Color="#3A3A3D"/>
 
-    <!-- Aliases, same values as above -->
     <SolidColorBrush x:Key="Brush.ControlBgDark" Color="#1B1B1C"/>
     <SolidColorBrush x:Key="Brush.ControlFgDark" Color="#F2F2F2"/>
     <SolidColorBrush x:Key="Brush.ControlBorderDark" Color="#3A3A3D"/>
 
-    <!-- Buttons, flat look matching the settings window, kept as
-         three semantic keys so callers do not need to change which
-         key they reference, only the visual result changes -->
     <SolidColorBrush x:Key="Brush.PrimaryButtonBg" Color="#242426"/>
     <SolidColorBrush x:Key="Brush.PrimaryButtonFg" Color="#F2F2F2"/>
     <SolidColorBrush x:Key="Brush.PrimaryButtonBorder" Color="#55575C"/>
@@ -55,22 +42,25 @@
     <SolidColorBrush x:Key="Brush.PanelButtonFg" Color="#F2F2F2"/>
     <SolidColorBrush x:Key="Brush.PanelButtonBorder" Color="#3A3A3D"/>
 
-    <!-- Interaction -->
     <SolidColorBrush x:Key="Brush.HoverLight" Color="#2A2C30"/>
     <SolidColorBrush x:Key="Brush.HoverDark" Color="#2A2C30"/>
     <SolidColorBrush x:Key="Brush.Selected" Color="#24466B"/>
     <SolidColorBrush x:Key="Brush.SelectedBorder" Color="#5A8FD6"/>
 
-    <!-- Text helpers -->
+    <SolidColorBrush x:Key="Brush.Accent" Color="#4A8FE0"/>
+
     <SolidColorBrush x:Key="Brush.MutedTextLightPanel" Color="#A0A0A0"/>
     <SolidColorBrush x:Key="Brush.MutedTextDarkShell" Color="#A0A0A0"/>
     <SolidColorBrush x:Key="Brush.Warning" Color="#E5484D"/>
     <SolidColorBrush x:Key="Brush.Success" Color="#4CAF50"/>
 
-    <!-- Grid -->
     <SolidColorBrush x:Key="Brush.GridAltRow" Color="#17181A"/>
     <SolidColorBrush x:Key="Brush.GridHeaderBg" Color="#1B1B1C"/>
     <SolidColorBrush x:Key="Brush.GridHeaderBorder" Color="#3A3A3D"/>
+
+    <SolidColorBrush x:Key="Brush.ScrollTrack" Color="#0B0C0D"/>
+    <SolidColorBrush x:Key="Brush.ScrollThumb" Color="#3A3A3D"/>
+    <SolidColorBrush x:Key="Brush.ScrollThumbHover" Color="#55575C"/>
 
     <!-- =========================================================
          Dimensions
@@ -123,8 +113,6 @@
 
     <!-- =========================================================
          ComboBoxItem
-         Previously hardcoded black on white, which is a bug on a
-         dark theme. Fixed to use theme colors.
          ========================================================= -->
 
     <Style x:Key="BaDarkComboBoxItem" TargetType="{x:Type ComboBoxItem}">
@@ -147,7 +135,7 @@
 
     <!-- =========================================================
          Window style
-         NOTE: Do NOT put WindowStartupLocation here.
+         DynamicResource on root Window only, never StaticResource.
          ========================================================= -->
 
     <Style x:Key="BaWindow" TargetType="{x:Type Window}">
@@ -172,6 +160,48 @@
 
     <Style x:Key="BaDarkPanelBorder" TargetType="{x:Type Border}"
            BasedOn="{StaticResource BaPanelBorder}"/>
+
+    <!-- =========================================================
+         GroupBox
+         New. Previously entirely unstyled, meaning the native
+         GroupBox chrome (light border, white-ish header notch)
+         showed through in every window that used one. Flat design,
+         no notch, header rendered as a bold label bar above the
+         content, matching BaPanelBorder's visual language.
+         ========================================================= -->
+
+    <Style x:Key="BaGroupBox" TargetType="{x:Type GroupBox}">
+        <Setter Property="Foreground" Value="{StaticResource Brush.WindowFg}"/>
+        <Setter Property="Background" Value="{StaticResource Brush.PanelBg}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.PanelBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type GroupBox}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4"
+                            SnapsToDevicePixels="True">
+                        <Grid Margin="{TemplateBinding Padding}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <ContentPresenter Grid.Row="0"
+                                              ContentSource="Header"
+                                              TextBlock.Foreground="{StaticResource Brush.MutedTextDarkShell}"
+                                              TextBlock.FontWeight="SemiBold"
+                                              TextBlock.FontSize="12"
+                                              Margin="0,0,0,6"/>
+                            <ContentPresenter Grid.Row="1"/>
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 
     <!-- =========================================================
          TextBox
@@ -204,10 +234,6 @@
 
     <!-- =========================================================
          ComboBox
-         Single template, used by both BaComboBox and BaDarkComboBox.
-         The custom template is required because the default WPF
-         ComboBox popup ignores app theme and renders white
-         regardless of window background.
          ========================================================= -->
 
     <Style x:Key="BaComboBox" TargetType="{x:Type ComboBox}">
@@ -333,6 +359,50 @@
         <Setter Property="Foreground" Value="{StaticResource Brush.WindowFg}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="Margin" Value="0,0,0,4"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type CheckBox}">
+                    <StackPanel Orientation="Horizontal">
+                        <Border x:Name="Box"
+                                Width="16" Height="16"
+                                CornerRadius="3"
+                                BorderBrush="{StaticResource Brush.ControlBorder}"
+                                BorderThickness="1"
+                                Background="{StaticResource Brush.ControlBg}"
+                                VerticalAlignment="Center">
+                            <Path x:Name="Check"
+                                  Data="M 2,7 L 6,11 L 13,3"
+                                  Stroke="White"
+                                  StrokeThickness="2"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round"
+                                  Visibility="Collapsed"/>
+                        </Border>
+                        <ContentPresenter Margin="6,0,0,0"
+                                          VerticalAlignment="Center"
+                                          RecognizesAccessKey="True"/>
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Box" Property="Background" Value="{StaticResource Brush.Accent}"/>
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Brush.Accent}"/>
+                            <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="{x:Null}">
+                            <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="Check" Property="Data" Value="M 3,7 L 13,7"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Brush.Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style x:Key="BaPanelCheckBox" TargetType="{x:Type CheckBox}"
@@ -345,6 +415,41 @@
         <Setter Property="Foreground" Value="{StaticResource Brush.WindowFg}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="Margin" Value="0,0,12,0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type RadioButton}">
+                    <StackPanel Orientation="Horizontal">
+                        <Border x:Name="Dot"
+                                Width="16" Height="16"
+                                CornerRadius="8"
+                                BorderBrush="{StaticResource Brush.ControlBorder}"
+                                BorderThickness="1"
+                                Background="{StaticResource Brush.ControlBg}"
+                                VerticalAlignment="Center">
+                            <Ellipse x:Name="Fill"
+                                     Width="8" Height="8"
+                                     Fill="{StaticResource Brush.Accent}"
+                                     Visibility="Collapsed"/>
+                        </Border>
+                        <ContentPresenter Margin="6,0,0,0"
+                                          VerticalAlignment="Center"
+                                          RecognizesAccessKey="True"/>
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Dot" Property="BorderBrush" Value="{StaticResource Brush.Accent}"/>
+                            <Setter TargetName="Fill" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Dot" Property="BorderBrush" Value="{StaticResource Brush.Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style x:Key="BaPanelRadioButton" TargetType="{x:Type RadioButton}"
@@ -354,12 +459,48 @@
            BasedOn="{StaticResource BaRadioButton}"/>
 
     <!-- =========================================================
+         TabControl / TabItem
+         ========================================================= -->
+
+    <Style x:Key="BaTabItem" TargetType="{x:Type TabItem}">
+        <Setter Property="Margin" Value="0,0,4,0"/>
+        <Setter Property="Padding" Value="12,8"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.MutedTextDarkShell}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type TabItem}">
+                    <Border x:Name="Bd"
+                            Background="Transparent"
+                            CornerRadius="6,6,0,0"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter ContentSource="Header"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource Brush.PanelBg}"/>
+                            <Setter Property="Foreground" Value="{StaticResource Brush.WindowFg}"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{StaticResource Brush.WindowFg}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="BaTabControl" TargetType="{x:Type TabControl}">
+        <Setter Property="Background" Value="{StaticResource Brush.PanelBg}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.PanelBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8"/>
+        <Setter Property="ItemContainerStyle" Value="{StaticResource BaTabItem}"/>
+    </Style>
+
+    <!-- =========================================================
          Buttons
-         Flat look matching the settings window. Three semantic
-         keys retained for callers, visually close to each other
-         by design, distinguished only by a subtle background and
-         border shift so hierarchy still reads without looking
-         like the previous heavier button chrome.
          ========================================================= -->
 
     <Style x:Key="BaButtonBase" TargetType="{x:Type Button}">
@@ -459,13 +600,6 @@
 
     <!-- =========================================================
          DataGrid
-         CellStyle, RowStyle, and ColumnHeaderStyle are now baked
-         in via Setters. Any window using Style="{StaticResource
-         BaDataGrid}" gets correct theming with no further wiring
-         required. This is the fix for the Sheet Updater bug: that
-         window's DataGrid never had CellStyle/RowStyle applied,
-         so it fell back to default WPF white row background with
-         inherited window foreground text.
          ========================================================= -->
 
     <Style x:Key="BaDataGridColumnHeader" TargetType="{x:Type DataGridColumnHeader}">
@@ -521,12 +655,150 @@
     </Style>
 
     <!-- =========================================================
-         ScrollViewer
+         ScrollViewer / ScrollBar
          ========================================================= -->
 
     <Style x:Key="BaScrollViewer" TargetType="{x:Type ScrollViewer}">
         <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
         <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+    </Style>
+
+    <Style x:Key="BaScrollBarThumb" TargetType="{x:Type Thumb}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Thumb}">
+                    <Border x:Name="ThumbBorder"
+                            Background="{StaticResource Brush.ScrollThumb}"
+                            CornerRadius="4"/>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ThumbBorder" Property="Background" Value="{StaticResource Brush.ScrollThumbHover}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="BaScrollBarPageButton" TargetType="{x:Type RepeatButton}">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type RepeatButton}">
+                    <Border Background="Transparent"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type ScrollBar}">
+        <Setter Property="Background" Value="{StaticResource Brush.ScrollTrack}"/>
+        <Setter Property="Width" Value="10"/>
+        <Setter Property="MinWidth" Value="10"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ScrollBar}">
+                    <Border Background="{TemplateBinding Background}">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource BaScrollBarPageButton}" Command="ScrollBar.PageUpCommand"/>
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource BaScrollBarPageButton}" Command="ScrollBar.PageDownCommand"/>
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource BaScrollBarThumb}" MinHeight="24" MinWidth="24"/>
+                            </Track.Thumb>
+                        </Track>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Orientation" Value="Horizontal">
+                            <Setter Property="Height" Value="10"/>
+                            <Setter Property="MinHeight" Value="10"/>
+                            <Setter Property="Width" Value="Auto"/>
+                            <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <!-- =========================================================
+     Slider
+     New. Previously unstyled, the default WPF thumb is a small
+     light/system-colored square, that's what showed up as a
+     stray white box on ColorPickerDialog's R/G/B sliders.
+     Implicit (TargetType only) so every Slider in the app picks
+     this up automatically. Flat track, circular accent thumb,
+     matching the CheckBox/RadioButton accent dot elsewhere.
+     ========================================================= -->
+
+    <Style TargetType="{x:Type Slider}">
+        <Setter Property="Height" Value="20"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Slider}">
+                    <Grid VerticalAlignment="Center">
+                        <Border Height="4"
+                            CornerRadius="2"
+                            Background="{StaticResource Brush.ControlBg}"
+                            BorderBrush="{StaticResource Brush.ControlBorder}"
+                            BorderThickness="1"/>
+                        <Track x:Name="PART_Track">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource BaScrollBarPageButton}" Command="Slider.DecreaseLarge"/>
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource BaScrollBarPageButton}" Command="Slider.IncreaseLarge"/>
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Width="14" Height="14">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="{x:Type Thumb}">
+                                            <Ellipse Fill="{StaticResource Brush.Accent}"
+                                                 Stroke="{StaticResource Brush.WindowBg}"
+                                                 StrokeThickness="1.5"/>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <!-- =========================================================
+         ToolTip
+         ========================================================= -->
+
+    <Style TargetType="{x:Type ToolTip}">
+        <Setter Property="Background" Value="{StaticResource Brush.ControlBg}"/>
+        <Setter Property="Foreground" Value="{StaticResource Brush.ControlFg}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.ControlBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="HasDropShadow" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ToolTip}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- =========================================================
