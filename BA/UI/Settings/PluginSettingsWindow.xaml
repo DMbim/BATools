@@ -1,4 +1,4 @@
-﻿ <Window x:Class="BA.UI.Settings.PluginSettingsWindow"
+﻿<Window x:Class="BA.UI.Settings.PluginSettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="BA – Plugin Settings"
@@ -98,7 +98,25 @@
                 BorderThickness="1"
                 CornerRadius="4">
             <StackPanel>
-                <TextBlock Text="Shared Parameter File (WIP2)" Style="{StaticResource BaLabelText}" Margin="0,0,0,6"/>
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               Text="Shared Parameter File (WIP2)"
+                               Style="{StaticResource BaLabelText}"
+                               VerticalAlignment="Center"/>
+                    <Button Grid.Column="1"
+                            x:Name="BtnRevitLeaders"
+                            Width="110"
+                            HorizontalAlignment="Right"
+                            Content="Revit Leaders..."
+                            Style="{StaticResource BaSecondaryButton}"
+                            ToolTipService.Placement="Mouse"
+                            ToolTipService.ShowOnDisabled="True"
+                            Click="BtnRevitLeaders_Click"/>
+                </Grid>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>

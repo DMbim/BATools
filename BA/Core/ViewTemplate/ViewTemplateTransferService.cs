@@ -14,7 +14,7 @@ namespace BA.Core.ViewTemplates
 
             return new FilteredElementCollector(doc)
                 .OfClass(typeof(Autodesk.Revit.DB.View))
-                .Cast<  Autodesk.Revit.DB.View>()
+                .Cast<Autodesk.Revit.DB.View>()
                 .Where(v => v != null && v.IsTemplate)
                 .OrderBy(v => v.ViewType.ToString())
                 .ThenBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
@@ -28,7 +28,7 @@ namespace BA.Core.ViewTemplates
             if (sourceTemplateId == null || sourceTemplateId == ElementId.InvalidElementId)
                 throw new ArgumentException("Invalid source template id.", nameof(sourceTemplateId));
 
-                Autodesk.Revit.DB.View source = doc.GetElement(sourceTemplateId) as View;
+            Autodesk.Revit.DB.View source = doc.GetElement(sourceTemplateId) as View;
             if (source == null || !source.IsTemplate)
                 throw new InvalidOperationException("Source element is not a valid view template.");
 
@@ -58,7 +58,7 @@ namespace BA.Core.ViewTemplates
             if (targetTemplateIds == null) throw new ArgumentNullException(nameof(targetTemplateIds));
             if (selectedParameterIds == null) throw new ArgumentNullException(nameof(selectedParameterIds));
 
-                Autodesk.Revit.DB.View sourceTemplate = doc.GetElement(sourceTemplateId) as Autodesk.Revit.DB.View;
+            Autodesk.Revit.DB.View sourceTemplate = doc.GetElement(sourceTemplateId) as Autodesk.Revit.DB.View;
             if (sourceTemplate == null || !sourceTemplate.IsTemplate)
                 throw new InvalidOperationException("Source element is not a valid view template.");
 
@@ -176,14 +176,11 @@ namespace BA.Core.ViewTemplates
                     continue;
                 }
 
-                if (targetTemplate.ViewType != sourceTemplate.ViewType)
-                {
-                    result.SkippedTargets++;
-                    result.Messages.Add(
-                        $"Skipped '{targetTemplate.Name}' because view type differs " +
-                        $"({targetTemplate.ViewType} != {sourceTemplate.ViewType}).");
-                    continue;
-                }
+                // <- CHANGED: the view type equality check that used to sit here is gone.
+                // ApplyViewTemplateParameters documents no same-view-type requirement, and
+                // any genuine incompatibility surfaces as an exception, which the catch
+                // below reports per target instead of blocking every cross type target
+                // before Revit itself gets a chance to decide.
 
                 try
                 {

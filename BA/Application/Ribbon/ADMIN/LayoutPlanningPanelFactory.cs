@@ -79,13 +79,18 @@ namespace BA.BAApplication.Ribbon
                 IconResources.DimOverride16, IconResources.DimOverride32);
 
             var (Load, Save, LoadedFamilyBrowser) = panel.AddStackedButtons<Cmd_OpenContentBrowserCommand, SaveFamiliesCommand, Cmd_LoadedFamilyBrowser>(
-        "ContentBrowser", "Load\nFamilies",
-        "SaveFamilies", "Save\nFamilies",
-        "LoadedFamilyBrowser", "Loaded\nFamily Browser",
-        IconResources.SaveFamilies16, IconResources.ContentBrowser16, IconResources.ContentBrowser16,
-        "Browse the BA content library and place family types directly into the model.",
-        "Browse the BA content library and place family types directly into the model.",
-        "Browse the BA content library and place family types directly into the model.");
+                "ContentBrowser", "Load\nFamilies",
+                "SaveFamilies", "Save\nFamilies",
+                "LoadedFamilyBrowser", "Loaded\nFamily Browser",
+                IconResources.SaveFamilies16, IconResources.ContentBrowser16, IconResources.ContentBrowser16,
+                "Browse the BA content library and place family types directly into the model.",
+                "Browse the BA content library and place family types directly into the model.",
+                "Browse the BA content library and place family types directly into the model.");
+
+           panel.AddPushButton<DiagSharedParameterBindingsCommand>(
+                "DiagSharedParameterBindings", "Shared Parameter\nBindings",
+                "Check for missing or duplicate shared parameter bindings in the model.",
+                IconResources.Markup16, IconResources.Markup32);    
         }
     }
 }

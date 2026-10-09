@@ -101,6 +101,15 @@ namespace BATools_Installer
             Log($"Install dir: {RevitInstallPaths.GetInstallDir(SelectedRevitYear)}");
             Log($"Manifest: {RevitInstallPaths.GetManifestPath(SelectedRevitYear)}");
 
+            // App.xaml sets ShutdownMode="OnExplicitShutdown", so closing this window does
+            // NOT terminate the process on its own — the process keeps running headless,
+            // still holding the .exe file lock. Closing must call
+            // Application.Current.Shutdown() explicitly. This covers every way the window
+            // can close: the native X button, Alt+F4, and the OK button (which just calls
+            // Close()) all funnel through Closing/Closed below.
+            Closing += MainWindow_Closing;
+            Closed += (_, __) => Application.Current.Shutdown();
+
             Loaded += async (_, __) =>
             {
                 // Non-blocking: don't hold up the window or the auto-update
@@ -114,6 +123,35 @@ namespace BATools_Installer
                     await Run(_startupArgs).ConfigureAwait(true);
                 }
             };
+        }
+
+        private void MainWindow_Closing(object? sender, CancelEventArgs e)
+        {
+            if (!IsBusy)
+                return;
+
+            // Closing mid install/update/uninstall risks an interrupted file copy or a
+            // half-applied rollback. Require explicit confirmation rather than letting the
+            // X button silently kill InstallerRunner.RunAsync mid-operation.
+            var result = MessageBox.Show(
+                "An install/update/uninstall operation is still in progress.\n\n" +
+                "Closing now may leave BA Tools partially installed.\n\n" +
+                "Close anyway?",
+                "Operation In Progress",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes)
+            {
+                e.Cancel = true;
+            }
+        }
+
+        private void Ok_Click(object sender, RoutedEventArgs e)
+        {
+            // Close() raises Closing (checked above) then Closed (which calls Shutdown()),
+            // so this goes through the exact same termination path as the X button.
+            Close();
         }
 
         private void RefreshCurrentVersion()

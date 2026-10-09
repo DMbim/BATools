@@ -278,7 +278,94 @@ namespace BA.Core.ViewFilters
 
             return (min, max);
         }
+        // New. Finds one representative INSTANCE element (never a type, even when
+        // parameterInfo.IsInstance is false) whose value for this parameter matches the
+        // given string, scoped to the given view. Returns the instance's ElementId
+        // because View.GetElementOverrides and filter matching both key off instance
+        // ids, even when the parameter itself lives on the type. Returns
+        // ElementId.InvalidElementId if nothing in the view has this value. // <- NEW
+        public static ElementId FindFirstInstanceWithValue(
+            Document doc, ElementId categoryId, ParameterInfo parameterInfo, string value, ElementId viewId)
+        {
+            if (doc == null || parameterInfo == null || viewId == null || viewId == ElementId.InvalidElementId)
+                return ElementId.InvalidElementId;
 
+            var instances = new FilteredElementCollector(doc, viewId)
+                .OfCategoryId(categoryId)
+                .WhereElementIsNotElementType()
+                .ToElements();
+
+            foreach (var inst in instances)
+            {
+                Element target = parameterInfo.IsInstance ? inst : doc.GetElement(inst.GetTypeId());
+                if (target == null) continue;
+
+                var p = FindParameterById(target, parameterInfo.Id);
+                if (p == null || !p.HasValue) continue;
+
+                var displayValue = GetDisplayValue(p);
+                if (string.Equals(displayValue, value, StringComparison.OrdinalIgnoreCase))
+                    return inst.Id;
+            }
+
+            return ElementId.InvalidElementId;
+        }
+        // New. Looks up a Material by name (matching a ColorBucket.Value from a
+        // material-reference parameter like Structural Material, Finish, etc.) and
+        // returns the graphics that material actually uses in the model, on whichever
+        // side (Surface or Cut) the caller asks for. This is what lets bucket colors
+        // be matched to how the material genuinely renders, instead of a random or
+        // gradient-assigned color that has nothing to do with the real finish.
+        //
+        // Foreground pattern + its color wins when the material actually has one
+        // (a real hatch, not solid). When there's no foreground pattern, falls back
+        // to the material's own base Color with a solid fill, which is what most
+        // firms use for plain color-only finishes (concrete, generic solid colors).
+        // Returns false if no material with this name exists in the document at all,
+        // callers should skip that bucket rather than guess. // <- NEW
+        public static bool TryGetMaterialGraphicsByName(
+            Document doc, string materialName, bool useCutSide,
+            out byte r, out byte g, out byte b, out ElementId patternId)
+        {
+            r = 0; g = 0; b = 0; patternId = ElementId.InvalidElementId;
+
+            if (doc == null || string.IsNullOrWhiteSpace(materialName))
+                return false;
+
+            var material = new FilteredElementCollector(doc)
+                .OfClass(typeof(Material))
+                .Cast<Material>()
+                .FirstOrDefault(m => string.Equals(m.Name, materialName, StringComparison.OrdinalIgnoreCase));
+
+            if (material == null)
+                return false;
+
+            ElementId sidePatternId = useCutSide ? material.CutForegroundPatternId : material.SurfaceForegroundPatternId;
+            Color sidePatternColor = useCutSide ? material.CutForegroundPatternColor : material.SurfaceForegroundPatternColor;
+
+            bool hasRealPattern = sidePatternId != null && sidePatternId != ElementId.InvalidElementId
+                               && sidePatternColor != null && sidePatternColor.IsValid;
+
+            if (hasRealPattern)
+            {
+                r = sidePatternColor.Red;
+                g = sidePatternColor.Green;
+                b = sidePatternColor.Blue;
+                patternId = sidePatternId;
+                return true;
+            }
+
+            var baseColor = material.Color;
+            if (baseColor != null && baseColor.IsValid)
+            {
+                r = baseColor.Red;
+                g = baseColor.Green;
+                b = baseColor.Blue;
+            }
+
+            patternId = ElementId.InvalidElementId;
+            return true;
+        }
         public static List<ColorBucket> BuildValueBuckets(IReadOnlyList<(string Value, int Count)> distinctValues)
         {
             if (distinctValues == null || distinctValues.Count == 0)

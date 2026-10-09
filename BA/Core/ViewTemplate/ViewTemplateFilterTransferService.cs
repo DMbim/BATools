@@ -49,7 +49,7 @@ namespace BA.Core.ViewTemplates
             bool copyEnabledState,
             bool copyVisibility,
             bool copyOverrides,
-            bool copyTransparency, // <- NEW
+            bool copyTransparency,
             bool preserveOrder)
         {
             if (doc == null) throw new ArgumentNullException(nameof(doc));
@@ -71,9 +71,9 @@ namespace BA.Core.ViewTemplates
                 RequestedFilters = selectedFilterIds.Count
             };
 
-            if (!copyEnabledState && !copyVisibility && !copyOverrides && !copyTransparency) // <- CHANGED
+            if (!copyEnabledState && !copyVisibility && !copyOverrides && !copyTransparency)
             {
-                result.Messages.Add("Nothing selected to copy. Enable at least one filter transfer option."); // <- CHANGED wording still accurate, options list grew
+                result.Messages.Add("Nothing selected to copy. Enable at least one filter transfer option.");
                 return result;
             }
 
@@ -122,14 +122,12 @@ namespace BA.Core.ViewTemplates
                         continue;
                     }
 
-                    if (targetTemplate.ViewType != sourceTemplate.ViewType)
-                    {
-                        result.SkippedTargets++;
-                        result.Messages.Add(
-                            $"Skipped '{targetTemplate.Name}' because view type differs " +
-                            $"({targetTemplate.ViewType} != {sourceTemplate.ViewType}).");
-                        continue;
-                    }
+                    // <- CHANGED: the view type equality check that used to sit here is gone.
+                    // Targets of a different view type than the source are now attempted.
+                    // Revit itself rejects an operation that genuinely doesn't apply to a
+                    // given view type (for example AddFilter on a view type that doesn't
+                    // support V/G overrides), and the try/catch below reports that per
+                    // target instead of pre-emptively blocking every cross type target.
 
                     int appliedCount = 0;
 
@@ -154,7 +152,7 @@ namespace BA.Core.ViewTemplates
                                 copyEnabledState,
                                 copyVisibility,
                                 copyOverrides,
-                                copyTransparency); // <- NEW
+                                copyTransparency);
                             appliedCount++;
                         }
 
@@ -206,7 +204,7 @@ namespace BA.Core.ViewTemplates
             bool copyEnabledState,
             bool copyVisibility,
             bool copyOverrides,
-            bool copyTransparency) // <- NEW
+            bool copyTransparency)
         {
             if (sourceTemplate == null) throw new ArgumentNullException(nameof(sourceTemplate));
             if (targetTemplate == null) throw new ArgumentNullException(nameof(targetTemplate));
@@ -233,9 +231,6 @@ namespace BA.Core.ViewTemplates
                 targetTemplate.SetFilterVisibility(filterId, isVisible);
             }
 
-            // <- CHANGED: overrides and transparency are now independent flags that
-            // both feed into one merged OverrideGraphicSettings, built on top of
-            // whatever the target already has, instead of a blank object.
             if (copyOverrides || copyTransparency)
             {
                 OverrideGraphicSettings sourceOgs = sourceTemplate.GetFilterOverrides(filterId);
@@ -271,8 +266,6 @@ namespace BA.Core.ViewTemplates
             }
         }
 
-        // <- CHANGED: renamed from CloneOverrideGraphicSettings, now merges instead of
-        // blindly cloning from blank. targetBase supplies everything neither flag touches.
         private static OverrideGraphicSettings BuildFilterOverrides(
             OverrideGraphicSettings source,
             OverrideGraphicSettings targetBase,

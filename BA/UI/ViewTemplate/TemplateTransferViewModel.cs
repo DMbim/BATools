@@ -53,7 +53,6 @@ namespace BA.UI.ViewTemplates
         private bool _copyFilterTransparency = false;
         private bool _isAdvancedFilterOptionsVisible = false;
 
-        // <- NEW: collapse state for the three optional panels, all hidden by default
         private bool _isPropertiesPanelVisible = false;
         private bool _isAdvancedGraphicsPanelVisible = false;
         private bool _isFilterPanelVisible = false;
@@ -66,7 +65,6 @@ namespace BA.UI.ViewTemplates
 
         public ObservableCollection<ViewFilterTransferItem> FilteredSourceFilters { get; } = new();
 
-        // <- CHANGED: was SourceViewTypeOptions (single select dropdown model), now a checkable list
         public ObservableCollection<CheckableViewTypeItem> SourceViewTypeFilters { get; } = new();
 
         public BA.UI.Mvvm.RelayCommand ApplyViewFiltersCommand { get; }
@@ -75,7 +73,6 @@ namespace BA.UI.ViewTemplates
         public BA.UI.Mvvm.RelayCommand InvertFiltersCommand { get; }
         public BA.UI.Mvvm.RelayCommand ToggleAdvancedFilterOptionsCommand { get; }
 
-        // <- NEW: top bar panel toggles
         public BA.UI.Mvvm.RelayCommand TogglePropertiesPanelCommand { get; }
         public BA.UI.Mvvm.RelayCommand ToggleAdvancedGraphicsPanelCommand { get; }
         public BA.UI.Mvvm.RelayCommand ToggleFilterPanelCommand { get; }
@@ -108,9 +105,9 @@ namespace BA.UI.ViewTemplates
             ClearAllFiltersCommand = new BA.UI.Mvvm.RelayCommand(_ => ClearAllFilters());
             InvertFiltersCommand = new BA.UI.Mvvm.RelayCommand(_ => InvertFilters());
             ToggleAdvancedFilterOptionsCommand = new BA.UI.Mvvm.RelayCommand(_ => IsAdvancedFilterOptionsVisible = !IsAdvancedFilterOptionsVisible);
-            TogglePropertiesPanelCommand = new BA.UI.Mvvm.RelayCommand(_ => IsPropertiesPanelVisible = !IsPropertiesPanelVisible); // <- NEW
-            ToggleAdvancedGraphicsPanelCommand = new BA.UI.Mvvm.RelayCommand(_ => IsAdvancedGraphicsPanelVisible = !IsAdvancedGraphicsPanelVisible); // <- NEW
-            ToggleFilterPanelCommand = new BA.UI.Mvvm.RelayCommand(_ => IsFilterPanelVisible = !IsFilterPanelVisible); // <- NEW
+            TogglePropertiesPanelCommand = new BA.UI.Mvvm.RelayCommand(_ => IsPropertiesPanelVisible = !IsPropertiesPanelVisible);
+            ToggleAdvancedGraphicsPanelCommand = new BA.UI.Mvvm.RelayCommand(_ => IsAdvancedGraphicsPanelVisible = !IsAdvancedGraphicsPanelVisible);
+            ToggleFilterPanelCommand = new BA.UI.Mvvm.RelayCommand(_ => IsFilterPanelVisible = !IsFilterPanelVisible);
             ApplyCommand = new BA.UI.Mvvm.RelayCommand(_ => Apply(), _ => CanApply());
             SelectAllPropertiesCommand = new BA.UI.Mvvm.RelayCommand(_ => SelectAllProperties());
             ClearAllPropertiesCommand = new BA.UI.Mvvm.RelayCommand(_ => ClearAllProperties());
@@ -147,7 +144,6 @@ namespace BA.UI.ViewTemplates
             }
         }
 
-        // <- NEW: collapse state for the Properties panel, toggled from the top bar
         public bool IsPropertiesPanelVisible
         {
             get => _isPropertiesPanelVisible;
@@ -159,7 +155,6 @@ namespace BA.UI.ViewTemplates
             }
         }
 
-        // <- NEW: collapse state for the Advanced Graphics panel, toggled from the top bar
         public bool IsAdvancedGraphicsPanelVisible
         {
             get => _isAdvancedGraphicsPanelVisible;
@@ -171,7 +166,6 @@ namespace BA.UI.ViewTemplates
             }
         }
 
-        // <- NEW: collapse state for the Filter transfer panel, toggled from the top bar
         public bool IsFilterPanelVisible
         {
             get => _isFilterPanelVisible;
@@ -776,7 +770,6 @@ namespace BA.UI.ViewTemplates
             FilteredSourceTemplates.Clear();
             FilteredTargets.Clear();
 
-            // <- NEW: unsubscribe old filter items before rebuilding the list
             foreach (CheckableViewTypeItem existing in SourceViewTypeFilters)
                 existing.PropertyChanged -= ViewTypeFilterItem_PropertyChanged;
             SourceViewTypeFilters.Clear();
@@ -791,7 +784,6 @@ namespace BA.UI.ViewTemplates
                 SourceTemplates.Add(item);
             }
 
-            // <- NEW: one checkbox per distinct ViewType actually present, alphabetical
             foreach (var group in _allSourceTemplates
                 .GroupBy(x => x.ViewType)
                 .OrderBy(g => g.First().ViewTypeName, StringComparer.OrdinalIgnoreCase))
@@ -808,7 +800,6 @@ namespace BA.UI.ViewTemplates
             StatusText = $"Loaded {templates.Count} view templates.";
         }
 
-        // <- NEW: any view type checkbox flipping re-filters the Source list
         private void ViewTypeFilterItem_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(CheckableViewTypeItem.IsSelected))
@@ -861,8 +852,12 @@ namespace BA.UI.ViewTemplates
                 if (src.Id == SelectedSourceTemplate.Id)
                     continue;
 
-                if (src.ViewType != SelectedSourceTemplate.ViewType)
-                    continue;
+                // <- CHANGED: the ViewType equality check that used to sit here is gone.
+                // Every other template is now a valid target candidate. Each transfer
+                // operation (Properties / Advanced Graphics / Filters) is responsible for
+                // reporting per target if something it's asked to copy genuinely doesn't
+                // apply to that target's view type, rather than this method pre-filtering
+                // the list on the UI's behalf.
 
                 var target = new CheckableViewTemplateItem(src.Id, src.Name, src.ViewType);
                 target.PropertyChanged += Item_PropertyChanged;
@@ -879,7 +874,6 @@ namespace BA.UI.ViewTemplates
 
             IEnumerable<CheckableViewTemplateItem> items = _allSourceTemplates;
 
-            // <- CHANGED: view type filter is now "any checked box" instead of one selected dropdown value
             List<ViewType> checkedTypes = SourceViewTypeFilters
                 .Where(x => x.IsSelected)
                 .Select(x => x.ViewType)

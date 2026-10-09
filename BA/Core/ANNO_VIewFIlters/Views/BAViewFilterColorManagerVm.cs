@@ -269,7 +269,8 @@ namespace BA.UI.Views
                 if (!SetProperty(ref _selectedFilterGroup, value)) return;
                 ShowGroupOnTemplateCommand?.RaiseCanExecuteChanged();
                 HideGroupOnTemplateCommand?.RaiseCanExecuteChanged();
-                CreateLegendFromGroupCommand?.RaiseCanExecuteChanged();
+                CreateLegendFromGroupSurfaceCommand?.RaiseCanExecuteChanged();
+                CreateLegendFromGroupCutCommand?.RaiseCanExecuteChanged();
             }
         }
 
@@ -316,13 +317,17 @@ namespace BA.UI.Views
         public BA.UI.Mvvm.RelayCommand ApplyToAllInViewCommand { get; }
 
         public BA.UI.Mvvm.RelayCommand AddSchemeToTemplateCommand { get; }
-        public BA.UI.Mvvm.RelayCommand CreateLegendFromSelectedCommand { get; }
 
         public BA.UI.Mvvm.RelayCommand SaveGroupFromSelectedCommand { get; }
         public BA.UI.Mvvm.RelayCommand ShowGroupOnTemplateCommand { get; }
         public BA.UI.Mvvm.RelayCommand HideGroupOnTemplateCommand { get; }
-        public BA.UI.Mvvm.RelayCommand CreateLegendFromGroupCommand { get; }
+        public BA.UI.Mvvm.RelayCommand CreateLegendFromSelectedSurfaceCommand { get; }
+        public BA.UI.Mvvm.RelayCommand CreateLegendFromSelectedCutCommand { get; }
+        public BA.UI.Mvvm.RelayCommand CreateLegendFromGroupSurfaceCommand { get; }
+        public BA.UI.Mvvm.RelayCommand CreateLegendFromGroupCutCommand { get; }
         public BA.UI.Mvvm.RelayCommand ToggleLegendCheckCommand { get; }
+        public BA.UI.Mvvm.RelayCommand MatchMaterialGraphicsSurfaceCommand { get; }
+        public BA.UI.Mvvm.RelayCommand MatchMaterialGraphicsCutCommand { get; }
 
         public BAViewFilterColorManagerVm(UIApplication uiApp, RevitExternalInvoker revit, Window window)
         {
@@ -367,12 +372,19 @@ namespace BA.UI.Views
             ApplyToAllInViewCommand = new BA.UI.Mvvm.RelayCommand(_ => ApplyOverridesToAllInView(), _ => Buckets.Count > 0);
 
             AddSchemeToTemplateCommand = new BA.UI.Mvvm.RelayCommand(_ => AddSchemeToTemplate(), _ => SelectedViewTemplate != null && SelectedSavedScheme != null);
-            CreateLegendFromSelectedCommand = new BA.UI.Mvvm.RelayCommand(_ => CreateLegendFromSelected(), _ => TemplateFilters.Any(r => r.IsCheckedForLegend));
 
             SaveGroupFromSelectedCommand = new BA.UI.Mvvm.RelayCommand(_ => SaveGroupFromSelected(), _ => TemplateFilters.Any(r => r.IsCheckedForLegend));
             ShowGroupOnTemplateCommand = new BA.UI.Mvvm.RelayCommand(_ => ShowGroupOnTemplate(), _ => SelectedViewTemplate != null && SelectedFilterGroup != null);
             HideGroupOnTemplateCommand = new BA.UI.Mvvm.RelayCommand(_ => HideGroupOnTemplate(), _ => SelectedViewTemplate != null && SelectedFilterGroup != null);
-            CreateLegendFromGroupCommand = new BA.UI.Mvvm.RelayCommand(_ => CreateLegendFromGroup(), _ => SelectedViewTemplate != null && SelectedFilterGroup != null);
+            CreateLegendFromSelectedSurfaceCommand = new BA.UI.Mvvm.RelayCommand(_ => CreateLegendFromSelected(false), _ => TemplateFilters.Any(r => r.IsCheckedForLegend));
+            CreateLegendFromSelectedCutCommand = new BA.UI.Mvvm.RelayCommand(_ => CreateLegendFromSelected(true), _ => TemplateFilters.Any(r => r.IsCheckedForLegend));
+            CreateLegendFromGroupSurfaceCommand = new BA.UI.Mvvm.RelayCommand(_ => CreateLegendFromGroup(false), _ => SelectedViewTemplate != null && SelectedFilterGroup != null);
+            CreateLegendFromGroupCutCommand = new BA.UI.Mvvm.RelayCommand(_ => CreateLegendFromGroup(true), _ => SelectedViewTemplate != null && SelectedFilterGroup != null);
+            MatchMaterialGraphicsSurfaceCommand = new BA.UI.Mvvm.RelayCommand(_ => MatchMaterialGraphics(false), _ => Buckets.Count > 0);
+            MatchMaterialGraphicsCutCommand = new BA.UI.Mvvm.RelayCommand(_ => MatchMaterialGraphics(true), _ => Buckets.Count > 0);
+
+            // 3) RaiseParamColorCanExecChanged(): add these two lines
+
             ToggleLegendCheckCommand = new BA.UI.Mvvm.RelayCommand(p => ToggleLegendCheck(p as TemplateFilterRowItem), p => p is TemplateFilterRowItem);
         }
 
@@ -426,8 +438,10 @@ namespace BA.UI.Views
             AddSchemeToTemplateCommand?.RaiseCanExecuteChanged();
             ShowGroupOnTemplateCommand?.RaiseCanExecuteChanged();
             HideGroupOnTemplateCommand?.RaiseCanExecuteChanged();
-            CreateLegendFromGroupCommand?.RaiseCanExecuteChanged();
-            CreateLegendFromSelectedCommand?.RaiseCanExecuteChanged(); // <- NEW
+            CreateLegendFromGroupSurfaceCommand?.RaiseCanExecuteChanged();
+            CreateLegendFromGroupCutCommand?.RaiseCanExecuteChanged();
+            CreateLegendFromSelectedSurfaceCommand?.RaiseCanExecuteChanged();
+            CreateLegendFromSelectedCutCommand?.RaiseCanExecuteChanged();
             SaveGroupFromSelectedCommand?.RaiseCanExecuteChanged();    // <- NEW
         }
 
@@ -440,6 +454,8 @@ namespace BA.UI.Views
             CreateLegendCommand.RaiseCanExecuteChanged();
             ApplyToSelectionCommand.RaiseCanExecuteChanged();
             ApplyToAllInViewCommand.RaiseCanExecuteChanged();
+            MatchMaterialGraphicsSurfaceCommand?.RaiseCanExecuteChanged(); // <- NEW
+            MatchMaterialGraphicsCutCommand?.RaiseCanExecuteChanged();     // <- NEW
         }
 
         private void SeedDefaultPalette()
@@ -463,6 +479,8 @@ namespace BA.UI.Views
             // actually wired up for this Button based implementation. // <- CHANGED
             row.IsCheckedForLegend = !row.IsCheckedForLegend;
             RaiseLegendSelectionCanExecChanged();
+            CreateLegendFromSelectedSurfaceCommand.RaiseCanExecuteChanged();
+            CreateLegendFromSelectedCutCommand.RaiseCanExecuteChanged();
         }
 
         private void OnLegendCheckChanged(object sender, EventArgs e)
@@ -472,7 +490,8 @@ namespace BA.UI.Views
 
         private void RaiseLegendSelectionCanExecChanged()
         {
-            CreateLegendFromSelectedCommand?.RaiseCanExecuteChanged();
+            CreateLegendFromSelectedSurfaceCommand?.RaiseCanExecuteChanged();
+            CreateLegendFromSelectedCutCommand?.RaiseCanExecuteChanged();
             SaveGroupFromSelectedCommand?.RaiseCanExecuteChanged();
         }
         private void LoadTemplates()
@@ -785,7 +804,106 @@ namespace BA.UI.Views
                 ex => StatusText = "Fill pattern load failed: " + ex.Message
             );
         }
+        // Changed. No longer just a material-name lookup. For each bucket, finds one
+        // representative instance in the active view with that value, then resolves its
+        // TRUE current appearance via ViewFilterColorManagerService.TryGetEffectiveElementGraphics
+        // (per-element override, then topmost matching filter, in Revit's own actual
+        // priority order), falling back to the material's own definition only if
+        // neither an override nor a filter is currently controlling that instance's
+        // look. Always uses the active view regardless of ScopeBucketsToActiveView,
+        // "current on-screen appearance" has no whole-model meaning. // <- CHANGED
+        private void MatchMaterialGraphics(bool useCutSide)
+        {
+            if (Buckets.Count == 0)
+            {
+                StatusText = "Generate buckets first.";
+                return;
+            }
 
+            if (_currentMethod != ProcessMethod.ValueBucket)
+            {
+                StatusText = "Match to View only applies to Value buckets tied to a parameter whose values are visible in the model (e.g. a material-reference parameter).";
+                return;
+            }
+
+            if (SelectedCategory == null || SelectedParameter == null)
+            {
+                StatusText = "Select a category and parameter first.";
+                return;
+            }
+
+            var categoryId = SelectedCategory.Id;
+            var paramInfo = SelectedParameter;
+            var bucketValues = Buckets.Select(b => b.Value).Where(v => !string.IsNullOrWhiteSpace(v)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+            if (bucketValues.Count == 0)
+            {
+                StatusText = "No bucket values to match against the active view.";
+                return;
+            }
+
+            string sideLabel = useCutSide ? "Cut" : "Surface";
+            StatusText = $"Reading current {sideLabel.ToLowerInvariant()} appearance from the active view...";
+
+            _revit.Run(
+                app =>
+                {
+                    var doc = app.ActiveUIDocument?.Document;
+                    var view = doc?.ActiveView;
+                    var result = new Dictionary<string, (byte r, byte g, byte b, ElementId patternId, string source)>(StringComparer.OrdinalIgnoreCase);
+
+                    if (doc == null || view == null) return result;
+
+                    foreach (var val in bucketValues)
+                    {
+                        var instanceId = ParameterEnumerationService.FindFirstInstanceWithValue(doc, categoryId, paramInfo, val, view.Id);
+                        if (instanceId == ElementId.InvalidElementId) continue;
+
+                        if (ViewFilterColorManagerService.TryGetEffectiveElementGraphics(
+                                doc, view, instanceId, useCutSide, out var r, out var g, out var b, out var patternId, out var source))
+                        {
+                            result[val] = (r, g, b, patternId, source);
+                            continue;
+                        }
+
+                        // Nothing overriding this instance right now, fall back to how
+                        // its material is actually defined.
+                        if (ParameterEnumerationService.TryGetMaterialGraphicsByName(doc, val, useCutSide, out var mr, out var mg, out var mb, out var mPatternId))
+                        {
+                            result[val] = (mr, mg, mb, mPatternId, "Material");
+                        }
+                    }
+
+                    return result;
+                },
+                matches =>
+                {
+                    int applied = 0;
+                    int fromOverride = 0;
+                    int fromMaterial = 0;
+
+                    foreach (var bucket in Buckets)
+                    {
+                        if (bucket.Value != null && matches.TryGetValue(bucket.Value, out var m))
+                        {
+                            bucket.R = m.r;
+                            bucket.G = m.g;
+                            bucket.B = m.b;
+                            bucket.SelectedPattern = Patterns.FirstOrDefault(p => p.Id == m.patternId) ?? SolidPatternEntry;
+                            applied++;
+
+                            if (m.source == "Material") fromMaterial++;
+                            else fromOverride++;
+                        }
+                    }
+
+                    StatusText = applied > 0
+                        ? $"Matched {applied} of {Buckets.Count} bucket(s) to the active view's {sideLabel.ToLowerInvariant()} appearance ({fromOverride} from filters/overrides, {fromMaterial} from material definition)."
+                        : "No buckets matched anything in the active view. Make sure elements with these values are actually visible in the current view.";
+                },
+                ex => StatusText = "Match to view failed: " + ex.Message
+            );
+        }
         private void LoadSavedSchemes()
         {
             StatusText = "Loading saved color schemes...";
@@ -1212,7 +1330,7 @@ namespace BA.UI.Views
             );
         }
 
-        private void CreateLegendFromSelected()
+        private void CreateLegendFromSelected(bool useCutSide)
         {
             var checkedRows = TemplateFilters.Where(r => r.IsCheckedForLegend).ToList();
 
@@ -1230,32 +1348,28 @@ namespace BA.UI.Views
 
             var templateId = SelectedViewTemplate.Id;
             var filterIds = checkedRows.Select(r => r.FilterId).ToList();
-            var title = SelectedViewTemplate.Name;
+            string sideLabel = useCutSide ? "Cut" : "Surface";
+            var title = $"{SelectedViewTemplate.Name} ({sideLabel})";
 
-            StatusText = "Creating legend from selected filters...";
+            StatusText = $"Creating {sideLabel.ToLowerInvariant()} legend from selected filters...";
 
             _revit.Run(
                 app =>
                 {
                     var doc = app.ActiveUIDocument?.Document;
-                    if (doc == null)
-                        return (LegendId: ElementId.InvalidElementId, EntryCount: 0, SkippedCount: filterIds.Count, Error: "No active document.");
+                    if (doc == null) return ElementId.InvalidElementId;
 
                     var template = doc.GetElement(templateId) as View;
-                    if (template == null || !template.IsTemplate)
-                        return (LegendId: ElementId.InvalidElementId, EntryCount: 0, SkippedCount: filterIds.Count, Error: "Selected element is not a valid view template.");
+                    if (template == null) return ElementId.InvalidElementId;
 
                     var entries = filterIds
-                        .Select(id => ViewFilterColorManagerService.BuildLegendEntryFromFilter(doc, template, id))
+                        .Select(id => ViewFilterColorManagerService.BuildLegendEntryFromFilter(doc, template, id, useCutSide))
                         .Where(e => e != null)
                         .ToList();
 
-                    int skippedCount = filterIds.Count - entries.Count;
-                    if (entries.Count == 0)
-                        return (LegendId: ElementId.InvalidElementId, EntryCount: 0, SkippedCount: skippedCount,
-                            Error: "None of the selected filters could be converted into legend entries.");
+                    if (entries.Count == 0) return ElementId.InvalidElementId;
 
-                    using (var t = new Transaction(doc, "BA | Create Legend From Selected Filters"))
+                    using (var t = new Transaction(doc, $"BA | Create {sideLabel} Legend From Selected Filters"))
                     {
                         t.Start();
                         ElementId legendId;
@@ -1269,25 +1383,16 @@ namespace BA.UI.Views
                             t.RollBack();
                             throw;
                         }
-
-                        return (LegendId: legendId, EntryCount: entries.Count, SkippedCount: skippedCount, Error: (string)null);
+                        return legendId;
                     }
                 },
-                result =>
-                {
-                    if (!string.IsNullOrEmpty(result.Error))
-                    {
-                        StatusText = "Legend creation failed: " + result.Error;
-                        return;
-                    }
-
-                    StatusText = result.SkippedCount == 0
-                        ? $"Legend created from {result.EntryCount} selected filter(s)."
-                        : $"Legend created from {result.EntryCount} selected filter(s); {result.SkippedCount} unsupported filter(s) were skipped.";
-                },
+                id => StatusText = id != ElementId.InvalidElementId
+                    ? $"{sideLabel} legend created from {filterIds.Count} selected filter(s)."
+                    : "Legend creation failed.",
                 ex => StatusText = "Legend creation failed: " + ex.Message
             );
         }
+
 
         // New. Saves whatever is currently checked, across both panes, as a named
         // group. Filter names are what's stored, not ElementIds, matching how the
@@ -1434,7 +1539,7 @@ namespace BA.UI.Views
         // New. Same entry-building path as CreateLegendFromSelected, except the
         // filter list comes from a saved group's names resolved against the
         // current template instead of checked rows in the grid. // <- NEW
-        private void CreateLegendFromGroup()
+        private void CreateLegendFromGroup(bool useCutSide)
         {
             if (SelectedViewTemplate == null)
             {
@@ -1451,69 +1556,59 @@ namespace BA.UI.Views
             var templateId = SelectedViewTemplate.Id;
             var fileName = SelectedFilterGroup.FileName;
             var groupName = SelectedFilterGroup.GroupName;
+            string sideLabel = useCutSide ? "Cut" : "Surface";
+            var title = $"{groupName} ({sideLabel})";
 
-            StatusText = $"Creating legend from group '{groupName}'...";
+            StatusText = $"Creating {sideLabel.ToLowerInvariant()} legend from group '{groupName}'...";
 
             _revit.Run(
                 app =>
                 {
                     var doc = app.ActiveUIDocument?.Document;
-                    if (doc == null)
-                        return (LegendId: ElementId.InvalidElementId, EntryCount: 0, Missing: 0, Unsupported: 0, Error: "No active document.");
+                    if (doc == null) return (LegendId: ElementId.InvalidElementId, Missing: 0, Error: "No active document.");
 
                     FilterGroupDto dto;
-                    try
-                    {
-                        dto = FilterGroupLibraryService.LoadGroup(doc, fileName);
-                    }
-                    catch (Exception ex)
-                    {
-                        return (LegendId: ElementId.InvalidElementId, EntryCount: 0, Missing: 0, Unsupported: 0, Error: ex.Message);
-                    }
+                    try { dto = FilterGroupLibraryService.LoadGroup(doc, fileName); }
+                    catch (Exception ex) { return (LegendId: ElementId.InvalidElementId, Missing: 0, Error: ex.Message); }
 
                     var template = doc.GetElement(templateId) as View;
                     if (template == null || !template.IsTemplate)
-                        return (LegendId: ElementId.InvalidElementId, EntryCount: 0, Missing: 0, Unsupported: 0,
-                            Error: "Selected element is not a valid view template.");
+                        return (LegendId: ElementId.InvalidElementId, Missing: 0, Error: "Selected element is not a valid view template.");
 
                     var templateFilterIds = template.GetFilters() ?? new List<ElementId>();
 
                     var nameToId = templateFilterIds
-                        .Select(id => (Id: id, Elem: doc.GetElement(id)))
-                        .Where(x => x.Elem != null && !string.IsNullOrWhiteSpace(x.Elem.Name))
-                        .GroupBy(x => x.Elem.Name, StringComparer.OrdinalIgnoreCase)
-                        .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+                        .Select(id => (Id: id, Elem: doc.GetElement(id) as ParameterFilterElement))
+                        .Where(x => x.Elem != null)
+                        .ToDictionary(x => x.Elem.Name, x => x.Id, StringComparer.OrdinalIgnoreCase);
 
                     var entries = new List<LegendEntry>();
                     int missing = 0;
-                    int unsupported = 0;
 
                     foreach (var name in dto.FilterNames)
                     {
-                        if (!nameToId.TryGetValue(name, out var id))
+                        if (nameToId.TryGetValue(name, out var id))
+                        {
+                            var entry = ViewFilterColorManagerService.BuildLegendEntryFromFilter(doc, template, id, useCutSide);
+                            if (entry != null) entries.Add(entry);
+                        }
+                        else
                         {
                             missing++;
-                            continue;
                         }
-
-                        var entry = ViewFilterColorManagerService.BuildLegendEntryFromFilter(doc, template, id);
-                        if (entry != null)
-                            entries.Add(entry);
-                        else
-                            unsupported++;
                     }
 
                     if (entries.Count == 0)
-                        return (LegendId: ElementId.InvalidElementId, EntryCount: 0, Missing: missing, Unsupported: unsupported,
-                            Error: "None of this group's filters could be converted into legend entries for the selected template.");
+                        return (LegendId: ElementId.InvalidElementId, Missing: missing,
+                            Error: "None of this group's filters are present on the selected template.");
 
-                    using (var t = new Transaction(doc, "BA | Create Legend From Group"))
+                    using (var t = new Transaction(doc, $"BA | Create {sideLabel} Legend From Group"))
                     {
                         t.Start();
                         ElementId legendId;
                         try
                         {
-                            legendId = LegendGenerationService.CreateLegendFromEntries(doc, groupName, entries);
+                            legendId = LegendGenerationService.CreateLegendFromEntries(doc, title, entries);
                             t.Commit();
                         }
                         catch
@@ -1521,29 +1616,22 @@ namespace BA.UI.Views
                             t.RollBack();
                             throw;
                         }
-
-                        return (LegendId: legendId, EntryCount: entries.Count, Missing: missing, Unsupported: unsupported, Error: (string)null);
+                        return (LegendId: legendId, Missing: missing, Error: (string)null);
                     }
                 },
                 result =>
                 {
                     if (!string.IsNullOrEmpty(result.Error))
                     {
-                        StatusText = $"Legend from group failed: {result.Error}";
+                        StatusText = $"{sideLabel} legend from group failed: {result.Error}";
                         return;
                     }
 
-                    var details = new List<string>();
-                    if (result.Missing > 0)
-                        details.Add($"{result.Missing} not present");
-                    if (result.Unsupported > 0)
-                        details.Add($"{result.Unsupported} unsupported");
-
-                    StatusText = details.Count == 0
-                        ? $"Legend created from group '{groupName}' with {result.EntryCount} entr{(result.EntryCount == 1 ? "y" : "ies")}."
-                        : $"Legend created from group '{groupName}' with {result.EntryCount} entr{(result.EntryCount == 1 ? "y" : "ies")}; {string.Join(", ", details)} filter(s) skipped.";
+                    StatusText = result.Missing == 0
+                        ? $"{sideLabel} legend created from group '{groupName}'."
+                        : $"{sideLabel} legend created from group '{groupName}', {result.Missing} filter(s) in the group were not present on this template and were skipped.";
                 },
-                ex => StatusText = "Legend from group failed: " + ex.Message
+                ex => StatusText = $"{sideLabel} legend from group failed: " + ex.Message
             );
         }
 

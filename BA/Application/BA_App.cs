@@ -74,6 +74,7 @@ namespace BA.BAApplication
                 OverheadProxyUpdater.Register(Application);
                 ImportCadWarningGuard.Register(Application);
                 FamilyImportWarningGuardV2.Register(Application);
+                SharedParameterCreationGuard.Register(Application); // NEW
 
                 Application.ControlledApplication.DocumentSynchronizingWithCentral += OnDocumentSynchronizingWithCentral;
                 Application.ControlledApplication.DocumentSynchronizedWithCentral += OnDocumentSynchronizedWithCentral;
@@ -266,6 +267,7 @@ namespace BA.BAApplication
                 OverheadProxyUpdater.Unregister(Application);
                 ImportCadWarningGuard.Unregister(Application);
                 FamilyImportWarningGuardV2.Unregister(Application);
+                SharedParameterCreationGuard.Unregister(Application); // NEW
                 BA.Updates.UpdateService.Unregister(Application);
 
                 Application.ControlledApplication.DocumentSynchronizingWithCentral -= OnDocumentSynchronizingWithCentral;

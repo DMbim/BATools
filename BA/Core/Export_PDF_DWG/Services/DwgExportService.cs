@@ -83,6 +83,7 @@ namespace BA.Core.Export.Services
                         ExportingAreas = settings.ExportingAreas,
                         HideScopeBox = settings.HideScopeBox,
                         HideReferencePlane = settings.HideReferencePlane,
+                        HideUnreferenceViewTags = settings.HideUnreferenceViewTags,
                         LineScaling = settings.LineScaling,
                         Colors = settings.Colors,
                         PropOverrides = settings.PropOverrides

@@ -227,8 +227,8 @@
                         <StackPanel DockPanel.Dock="Top">
                             <TextBlock Text="2. Target templates"
                                        Style="{StaticResource BaSectionTitleText}"/>
-                            <TextBlock Text="Only templates with the same view type as the source are shown."
-                                       Style="{StaticResource PanelCaptionText}"/>
+                            <TextBlock Text="Any other template can be a target, regardless of view type. Check the View Type column, a transfer reports per target if a specific property, category, or filter doesn't apply to that template's view type."
+                                           Style="{StaticResource PanelCaptionText}"/>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                                 <TextBlock Text="View type:"
                                            Style="{StaticResource BaMutedTextPanel}"

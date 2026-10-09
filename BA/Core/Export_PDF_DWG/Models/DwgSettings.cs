@@ -45,7 +45,7 @@ namespace BA.Core.Export.Models
         public bool ExportingAreas { get; set; }
         public bool HideScopeBox { get; set; }
         public bool HideReferencePlane { get; set; }
-
+        public bool HideUnreferenceViewTags { get; set; } = false;
         /// <summary>
         /// IndexColors (Revit's own default) snaps every color to the
         /// nearest of 255 fixed AutoCAD palette colors, "may not provide

@@ -20,18 +20,23 @@ namespace BATools_Installer
         // Example: BA_R26.zip
         public string AssetName { get; set; } = "BA_R26.zip";
 
-        // Optional: BA-side can pass direct asset URL to avoid “latest changed” issues
+        // Optional: BA-side can pass direct asset URL to avoid "latest changed" issues
         public string? AssetUrl { get; set; }
 
-        // Optional: the release tag (e.g. "v1.4.0") that BA resolved when it decided to
-        // launch this update. Not used to fetch anything, logging/diagnostics only.
+        // Optional: the release tag (e.g. "v1.4.0"). Logging/diagnostics only.
         public string? Tag { get; set; }
 
         // If > 0, installer waits for that process to exit (Revit PID)
         public int WaitPid { get; set; } = 0;
 
-        // Silent mode for “update after close”
+        // Silent mode for "update after close" (legacy path, no longer triggered
+        // automatically, kept for manual/testing use)
         public bool Silent { get; set; } = false;
+
+        // Wait for WaitPid to exit, THEN do a live GitHub version check, and only open the
+        // window (running an Update) if the result is actually newer than what's installed.
+        // This is the sole automatic close time update mechanism.
+        public bool WaitAndCheck { get; set; } = false;
 
         public static InstallerArgs Parse(string[] args)
         {
@@ -45,10 +50,6 @@ namespace BATools_Installer
 
                 switch (s.ToLowerInvariant())
                 {
-                    // Support BOTH styles:
-                    //   --update / --install / --uninstall
-                    // and
-                    //   --mode update
                     case "--mode":
                         {
                             var m = Next().Trim().ToLowerInvariant();
@@ -108,6 +109,10 @@ namespace BATools_Installer
 
                     case "--silent":
                         a.Silent = true;
+                        break;
+
+                    case "--waitandcheck":
+                        a.WaitAndCheck = true;
                         break;
                 }
             }

@@ -2,6 +2,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace BATools_Installer
@@ -58,64 +59,84 @@ namespace BATools_Installer
         private static async Task InstallOrUpdate(
                  InstallerArgs args, bool isUpdate, Action<string> log)
         {
-            var installDir = RevitInstallPaths.GetInstallDir(args.RevitYear);
-            var manifestPath = RevitInstallPaths.GetManifestPath(args.RevitYear);
+            // Guards against two installer processes (e.g. from two simultaneous Revit
+            // sessions on the same machine) writing to the same install directory at once.
+            // Scoped per Revit year so 2025 and 2026 updates never block each other.
+            using var mutex = new Mutex(false, $"Global\\BA_BATools_Install_{args.RevitYear}");
 
-            log(isUpdate ? "Updating..." : "Installing...");
-
-            // ── Download ──────────────────────────────────────────────────────
-            var client = new GitHubReleaseClient(InstallerConfig.RepoOwner, InstallerConfig.RepoName);
-
-            string payloadZip;
-            if (!string.IsNullOrWhiteSpace(args.AssetUrl))
+            bool acquired = false;
+            try
             {
-                // BA already resolved this exact asset during its version check. Using the
-                // pinned URL avoids a second "latest release" query that could resolve to a
-                // different asset if a new release went out in between.
-                log($"Using pinned asset URL: {args.AssetUrl}");
-                payloadZip = await client
-                    .DownloadAssetUrlToTempAsync(args.AssetUrl, args.AssetName, log)
-                    .ConfigureAwait(false);
+                acquired = mutex.WaitOne(TimeSpan.FromMinutes(5));
+                if (!acquired)
+                {
+                    log("WARN: Another installer instance is already updating this Revit year. Skipping.");
+                    return;
+                }
+
+                var installDir = RevitInstallPaths.GetInstallDir(args.RevitYear);
+                var manifestPath = RevitInstallPaths.GetManifestPath(args.RevitYear);
+
+                log(isUpdate ? "Updating..." : "Installing...");
+
+                // ── Download ──────────────────────────────────────────────────────
+                var client = new GitHubReleaseClient(InstallerConfig.RepoOwner, InstallerConfig.RepoName);
+
+                string payloadZip;
+                if (!string.IsNullOrWhiteSpace(args.AssetUrl))
+                {
+                    log($"Using pinned asset URL: {args.AssetUrl}");
+                    payloadZip = await client
+                        .DownloadAssetUrlToTempAsync(args.AssetUrl, args.AssetName, log)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    log("No asset URL provided. Resolving latest release asset by name.");
+                    payloadZip = await client
+                        .DownloadLatestAssetToTempAsync(args.AssetName)
+                        .ConfigureAwait(false);
+                }
+
+                var extractedDir = ZipPayload.ExtractToTempFolder(payloadZip);
+
+                Directory.CreateDirectory(installDir);
+
+                // ── Backup ────────────────────────────────────────────────────────
+                if (isUpdate && Directory.Exists(installDir))
+                {
+                    var backupDir = installDir + "_backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                    log($"Backup to: {backupDir}");
+                    FileCopy.CopyDirectory(installDir, backupDir, overwrite: true);
+                }
+
+                // ── Copy new files ────────────────────────────────────────────────
+                FileCopy.CopyDirectory(extractedDir, installDir, overwrite: true);
+
+                TryCopySelfToInstallDir(installDir, log);
+
+                ManifestWriter.WriteApplicationAddinManifest(
+                    manifestPath,
+                    assemblyPath: Path.Combine(installDir, InstallerConfig.AddinAssemblyName),
+                    fullClassName: InstallerConfig.AddinFullClassName,
+                    addinIdGuid: InstallerConfig.AddinIdGuid,
+                    name: InstallerConfig.AddinName,
+                    vendorId: InstallerConfig.VendorId,
+                    vendorDescription: "Bogle Architects - BA Tools"
+                );
+
+                IssueReporterSettingsInstaller.InstallOrUpdate(log);
+                ContentBrowserSettingsInstaller.InstallOrUpdate(log);
+
+                log("Done.");
             }
-            else
+            finally
             {
-                log("No asset URL provided. Resolving latest release asset by name.");
-                payloadZip = await client
-                    .DownloadLatestAssetToTempAsync(args.AssetName)
-                    .ConfigureAwait(false);
+                if (acquired)
+                {
+                    try { mutex.ReleaseMutex(); } catch { }
+                }
             }
-
-            var extractedDir = ZipPayload.ExtractToTempFolder(payloadZip);
-
-            Directory.CreateDirectory(installDir);
-
-            // ── Backup ────────────────────────────────────────────────────────
-            if (isUpdate && Directory.Exists(installDir))
-            {
-                var backupDir = installDir + "_backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                log($"Backup to: {backupDir}");
-                FileCopy.CopyDirectory(installDir, backupDir, overwrite: true);
-            }
-
-            // ── Copy new files ────────────────────────────────────────────────
-            FileCopy.CopyDirectory(extractedDir, installDir, overwrite: true);
-
-            TryCopySelfToInstallDir(installDir, log);
-
-            ManifestWriter.WriteApplicationAddinManifest(
-                manifestPath,
-                assemblyPath: Path.Combine(installDir, InstallerConfig.AddinAssemblyName),
-                fullClassName: InstallerConfig.AddinFullClassName,
-                addinIdGuid: InstallerConfig.AddinIdGuid,
-                name: InstallerConfig.AddinName,
-                vendorId: InstallerConfig.VendorId,
-                vendorDescription: "Bogle Architects - BA Tools"
-            );
-
-            IssueReporterSettingsInstaller.InstallOrUpdate(log);
-            ContentBrowserSettingsInstaller.InstallOrUpdate(log);
-
-            log("Done.");
         }
 
         private static void TryCopySelfToInstallDir(string installDir, Action<string> log)
@@ -146,7 +167,6 @@ namespace BATools_Installer
             }
             catch
             {
-                // process already gone
                 log($"WaitPid {pid}: process not found (already exited). Continuing...");
             }
         }

@@ -50,6 +50,8 @@ namespace BA.UI.Settings
             // this settings.json has never had this key written to it.
             TxtWip2Path.Text = _settings.GetString(SharedParamPaths.SettingsKeyWip2Path, SharedParamPaths.DefaultWip2);
             RefreshWip2Warning();
+
+            RefreshLeadersButton();
         }
 
         // Reads the same BATools.version file Publish.ps1 writes into the build
@@ -201,6 +203,63 @@ namespace BA.UI.Settings
             {
                 TxtWip2Path.Text = dlg.FileName;
             }
+        }
+
+        // ---------------- Revit Leaders ----------------
+
+        private string ReadAutodeskUsername()
+        {
+            try
+            {
+                return (_uiApp.Application.Username ?? "").Trim();
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        // Enabled for a listed Revit Leader, or for anyone while the list is empty
+        // (so the first leader can be registered). Disabled when the list cannot be read.
+        private void RefreshLeadersButton()
+        {
+            try
+            {
+                LeaderRegistrySnapshot snapshot = RevitLeaderRegistry.Load();
+                bool canOpen = RevitLeaderRegistry.CanEdit(snapshot, ReadAutodeskUsername());
+
+                string tip;
+                switch (snapshot.Status)
+                {
+                    case LeaderRegistryStatus.Unavailable:
+                        tip = "The Revit Leader list is not reachable.";
+                        break;
+                    case LeaderRegistryStatus.Empty:
+                        tip = "No leaders are registered yet. Open to register the first Revit Leader.";
+                        break;
+                    default:
+                        tip = canOpen
+                            ? "Manage the Revit Leaders who may create shared parameters."
+                            : "Only listed Revit Leaders can manage this list.";
+                        break;
+                }
+
+                BtnRevitLeaders.IsEnabled = canOpen;
+                BtnRevitLeaders.ToolTip = tip;
+            }
+            catch
+            {
+                BtnRevitLeaders.IsEnabled = false;
+                BtnRevitLeaders.ToolTip = "The Revit Leader list could not be checked.";
+            }
+        }
+
+        private void BtnRevitLeaders_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new RevitLeadersWindow(ReadAutodeskUsername()) { Owner = this };
+            window.ShowDialog();
+
+            RefreshLeadersButton();
         }
     }
 

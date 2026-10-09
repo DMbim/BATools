@@ -175,17 +175,16 @@ namespace BA.Core.ViewFilters
             return (applied, skippedCategory, skippedNoMatch);
         }
 
-        // New. Builds one legend row entry directly from a filter's live overrides
-        // on a template, rather than from a stored ParameterColorRule. This is what
-        // lets the View Template tab build a legend from an arbitrary mix of native
-        // Revit filters and BA managed filters, since neither necessarily has a
-        // ParameterColorRule behind it anymore by the time it's sitting on the
-        // template. Color preference order: surface fill color, then projection
-        // line color, then cut line color, first one found wins. Returns a fully
-        // formed LegendEntry with black/no-pattern defaults if the filter carries
-        // no color override at all, rather than throwing, so one badly configured
-        // filter doesn't abort legend generation for the rest of the selection. // <- NEW
-        public static LegendEntry BuildLegendEntryFromFilter(Document doc, View template, ElementId filterId)
+        // Changed. Takes an explicit useCutSide flag instead of falling back across
+        // Surface -> Cut -> line colors. That fallback chain was ambiguous whenever a
+        // filter had different colors/patterns on each side, silently picking one with
+        // no way for the caller to know or choose. Now the caller picks the side
+        // explicitly (via two separate buttons/commands in the VM), and this method
+        // reads color AND pattern from that single side only, never crossing over.
+        // Within a side, only that side's own line color is used as a no-pattern
+        // fallback (Projection line for the Surface side, Cut line for the Cut side),
+        // never the other side's line color. // <- CHANGED
+        public static LegendEntry BuildLegendEntryFromFilter(Document doc, View template, ElementId filterId, bool useCutSide)
         {
             if (doc == null || template == null || filterId == null || filterId == ElementId.InvalidElementId)
                 return null;
@@ -196,41 +195,58 @@ namespace BA.Core.ViewFilters
             var ogs = SafeOgs(() => template.GetFilterOverrides(filterId));
 
             Color color = null;
+            ElementId patternId = ElementId.InvalidElementId;
 
-            try
-            {
-                if (ogs.SurfaceForegroundPatternColor != null && ogs.SurfaceForegroundPatternColor.IsValid)
-                    color = ogs.SurfaceForegroundPatternColor;
-            }
-            catch { /* leave color null, try next source */ }
-
-            if (color == null)
+            if (useCutSide)
             {
                 try
                 {
-                    if (ogs.ProjectionLineColor != null && ogs.ProjectionLineColor.IsValid)
-                        color = ogs.ProjectionLineColor;
+                    if (ogs.CutForegroundPatternColor != null && ogs.CutForegroundPatternColor.IsValid)
+                    {
+                        color = ogs.CutForegroundPatternColor;
+                        try { patternId = ogs.CutForegroundPatternId ?? ElementId.InvalidElementId; }
+                        catch { patternId = ElementId.InvalidElementId; }
+                    }
                 }
-                catch { /* leave color null, try next source */ }
-            }
+                catch { /* leave color null, try line fallback below */ }
 
-            if (color == null)
+                if (color == null)
+                {
+                    try
+                    {
+                        if (ogs.CutLineColor != null && ogs.CutLineColor.IsValid)
+                            color = ogs.CutLineColor;
+                    }
+                    catch { /* fall through to black default below */ }
+                }
+            }
+            else
             {
                 try
                 {
-                    if (ogs.CutLineColor != null && ogs.CutLineColor.IsValid)
-                        color = ogs.CutLineColor;
+                    if (ogs.SurfaceForegroundPatternColor != null && ogs.SurfaceForegroundPatternColor.IsValid)
+                    {
+                        color = ogs.SurfaceForegroundPatternColor;
+                        try { patternId = ogs.SurfaceForegroundPatternId ?? ElementId.InvalidElementId; }
+                        catch { patternId = ElementId.InvalidElementId; }
+                    }
                 }
-                catch { /* fall through to black default below */ }
+                catch { /* leave color null, try line fallback below */ }
+
+                if (color == null)
+                {
+                    try
+                    {
+                        if (ogs.ProjectionLineColor != null && ogs.ProjectionLineColor.IsValid)
+                            color = ogs.ProjectionLineColor;
+                    }
+                    catch { /* fall through to black default below */ }
+                }
             }
 
             byte r = color?.Red ?? 0;
             byte g = color?.Green ?? 0;
             byte b = color?.Blue ?? 0;
-
-            ElementId patternId = ElementId.InvalidElementId;
-            try { patternId = ogs.SurfaceForegroundPatternId ?? ElementId.InvalidElementId; }
-            catch { /* leave InvalidElementId, LegendGenerationService falls back to solid */ }
 
             return new LegendEntry(label, r, g, b, patternId);
         }
@@ -241,7 +257,120 @@ namespace BA.Core.ViewFilters
                 return requested;
             return solidFallback;
         }
+        // New. Resolves the true, currently-rendering appearance of one specific instance
+        // in one specific view, in Revit's own actual priority order: per-element override
+        // first, then the topmost matching AND visible filter on the view (view.GetFilters()
+        // is already in display/priority order, confirmed against Autodesk's own
+        // documentation: "the filter at the top of the list takes precedence"), then null
+        // if neither applies (caller falls back to material). Only the first matching
+        // filter is consulted for the requested property, even if it left that property
+        // unset, this does not attempt to merge partial overrides across multiple
+        // simultaneously matching filters, Revit's exact compositing rule for that case
+        // isn't something this can verify with confidence. // <- NEW
+        public static bool TryGetEffectiveElementGraphics(
+            Document doc, View view, ElementId elementId, bool useCutSide,
+            out byte r, out byte g, out byte b, out ElementId patternId, out string source)
+        {
+            r = 0; g = 0; b = 0; patternId = ElementId.InvalidElementId; source = null;
 
+            if (doc == null || view == null || elementId == null || elementId == ElementId.InvalidElementId)
+                return false;
+
+            // 1) Per-element override, highest priority.
+            OverrideGraphicSettings elemOgs;
+            try { elemOgs = view.GetElementOverrides(elementId); }
+            catch { elemOgs = null; }
+
+            if (elemOgs != null && TryReadSide(elemOgs, useCutSide, out r, out g, out b, out patternId))
+            {
+                source = "Element override";
+                return true;
+            }
+
+            // 2) Filters, in the view's own display/priority order, topmost first.
+            List<ElementId> filterIds;
+            try { filterIds = view.GetFilters()?.ToList() ?? new List<ElementId>(); }
+            catch { filterIds = new List<ElementId>(); }
+
+            foreach (var filterId in filterIds)
+            {
+                bool visible = SafeBool(() => view.GetFilterVisibility(filterId), true);
+                if (!visible) continue; // hidden by this filter, does not contribute an appearance
+
+                var pfe = doc.GetElement(filterId) as ParameterFilterElement;
+                if (pfe == null) continue;
+
+                ElementFilter elementFilter;
+                try { elementFilter = pfe.GetElementFilter(); }
+                catch { continue; }
+
+                bool matches;
+                try
+                {
+                    matches = new FilteredElementCollector(doc, new List<ElementId> { elementId })
+                        .WherePasses(elementFilter)
+                        .Any();
+                }
+                catch { matches = false; }
+
+                if (!matches) continue;
+
+                var filterOgs = SafeOgs(() => view.GetFilterOverrides(filterId));
+
+                if (TryReadSide(filterOgs, useCutSide, out r, out g, out b, out patternId))
+                {
+                    source = pfe.Name;
+                    return true;
+                }
+
+                // Topmost match wins outright, even if it left this property unset,
+                // per the documented "top of list takes precedence" rule. Does not
+                // continue checking lower filters for this one element.
+                break;
+            }
+
+            return false;
+        }
+
+        private static bool TryReadSide(OverrideGraphicSettings ogs, bool useCutSide, out byte r, out byte g, out byte b, out ElementId patternId)
+        {
+            r = 0; g = 0; b = 0; patternId = ElementId.InvalidElementId;
+            if (ogs == null) return false;
+
+            Color color = null;
+
+            if (useCutSide)
+            {
+                try
+                {
+                    if (ogs.CutForegroundPatternColor != null && ogs.CutForegroundPatternColor.IsValid)
+                    {
+                        color = ogs.CutForegroundPatternColor;
+                        try { patternId = ogs.CutForegroundPatternId ?? ElementId.InvalidElementId; }
+                        catch { patternId = ElementId.InvalidElementId; }
+                    }
+                }
+                catch { return false; }
+            }
+            else
+            {
+                try
+                {
+                    if (ogs.SurfaceForegroundPatternColor != null && ogs.SurfaceForegroundPatternColor.IsValid)
+                    {
+                        color = ogs.SurfaceForegroundPatternColor;
+                        try { patternId = ogs.SurfaceForegroundPatternId ?? ElementId.InvalidElementId; }
+                        catch { patternId = ElementId.InvalidElementId; }
+                    }
+                }
+                catch { return false; }
+            }
+
+            if (color == null) return false;
+
+            r = color.Red; g = color.Green; b = color.Blue;
+            return true;
+        }
         private static ElementId GetSolidFillPatternId(Document doc)
         {
             return new FilteredElementCollector(doc)
@@ -297,6 +426,7 @@ namespace BA.Core.ViewFilters
             }
         }
     }
+
 
     public sealed record FilterColorAssignment(
         ElementId FilterId,
