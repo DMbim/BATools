@@ -386,6 +386,7 @@
 		<Folder Include="Core\GhostMarkup\ViewModels\" />
 		<Folder Include="Core\GhostMarkup\Views\" />
 		<Folder Include="Core\HLP_Sheets\Views\" />
+		<Folder Include="Core\NewFolder1\" />
 		<Folder Include="Core\NewFolder\" />
 		<Folder Include="Core\Preview\ExternalEvents\" />
 		<Folder Include="Core\Preview\Utilities\" />

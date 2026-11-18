@@ -1,5 +1,4 @@
-﻿using Autodesk.Revit.UI;
-using BA.BAApplication;
+﻿using BA.BAApplication;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -10,91 +9,195 @@ namespace BA.Updates
 {
     internal static class InstallerLauncher
     {
-        /// <summary>
-        /// Ensures BATools-Installer.exe exists next to BA.dll, downloading it directly from
-        /// the latest GitHub release if it's missing. Runs inside BA.dll (the Revit process),
-        /// so it has no dependency on the installer exe already being present — that's what
-        /// lets it repair a machine where the exe was never deployed or got deleted.
-        ///
-        /// Requires BATools-Installer.exe to be uploaded as its OWN release asset on GitHub,
-        /// not only bundled inside BA_Rxx.zip. If that asset is missing from the release,
-        /// this logs and returns false; it does not throw, since this runs silently at
-        /// startup and must never interrupt Revit.
-        /// </summary>
-        private static async Task<bool> EnsureInstallerExeExistsAsync(string installerPath)
+        // Publish.ps1 refuses to ship an installer under 30 MB, so anything smaller than this
+        // is a failed or partial download and must never replace a working exe.
+        private const long MinInstallerBytes = 20L * 1024 * 1024;
+
+        private static readonly SemaphoreSlim RepairGate = new SemaphoreSlim(1, 1);
+
+        public static string GetInstallerPath()
         {
-            if (File.Exists(installerPath))
+            var addinAsm = typeof(InstallerLauncher).Assembly;
+            var addinDir = Path.GetDirectoryName(addinAsm.Location) ?? "";
+            return Path.Combine(addinDir, UpdateConfig.InstallerExeName);
+        }
+
+        public static bool InstallerExists() => File.Exists(GetInstallerPath());
+
+        /// <summary>
+        /// Makes sure the installer exe next to BA.dll exists and is not older than this add in.
+        ///
+        /// Missing: downloaded from the latest GitHub release asset named BATools-Installer.exe.
+        /// Outdated: replaced once per add in version. The running exe cannot be deleted or
+        /// overwritten, but Windows allows renaming it, so the old file is renamed to a unique
+        /// .old name and deleted on a later run. A marker file stops this from repeating if the
+        /// installer file version does not track the add in version.
+        ///
+        /// Runs inside BA.dll, so it has no dependency on the installer already being present.
+        /// </summary>
+        internal static async Task<bool> EnsureInstallerReadyAsync(string installerPath)
+        {
+            TryDeleteOldInstallerFiles(installerPath);
+
+            var missing = !File.Exists(installerPath);
+            if (!missing && !NeedsRefresh(installerPath))
                 return true;
 
-            AppLogger.LogInfo($"BATools-Installer.exe missing at '{installerPath}'. Attempting self-heal download.");
-
+            await RepairGate.WaitAsync().ConfigureAwait(false);
             try
             {
-                var rel = await GitHubReleaseClientLite.GetLatestReleaseAsync(CancellationToken.None).ConfigureAwait(false);
-                if (rel == null)
-                {
-                    AppLogger.LogInfo("Self-heal failed: could not reach GitHub or no release found.");
-                    return false;
-                }
+                missing = !File.Exists(installerPath);
+                if (!missing && !NeedsRefresh(installerPath))
+                    return true;
 
-                var asset = GitHubReleaseClientLite.FindAsset(rel, UpdateConfig.InstallerExeName);
-                if (asset == null || string.IsNullOrWhiteSpace(asset.browser_download_url))
-                {
-                    AppLogger.LogInfo(
-                        $"Self-heal failed: release '{rel.tag_name}' has no '{UpdateConfig.InstallerExeName}' " +
-                        "asset. It must be uploaded to the GitHub release as its own file, not only inside BA_Rxx.zip.");
-                    return false;
-                }
+                AppLogger.LogInfo(missing
+                    ? $"Installer missing at '{installerPath}'. Downloading it."
+                    : $"Installer at '{installerPath}' is older than this add in. Refreshing it.");
 
-                var dir = Path.GetDirectoryName(installerPath);
-                if (!string.IsNullOrWhiteSpace(dir))
-                    Directory.CreateDirectory(dir);
+                var newPath = installerPath + ".new";
+                var downloaded = await DownloadInstallerAsync(newPath).ConfigureAwait(false);
+                if (!downloaded)
+                    return !missing;
 
-                await GitHubReleaseClientLite
-                    .DownloadAssetToFileAsync(asset.browser_download_url!, installerPath, CancellationToken.None)
-                    .ConfigureAwait(false);
+                SwapInstaller(installerPath, newPath);
+                WriteRefreshMarker();
 
-                AppLogger.LogInfo($"Self-heal succeeded: downloaded '{UpdateConfig.InstallerExeName}' to '{installerPath}'.");
+                AppLogger.LogInfo("Installer is now up to date.");
                 return true;
             }
             catch (Exception ex)
             {
-                AppLogger.LogError("EnsureInstallerExeExistsAsync", ex);
+                AppLogger.LogError("EnsureInstallerReadyAsync", ex);
+                return File.Exists(installerPath);
+            }
+            finally
+            {
+                RepairGate.Release();
+            }
+        }
+
+        private static async Task<bool> DownloadInstallerAsync(string newPath)
+        {
+            var rel = await GitHubReleaseClientLite.GetLatestReleaseAsync(CancellationToken.None).ConfigureAwait(false);
+            if (rel == null)
+            {
+                AppLogger.LogInfo("Installer download skipped: could not reach GitHub.");
+                return false;
+            }
+
+            var asset = GitHubReleaseClientLite.FindAsset(rel, UpdateConfig.InstallerExeName);
+            if (asset == null || string.IsNullOrWhiteSpace(asset.browser_download_url))
+            {
+                AppLogger.LogInfo(
+                    $"Installer download failed: release '{rel.tag_name}' has no '{UpdateConfig.InstallerExeName}' asset.");
+                return false;
+            }
+
+            await GitHubReleaseClientLite
+                .DownloadAssetToFileAsync(asset.browser_download_url!, newPath, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            var size = new FileInfo(newPath).Length;
+            if (size < MinInstallerBytes)
+            {
+                AppLogger.LogInfo($"Downloaded installer is only {size} bytes. Discarding it.");
+                try { File.Delete(newPath); } catch { }
+                return false;
+            }
+
+            return true;
+        }
+
+        private static void SwapInstaller(string installerPath, string newPath)
+        {
+            if (File.Exists(installerPath))
+            {
+                // Rename, never delete: a running exe can be renamed but not deleted or overwritten.
+                var oldPath = $"{installerPath}.{Guid.NewGuid():N}.old";
+                File.Move(installerPath, oldPath);
+            }
+
+            File.Move(newPath, installerPath);
+        }
+
+        private static bool NeedsRefresh(string installerPath)
+        {
+            try
+            {
+                var expected = GetExpectedInstallerVersion();
+                if (File.Exists(GetRefreshMarkerPath(expected)))
+                    return false;
+
+                var info = FileVersionInfo.GetVersionInfo(installerPath);
+                var installerVersion = new Version(info.FileMajorPart, info.FileMinorPart, info.FileBuildPart);
+                return installerVersion < expected;
+            }
+            catch
+            {
                 return false;
             }
         }
 
-        /// <summary>
-        /// Ensures the installer exe exists (self-healing it if missing), then launches it in
-        /// --waitandcheck mode: it waits for this Revit process to exit, then does its own
-        /// live GitHub check at that moment and only opens its window if a newer version
-        /// actually exists. This is the sole mechanism for automatic close-time updates.
-        /// </summary>
-        public static async Task<bool> LaunchWaitAndCheckAsync(UIApplication uiapp)
+        private static Version GetExpectedInstallerVersion()
         {
-            var addinAsm = typeof(InstallerLauncher).Assembly;
-            var addinDir = Path.GetDirectoryName(addinAsm.Location) ?? "";
-            var installerPath = Path.Combine(addinDir, UpdateConfig.InstallerExeName);
+            var v = VersionUtil.GetInstalledVersion(typeof(InstallerLauncher).Assembly);
+            return new Version(Math.Max(v.Major, 0), Math.Max(v.Minor, 0), Math.Max(v.Build, 0));
+        }
 
-            var exists = await EnsureInstallerExeExistsAsync(installerPath).ConfigureAwait(false);
-            if (!exists)
+        private static string GetRefreshMarkerPath(Version expected)
+        {
+            var root = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var dir = Path.Combine(root, "BA", "BATools");
+            Directory.CreateDirectory(dir);
+            return Path.Combine(dir, $"installer.refreshed.{expected}");
+        }
+
+        private static void WriteRefreshMarker()
+        {
+            try
             {
-                // No dialog: this runs silently at startup. The manual "Check for Updates"
-                // ribbon command still surfaces a missing-asset problem explicitly.
-                return false;
+                File.WriteAllText(GetRefreshMarkerPath(GetExpectedInstallerVersion()), DateTime.UtcNow.ToString("o"));
             }
+            catch { }
+        }
 
-            var revitPid = Process.GetCurrentProcess().Id;
-            var revitVersion = uiapp.Application.VersionNumber; // "2026"
+        private static void TryDeleteOldInstallerFiles(string installerPath)
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(installerPath);
+                if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
+                    return;
 
-            var args = $"--waitandcheck --revit {revitVersion} --waitpid {revitPid}";
+                var name = Path.GetFileName(installerPath);
+                foreach (var f in Directory.GetFiles(dir, name + ".*.old"))
+                {
+                    try { File.Delete(f); } catch { /* still running, try next time */ }
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Called once from the first Idling event. Makes sure the installer exists, then starts
+        /// it in waiter mode: it does nothing visible until this Revit process exits, then
+        /// checks GitHub and opens its window only if a newer version exists.
+        /// revitVersion and revitPid must be read on the Revit UI thread by the caller.
+        /// </summary>
+        public static async Task<bool> LaunchWaitAndCheckAsync(string revitVersion, int revitPid)
+        {
+            var installerPath = GetInstallerPath();
+
+            var ready = await EnsureInstallerReadyAsync(installerPath).ConfigureAwait(false);
+            if (!ready)
+                return false;
 
             try
             {
                 var psi = new ProcessStartInfo
                 {
                     FileName = installerPath,
-                    Arguments = args,
+                    Arguments = $"--waitandcheck --revit {revitVersion} --waitpid {revitPid}",
                     UseShellExecute = true
                 };
                 Process.Start(psi);
@@ -108,41 +211,35 @@ namespace BA.Updates
         }
 
         /// <summary>
-        /// Not currently called by any automatic path. Kept for a possible future manual
-        /// "Update now" action from the ribbon dialog, or for direct testing.
+        /// Opens the installer window from the ribbon button. An existing installer is launched
+        /// immediately even if outdated, so the click never waits on a large download. Only a
+        /// missing installer is downloaded here, which blocks Revit until it finishes.
         /// </summary>
-        public static bool LaunchUpdate(UpdateCheckResult r, bool silent)
+        public static bool TryLaunchRibbonWindow(string revitVersion, out string? error)
         {
-            var addinAsm = typeof(InstallerLauncher).Assembly;
-            var addinDir = Path.GetDirectoryName(addinAsm.Location) ?? "";
-            var installerPath = Path.Combine(addinDir, UpdateConfig.InstallerExeName);
-
-            if (!File.Exists(installerPath))
-            {
-                TaskDialog.Show("BA Tools Update",
-                    $"Installer EXE not found:\n{installerPath}\n\n" +
-                    $"Fix: ensure {UpdateConfig.InstallerExeName} is deployed next to BA.dll.");
-                return false;
-            }
-
-            var revitPid = Process.GetCurrentProcess().Id;
-            var revitVersion = r.RevitVersion ?? "2026";
-
-            var args =
-                $"--mode update " +
-                $"--revit {revitVersion} " +
-                $"--tag \"{r.Tag}\" " +
-                $"--asset \"{r.AssetName}\" " +
-                $"--assetUrl \"{r.AssetUrl}\" " +
-                $"--waitPid {revitPid} " +
-                (silent ? "--silent" : "");
+            error = null;
+            var installerPath = GetInstallerPath();
 
             try
             {
+                if (!File.Exists(installerPath))
+                {
+                    var ready = Task.Run(() => EnsureInstallerReadyAsync(installerPath)).GetAwaiter().GetResult();
+                    if (!ready)
+                    {
+                        error = "The BA Tools installer is missing and could not be downloaded.\n\n" +
+                                $"Make sure the latest GitHub release contains {UpdateConfig.InstallerExeName} " +
+                                "and that this computer can reach GitHub.";
+                        return false;
+                    }
+                }
+
+                var revitPid = Process.GetCurrentProcess().Id;
+
                 var psi = new ProcessStartInfo
                 {
                     FileName = installerPath,
-                    Arguments = args,
+                    Arguments = $"--ribbon --revit {revitVersion} --revitpid {revitPid}",
                     UseShellExecute = true
                 };
                 Process.Start(psi);
@@ -150,7 +247,8 @@ namespace BA.Updates
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("BA Tools Update", "Failed to start installer:\n" + ex.Message);
+                AppLogger.LogError("TryLaunchRibbonWindow", ex);
+                error = "Failed to start the installer:\n" + ex.Message;
                 return false;
             }
         }

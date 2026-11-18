@@ -5,7 +5,6 @@ using Autodesk.Revit.UI;
 using BA.BAApplication;
 using BA.Updates;
 using System;
-using System.Threading.Tasks;
 
 namespace BA.Commands.Management
 {
@@ -22,22 +21,27 @@ namespace BA.Commands.Management
         {
             try
             {
-                var result = Task.Run(() => UpdateService.ForceCheckAsync(uiapp))
-                    .GetAwaiter()
-                    .GetResult();
+                var revitVersion = uiapp.Application.VersionNumber;
 
-                // Back on the Revit UI thread here (GetResult() returned control to the
-                // caller, it did not hop threads), so TaskDialog / Revit API calls are safe.
-                // Passing the result explicitly, instead of relying on the cache, so a
-                // failed or throttled check can't accidentally show a stale prior result.
-                UpdateService.HandleForceCheckResult(result);
+                if (!InstallerLauncher.InstallerExists())
+                {
+                    TaskDialog.Show("BA Tools Updater",
+                        "The BA Tools installer is missing on this computer and will be downloaded now.\n\n" +
+                        "Revit may pause for a short moment. Click Close to continue.");
+                }
+
+                if (!InstallerLauncher.TryLaunchRibbonWindow(revitVersion, out var error))
+                {
+                    TaskDialog.Show("BA Tools Updater", error ?? "The installer could not be started.");
+                    return Result.Failed;
+                }
+
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
-                message = ex.Message;
                 AppLogger.LogError("Cmd_CheckForUpdates.Run", ex);
-                TaskDialog.Show("BA Tools Update", "Update check failed:\n" + ex.Message);
+                TaskDialog.Show("BA Tools Updater", "Unexpected error:\n" + ex.Message);
                 return Result.Failed;
             }
         }

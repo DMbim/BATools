@@ -10,6 +10,19 @@ namespace BATools_Installer
         Uninstall
     }
 
+    /// <summary>How this installer process was started. Decides which buttons the window shows.</summary>
+    public enum LaunchSource
+    {
+        /// <summary>Opened by double clicking the exe. Year picker visible, Install allowed.</summary>
+        Direct,
+
+        /// <summary>Opened from the Revit ribbon. Locked to that Revit year.</summary>
+        Ribbon,
+
+        /// <summary>Opened by the hidden waiter after Revit closed because a newer version exists.</summary>
+        AfterClose
+    }
+
     public sealed class InstallerArgs
     {
         public InstallerMode Mode { get; set; } = InstallerMode.Install;
@@ -20,23 +33,33 @@ namespace BATools_Installer
         // Example: BA_R26.zip
         public string AssetName { get; set; } = "BA_R26.zip";
 
-        // Optional: BA-side can pass direct asset URL to avoid "latest changed" issues
+        // Optional: direct asset URL, avoids "latest changed" issues.
         public string? AssetUrl { get; set; }
 
-        // Optional: the release tag (e.g. "v1.4.0"). Logging/diagnostics only.
+        // Optional: release tag such as "v1.6.8". For the AfterClose window it is the latest
+        // version the waiter already found, so the window does not call GitHub a second time.
         public string? Tag { get; set; }
 
-        // If > 0, installer waits for that process to exit (Revit PID)
+        // If > 0, wait for that process to exit before doing anything (legacy and waiter use).
         public int WaitPid { get; set; } = 0;
 
-        // Silent mode for "update after close" (legacy path, no longer triggered
-        // automatically, kept for manual/testing use)
+        // Revit process that opened the ribbon window. Always included when closing Revit.
+        public int RevitPid { get; set; } = 0;
+
+        // Legacy headless mode, still supported for scripts and older BA.dll versions.
         public bool Silent { get; set; } = false;
 
-        // Wait for WaitPid to exit, THEN do a live GitHub version check, and only open the
-        // window (running an Update) if the result is actually newer than what's installed.
-        // This is the sole automatic close time update mechanism.
+        // Hidden waiter: wait for WaitPid to exit, check GitHub, open a window only if newer.
         public bool WaitAndCheck { get; set; } = false;
+
+        public LaunchSource Source { get; set; } = LaunchSource.Direct;
+
+        // Set on the copy that was started from the temp folder. Prevents relaunch loops.
+        public bool Relaunched { get; set; } = false;
+
+        // True when --mode/--install/--update/--uninstall was given. A Direct launch with an
+        // explicit mode runs immediately (legacy behavior used by older BA.dll versions).
+        public bool HasExplicitMode { get; set; } = false;
 
         public static InstallerArgs Parse(string[] args)
         {
@@ -53,22 +76,25 @@ namespace BATools_Installer
                     case "--mode":
                         {
                             var m = Next().Trim().ToLowerInvariant();
-                            if (m == "install") a.Mode = InstallerMode.Install;
-                            else if (m == "update") a.Mode = InstallerMode.Update;
-                            else if (m == "uninstall") a.Mode = InstallerMode.Uninstall;
+                            if (m == "install") { a.Mode = InstallerMode.Install; a.HasExplicitMode = true; }
+                            else if (m == "update") { a.Mode = InstallerMode.Update; a.HasExplicitMode = true; }
+                            else if (m == "uninstall") { a.Mode = InstallerMode.Uninstall; a.HasExplicitMode = true; }
                             break;
                         }
 
                     case "--install":
                         a.Mode = InstallerMode.Install;
+                        a.HasExplicitMode = true;
                         break;
 
                     case "--update":
                         a.Mode = InstallerMode.Update;
+                        a.HasExplicitMode = true;
                         break;
 
                     case "--uninstall":
                         a.Mode = InstallerMode.Uninstall;
+                        a.HasExplicitMode = true;
                         break;
 
                     case "--revit":
@@ -107,12 +133,31 @@ namespace BATools_Installer
                             break;
                         }
 
+                    case "--revitpid":
+                        {
+                            var raw = Next();
+                            if (int.TryParse(raw, out var pid) && pid > 0) a.RevitPid = pid;
+                            break;
+                        }
+
                     case "--silent":
                         a.Silent = true;
                         break;
 
                     case "--waitandcheck":
                         a.WaitAndCheck = true;
+                        break;
+
+                    case "--ribbon":
+                        a.Source = LaunchSource.Ribbon;
+                        break;
+
+                    case "--afterclose":
+                        a.Source = LaunchSource.AfterClose;
+                        break;
+
+                    case "--relaunched":
+                        a.Relaunched = true;
                         break;
                 }
             }

@@ -2,8 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="BA – Plugin Settings"
-        Width="980" Height="650"
-        MinWidth="900" MinHeight="520"
+        Width="980" Height="720"
+        MinWidth="900" MinHeight="590"
         WindowStartupLocation="CenterOwner"
         Style="{DynamicResource BaWindow}">
 
@@ -58,6 +58,7 @@
 
     <Grid Margin="{StaticResource Thickness.WindowMargin}">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -141,8 +142,45 @@
             </StackPanel>
         </Border>
 
+        <!-- Autosave interval. The on/off switch is the "Autosave" row in the
+             Documents group of the grid below, so Enable All / Disable All /
+             Reset Defaults cover it like every other toggle. -->
+        <Border Grid.Row="2" Margin="0,0,0,10" Padding="10"
+                Background="{StaticResource Brush.ControlBg}"
+                BorderBrush="{StaticResource Brush.ControlBorder}"
+                BorderThickness="1"
+                CornerRadius="4">
+            <StackPanel>
+                <TextBlock Text="Autosave Interval"
+                           Style="{StaticResource BaLabelText}"
+                           Margin="0,0,0,6"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0"
+                             x:Name="TxtAutoSaveInterval"
+                             Style="{StaticResource BaDarkTextBox}"
+                             TextChanged="TxtAutoSaveInterval_TextChanged"/>
+                    <TextBlock Grid.Column="1"
+                               Style="{StaticResource BaLabelText}"
+                               Opacity="0.75"
+                               Margin="8,0,0,0"
+                               VerticalAlignment="Center"
+                               TextWrapping="Wrap"
+                               Text="Minutes since the last save of each document (5 to 480). Turn autosave on or off with the Autosave row in the Documents group below."/>
+                </Grid>
+                <TextBlock x:Name="TxtAutoSaveWarning"
+                           Margin="0,6,0,0"
+                           Foreground="#FFC966"
+                           TextWrapping="Wrap"
+                           Visibility="Collapsed"/>
+            </StackPanel>
+        </Border>
+
         <!-- Data -->
-        <DataGrid Grid.Row="2"
+        <DataGrid Grid.Row="3"
                   x:Name="GridToggles"
                   Style="{StaticResource BaDataGrid}"
                   IsReadOnly="False"
@@ -167,7 +205,7 @@
         </DataGrid>
 
         <!-- Bottom -->
-        <Grid Grid.Row="3" Margin="0,10,0,0">
+        <Grid Grid.Row="4" Margin="0,10,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>

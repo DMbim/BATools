@@ -62,6 +62,25 @@ namespace BA.App.Settings
                         getter: () => QuickToolbarGate.Enabled,
                         setter: v => QuickToolbarGate.Enabled = v
                     ),
+                    // NEW: shared parameter editing guard (Revit Leaders only)
+                    new ToggleBinding(
+                        key: SharedParameterCreationGuard.SettingsKeyEnabled,
+                        group: "Guards",
+                        name: "Restrict shared parameter editing",
+                        description: "Blocks the Edit Shared Parameters dialog for anyone who is not a registered Revit Leader. When off, nobody is blocked and each skipped attempt is logged.",
+                        defaultValue: SharedParameterCreationGuard.DefaultEnabled,
+                        getter: () => SharedParameterCreationGuard.Enabled,
+                        setter: v => SharedParameterCreationGuard.Enabled = v
+                    ),
+                    new ToggleBinding(
+                        key: AutoSaveGate.SettingsKeyEnabled,
+                        group: "Documents",
+                        name: "Autosave",
+                        description: "Silently saves every open project once the autosave interval has passed since its last save. Workshared models save the local file only, never sync. Families, links, read only files and central files opened directly are skipped.",
+                        defaultValue: AutoSaveGate.DefaultEnabled,
+                        getter: () => AutoSaveGate.Enabled,
+                        setter: v => AutoSaveGate.Enabled = v
+                    ),
                 };
                 return _cache;
             }

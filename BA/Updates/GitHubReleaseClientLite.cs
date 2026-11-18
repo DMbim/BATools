@@ -52,21 +52,17 @@ namespace BA.Updates
         }
 
         /// <summary>
-        /// Downloads a release asset (e.g. BATools-Installer.exe) directly to disk. Used for
-        /// self-heal: this runs inside BA.dll itself (the Revit process), so it has no
-        /// dependency on the installer exe already existing — that is exactly what makes it
-        /// able to fix a machine where the installer exe is missing.
-        /// Writes to a ".download" temp file first, then moves it into place, so an
-        /// interrupted download never leaves a half-written exe at the final path.
+        /// Downloads a release asset directly to disk. Writes to a temporary file first and moves
+        /// it into place, so an interrupted download never leaves a half written file at the
+        /// final path. The installer is a self contained exe and can be over 100 MB, so the
+        /// timeout is generous.
         /// </summary>
         public static async Task DownloadAssetToFileAsync(string url, string destinationPath, CancellationToken ct)
         {
             try { ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12; } catch { }
 
             using var http = new HttpClient();
-            // The exe is bigger than a JSON response; give it more room than the normal
-            // metadata-check timeout.
-            http.Timeout = TimeSpan.FromSeconds(Math.Max(UpdateConfig.HttpTimeoutSeconds, 60));
+            http.Timeout = TimeSpan.FromMinutes(10);
             http.DefaultRequestHeaders.UserAgent.ParseAdd("BA-BATools-Updater/1.0");
 
             var token = Environment.GetEnvironmentVariable(UpdateConfig.GitHubTokenEnvVar);

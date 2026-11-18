@@ -11,16 +11,16 @@ using BA.Core.Export.Infrastructure;
 using BA.Core.Overhead;
 using BA.Markup.Commands;
 using BA.QA.FamilyVersioning.Hook;
+using BA.SelectionManager.Infrastructure;
 using BA.Telemetry.Infrastructure;
 using BA.Telemetry.Services;
-using BA.SelectionManager.Infrastructure;
 using Nice3point.Revit.Toolkit.External;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using App = Autodesk.Revit.UI.UIApplication;
 using ExternalEvent = Autodesk.Revit.UI.ExternalEvent;
 using TaskDialog = Autodesk.Revit.UI.TaskDialog;
-using App = Autodesk.Revit.UI.UIApplication;
 #if REVIT2025
 using Nice3point.Revit.Extensions.UI;
 #endif
@@ -83,6 +83,18 @@ namespace BA.BAApplication
                 OverheadToggleController.Initialize(Application);
                 SelectionManagerActivator.Instance.Initialize(Application);
                 BA_DimensionModule.Initialize();          // <- NEW
+
+                // Autosave: isolated so a failure here never blocks ribbon creation.
+                // Must run after ApplySavedSettingsToRuntime so the saved on/off
+                // state and interval are already in AutoSaveGate.
+                try
+                {
+                    BA.BAApplication.AutoSave.AutoSaveService.Register(Application);
+                }
+                catch (Exception autoSaveEx)
+                {
+                    AppLogger.LogError("OnStartup: AutoSaveService.Register", autoSaveEx);
+                }
 
                 _exportScheduler = new BA.Core.Export.Infrastructure.ExportScheduler();
                 Application.Idling += _exportScheduler.OnIdling;
@@ -259,6 +271,8 @@ namespace BA.BAApplication
 
             try
             {
+                BA.BAApplication.AutoSave.AutoSaveService.Unregister();
+
                 BA.BIM.Core.Dimensioning.Infrastructure.BA_DimensionModule.Shutdown();
                 _commandInterceptor?.Dispose();
                 _telemetryService?.Dispose();

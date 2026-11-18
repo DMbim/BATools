@@ -7,36 +7,45 @@ using System.Threading.Tasks;
 
 namespace BATools_Installer
 {
+    /// <summary>Thrown when Revit could not be closed. The window offers a force close for this case.</summary>
+    internal sealed class RevitStillRunningException : InvalidOperationException
+    {
+        public RevitStillRunningException(string message) : base(message) { }
+    }
+
     internal static class InstallerRunner
     {
-        public static async Task RunAsync(InstallerArgs args, Action<string> log)
+        private static readonly TimeSpan RevitCloseTimeout = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan InstallLockTimeout = TimeSpan.FromMinutes(5);
+
+        /// <summary>
+        /// Runs an install, update or uninstall. Order: optional legacy wait, install lock,
+        /// ask Revit of this year to close, then the actual work.
+        /// ct only interrupts the wait for Revit and the lock, never the file operations.
+        /// waitingForRevit tells the window when to show its Cancel button.
+        /// </summary>
+        public static async Task RunAsync(
+            InstallerArgs args,
+            Action<string> log,
+            CancellationToken ct = default,
+            Action<bool>? waitingForRevit = null)
         {
-            log($"Mode: {args.Mode}, Revit: {args.RevitYear}, Asset: {args.AssetName}, Tag: {args.Tag ?? "(none)"}, WaitPid: {args.WaitPid}, Silent: {args.Silent}");
+            log($"Mode: {args.Mode}, Revit: {args.RevitYear}, Source: {args.Source}, Asset: {args.AssetName}, " +
+                $"Tag: {args.Tag ?? "(none)"}, WaitPid: {args.WaitPid}, RevitPid: {args.RevitPid}, Silent: {args.Silent}");
 
             if (args.WaitPid > 0)
-            {
-                await WaitForProcessExit(args.WaitPid, log).ConfigureAwait(false);
-            }
+                await WaitForProcessExit(args.WaitPid, log, ct).ConfigureAwait(false);
 
-            if (args.Mode == InstallerMode.Install || args.Mode == InstallerMode.Update)
-            {
-                if (RevitProcessGuard.IsRevitRunning())
-                {
-                    log("Revit is still running after wait. Requesting close...");
-                    bool closed = await RevitProcessGuard
-                        .RequestCloseAndWaitAsync(timeoutMs: 30_000, log)
-                        .ConfigureAwait(false);
+            // Take the lock BEFORE closing Revit, so the hidden waiter sees that an installer is
+            // active when Revit exits and does not open a second window.
+            using var installLock = await InstallLock
+                .AcquireAsync("install", args.RevitYear, InstallLockTimeout, log, ct)
+                .ConfigureAwait(false)
+                ?? throw new InvalidOperationException(
+                    $"Another BA Tools installer is already working on Revit {args.RevitYear}. " +
+                    "Please wait for it to finish and try again.");
 
-                    if (!closed)
-                    {
-                        throw new InvalidOperationException(
-                            "Revit is still running and could not be closed automatically.\n\n" +
-                            "Please save your work and close all Revit windows, then run the update again.\n\n" +
-                            "If you want to force-close all Revit instances, click OK on this message — " +
-                            "any unsaved work in Revit will be lost.");
-                    }
-                }
-            }
+            await EnsureRevitClosedAsync(args, log, ct, waitingForRevit).ConfigureAwait(false);
 
             switch (args.Mode)
             {
@@ -50,39 +59,53 @@ namespace BATools_Installer
 
                 case InstallerMode.Uninstall:
                     log("Uninstalling...");
-                    RevitInstallPaths.Uninstall(args.RevitYear);
+                    await UninstallWithRetryAsync(args.RevitYear, log).ConfigureAwait(false);
                     log("Uninstall complete.");
                     break;
             }
         }
 
-        private static async Task InstallOrUpdate(
-                 InstallerArgs args, bool isUpdate, Action<string> log)
+        private static async Task EnsureRevitClosedAsync(
+            InstallerArgs args, Action<string> log, CancellationToken ct, Action<bool>? waitingForRevit)
         {
-            // Guards against two installer processes (e.g. from two simultaneous Revit
-            // sessions on the same machine) writing to the same install directory at once.
-            // Scoped per Revit year so 2025 and 2026 updates never block each other.
-            using var mutex = new Mutex(false, $"Global\\BA_BATools_Install_{args.RevitYear}");
+            if (!RevitProcessGuard.IsRevitRunning(args.RevitYear, args.RevitPid))
+                return;
 
-            bool acquired = false;
+            waitingForRevit?.Invoke(true);
             try
             {
-                acquired = mutex.WaitOne(TimeSpan.FromMinutes(5));
-                if (!acquired)
-                {
-                    log("WARN: Another installer instance is already updating this Revit year. Skipping.");
-                    return;
-                }
+                var closed = await RevitProcessGuard
+                    .RequestCloseAndWaitAsync(args.RevitYear, args.RevitPid,
+                        (int)RevitCloseTimeout.TotalMilliseconds, log, ct)
+                    .ConfigureAwait(false);
 
+                if (!closed)
+                {
+                    throw new RevitStillRunningException(
+                        $"Revit {args.RevitYear} is still running and could not be closed automatically.");
+                }
+            }
+            finally
+            {
+                waitingForRevit?.Invoke(false);
+            }
+        }
+
+        private static async Task InstallOrUpdate(InstallerArgs args, bool isUpdate, Action<string> log)
+        {
+            string? payloadZip = null;
+            string? extractedDir = null;
+
+            try
+            {
                 var installDir = RevitInstallPaths.GetInstallDir(args.RevitYear);
                 var manifestPath = RevitInstallPaths.GetManifestPath(args.RevitYear);
 
                 log(isUpdate ? "Updating..." : "Installing...");
 
-                // ── Download ──────────────────────────────────────────────────────
+                // Download
                 var client = new GitHubReleaseClient(InstallerConfig.RepoOwner, InstallerConfig.RepoName);
 
-                string payloadZip;
                 if (!string.IsNullOrWhiteSpace(args.AssetUrl))
                 {
                     log($"Using pinned asset URL: {args.AssetUrl}");
@@ -92,17 +115,17 @@ namespace BATools_Installer
                 }
                 else
                 {
-                    log("No asset URL provided. Resolving latest release asset by name.");
+                    log("Resolving the latest release asset by name.");
                     payloadZip = await client
                         .DownloadLatestAssetToTempAsync(args.AssetName)
                         .ConfigureAwait(false);
                 }
 
-                var extractedDir = ZipPayload.ExtractToTempFolder(payloadZip);
+                extractedDir = ZipPayload.ExtractToTempFolder(payloadZip);
 
                 Directory.CreateDirectory(installDir);
 
-                // ── Backup ────────────────────────────────────────────────────────
+                // Backup
                 if (isUpdate && Directory.Exists(installDir))
                 {
                     var backupDir = installDir + "_backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss");
@@ -110,10 +133,20 @@ namespace BATools_Installer
                     FileCopy.CopyDirectory(installDir, backupDir, overwrite: true);
                 }
 
-                // ── Copy new files ────────────────────────────────────────────────
+                // If this process is somehow running from the install folder itself (the temp
+                // relaunch failed), the installer exe in the zip, if any, cannot be overwritten.
+                var extractedInstaller = Path.Combine(extractedDir, InstallerConfig.InstalledInstallerExeName);
+                var targetInstaller = Path.Combine(installDir, InstallerConfig.InstalledInstallerExeName);
+                if (File.Exists(extractedInstaller) && IsSameFile(Environment.ProcessPath, targetInstaller))
+                {
+                    File.Delete(extractedInstaller);
+                    log("Skipped the installer exe from the package because it is the file currently running.");
+                }
+
+                // Copy new files
                 FileCopy.CopyDirectory(extractedDir, installDir, overwrite: true);
 
-                TryCopySelfToInstallDir(installDir, log);
+                await TryCopySelfToInstallDirAsync(installDir, log).ConfigureAwait(false);
 
                 ManifestWriter.WriteApplicationAddinManifest(
                     manifestPath,
@@ -122,8 +155,7 @@ namespace BATools_Installer
                     addinIdGuid: InstallerConfig.AddinIdGuid,
                     name: InstallerConfig.AddinName,
                     vendorId: InstallerConfig.VendorId,
-                    vendorDescription: "Bogle Architects - BA Tools"
-                );
+                    vendorDescription: "Bogle Architects - BA Tools");
 
                 IssueReporterSettingsInstaller.InstallOrUpdate(log);
                 ContentBrowserSettingsInstaller.InstallOrUpdate(log);
@@ -132,43 +164,106 @@ namespace BATools_Installer
             }
             finally
             {
-                if (acquired)
+                TryDeleteFile(payloadZip);
+                TryDeleteDirectory(extractedDir);
+            }
+        }
+
+        private static async Task UninstallWithRetryAsync(int revitYear, Action<string> log)
+        {
+            for (var attempt = 1; ; attempt++)
+            {
+                try
                 {
-                    try { mutex.ReleaseMutex(); } catch { }
+                    RevitInstallPaths.Uninstall(revitYear);
+                    return;
+                }
+                catch (Exception ex) when ((ex is IOException || ex is UnauthorizedAccessException) && attempt < 6)
+                {
+                    // A hidden waiter from the Revit session that just closed may still hold the
+                    // installer exe for a moment.
+                    log($"Files are still in use ({ex.Message}). Retrying...");
+                    await Task.Delay(1000).ConfigureAwait(false);
                 }
             }
         }
 
-        private static void TryCopySelfToInstallDir(string installDir, Action<string> log)
+        private static async Task TryCopySelfToInstallDirAsync(string installDir, Action<string> log)
         {
-            try
-            {
-                var self = Process.GetCurrentProcess().MainModule?.FileName;
-                if (string.IsNullOrWhiteSpace(self) || !File.Exists(self)) return;
+            var self = Environment.ProcessPath;
+            if (string.IsNullOrWhiteSpace(self) || !File.Exists(self))
+                return;
 
-                var dst = Path.Combine(installDir, InstallerConfig.InstalledInstallerExeName);
-                File.Copy(self, dst, overwrite: true);
-                log($"Installer copied to: {dst}");
-            }
-            catch (Exception ex)
+            var dst = Path.Combine(installDir, InstallerConfig.InstalledInstallerExeName);
+
+            if (IsSameFile(self, dst))
             {
-                log("WARN: Failed to copy installer into install dir: " + ex.Message);
+                log("Installer is already running from the install folder. Nothing to copy.");
+                return;
+            }
+
+            for (var attempt = 1; attempt <= 3; attempt++)
+            {
+                try
+                {
+                    File.Copy(self, dst, overwrite: true);
+                    log($"Installer copied to: {dst}");
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    if (attempt == 3)
+                    {
+                        log("WARN: Failed to copy installer into install dir: " + ex.Message);
+                        return;
+                    }
+
+                    await Task.Delay(1000).ConfigureAwait(false);
+                }
             }
         }
 
-        private static async Task WaitForProcessExit(int pid, Action<string> log)
+        private static async Task WaitForProcessExit(int pid, Action<string> log, CancellationToken ct)
         {
+            Process p;
             try
             {
-                var p = Process.GetProcessById(pid);
-                log($"Waiting for process {pid} to exit...");
-                await Task.Run(() => p.WaitForExit()).ConfigureAwait(false);
-                log("Process exited. Continuing...");
+                p = Process.GetProcessById(pid);
             }
-            catch
+            catch (ArgumentException)
             {
                 log($"WaitPid {pid}: process not found (already exited). Continuing...");
+                return;
             }
+
+            try
+            {
+                log($"Waiting for process {pid} to exit...");
+                await p.WaitForExitAsync(ct).ConfigureAwait(false);
+                log("Process exited. Continuing...");
+            }
+            catch (InvalidOperationException)
+            {
+                log($"WaitPid {pid}: process already gone. Continuing...");
+            }
+        }
+
+        private static bool IsSameFile(string? a, string? b)
+        {
+            if (string.IsNullOrWhiteSpace(a) || string.IsNullOrWhiteSpace(b))
+                return false;
+
+            return string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void TryDeleteFile(string? path)
+        {
+            try { if (!string.IsNullOrWhiteSpace(path) && File.Exists(path)) File.Delete(path); } catch { }
+        }
+
+        private static void TryDeleteDirectory(string? path)
+        {
+            try { if (!string.IsNullOrWhiteSpace(path) && Directory.Exists(path)) Directory.Delete(path, recursive: true); } catch { }
         }
     }
 }

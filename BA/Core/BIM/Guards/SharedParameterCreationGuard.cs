@@ -16,10 +16,19 @@ namespace BA.App.Guards
     /// Manage, Project Parameters, Family Types and schedule fields, so a single
     /// command binding would miss most paths). The dialog is dismissed with
     /// OverrideResult, and the explanation window is shown later from Idling.
-    /// The guard is always on and fails closed.
+    /// The guard fails closed when enabled. It stays subscribed and exits early
+    /// when the Enabled flag is off, and skipped attempts are still logged.
     /// </summary>
     public static class SharedParameterCreationGuard
     {
+        // NEW: settings key and default, used by PluginToggleRegistry.
+        public const string SettingsKeyEnabled = "Guards.SharedParameterCreation.Enabled";
+        public const bool DefaultEnabled = true;
+
+        // NEW: runtime switch. Set by PluginSettingsBootstrap at startup and by the
+        // settings window. All access is on the Revit UI thread.
+        public static bool Enabled { get; set; } = DefaultEnabled;
+
         private const string BlockedDialogId = "Dialog_Revit_ExternalParamEdit";
         private const int DialogResultCancel = 2;
 
@@ -107,6 +116,13 @@ namespace BA.App.Guards
 
                 UIApplication? uiapp = (sender as UIApplication) ?? _cachedUiApp;
                 string username = ReadAutodeskUsername(uiapp);
+
+                // NEW: early exit when the toggle is off. No registry read, no override.
+                if (!Enabled)
+                {
+                    LogAttempt(uiapp, username, "Skipped", "GuardDisabled");
+                    return;
+                }
 
                 Decision decision = Evaluate(username);
 

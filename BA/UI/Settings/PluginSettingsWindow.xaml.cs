@@ -4,6 +4,7 @@ using BA.Core.Settings;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 
@@ -50,6 +51,12 @@ namespace BA.UI.Settings
             // this settings.json has never had this key written to it.
             TxtWip2Path.Text = _settings.GetString(SharedParamPaths.SettingsKeyWip2Path, SharedParamPaths.DefaultWip2);
             RefreshWip2Warning();
+
+            // Autosave interval, defaults to 60 minutes if never written.
+            int autoSaveMinutes = AutoSaveGate.FromStoredValue(
+                _settings.GetDouble(AutoSaveGate.SettingsKeyIntervalMinutes, AutoSaveGate.DefaultIntervalMinutes));
+            TxtAutoSaveInterval.Text = autoSaveMinutes.ToString(CultureInfo.InvariantCulture);
+            RefreshAutoSaveWarning();
 
             RefreshLeadersButton();
         }
@@ -121,6 +128,7 @@ namespace BA.UI.Settings
                 r.Value = r.DefaultValue;
 
             TxtWip2Path.Text = SharedParamPaths.DefaultWip2;
+            TxtAutoSaveInterval.Text = AutoSaveGate.DefaultIntervalMinutes.ToString(CultureInfo.InvariantCulture);
         }
 
         private void BtnApply_Click(object sender, RoutedEventArgs e)
@@ -148,10 +156,17 @@ namespace BA.UI.Settings
 
             SharedParamPaths.SetWip2Path(wip2Path);
 
+            // Invalid text keeps the current runtime value, out of range text is
+            // clamped. Either way the box is normalised to what was applied.
+            AutoSaveGate.TryParseMinutes(TxtAutoSaveInterval.Text, out int autoSaveMinutes, out _);
+            AutoSaveGate.IntervalMinutes = autoSaveMinutes;
+            TxtAutoSaveInterval.Text = AutoSaveGate.IntervalMinutes.ToString(CultureInfo.InvariantCulture);
+
             foreach (var r in Rows)
                 _settings.SetBool(r.Key, r.Value);
 
             _settings.SetString(SharedParamPaths.SettingsKeyWip2Path, wip2Path);
+            _settings.SetDouble(AutoSaveGate.SettingsKeyIntervalMinutes, AutoSaveGate.IntervalMinutes);
 
             if (saveToDisk)
                 PluginSettingsStore.Save(_settings, _path);
@@ -202,6 +217,29 @@ namespace BA.UI.Settings
             if (dlg.ShowDialog(this) == true)
             {
                 TxtWip2Path.Text = dlg.FileName;
+            }
+        }
+
+        // ---------------- Autosave ----------------
+
+        private void TxtAutoSaveInterval_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            RefreshAutoSaveWarning();
+        }
+
+        private void RefreshAutoSaveWarning()
+        {
+            if (TxtAutoSaveWarning == null || TxtAutoSaveInterval == null) return;
+
+            if (AutoSaveGate.TryParseMinutes(TxtAutoSaveInterval.Text, out _, out var warning))
+            {
+                TxtAutoSaveWarning.Text = "";
+                TxtAutoSaveWarning.Visibility = System.Windows.Visibility.Collapsed;
+            }
+            else
+            {
+                TxtAutoSaveWarning.Text = warning;
+                TxtAutoSaveWarning.Visibility = System.Windows.Visibility.Visible;
             }
         }
 
